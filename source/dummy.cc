@@ -1,0 +1,8 @@
+#include "mfmg/dummy.hh"
+#include <deal.II/grid/grid_generator.h>
+
+void generate_mesh(dealii::Triangulation<2> &tria)
+{
+  dealii::GridGenerator::hyper_cube(tria);
+  tria.refine_global(1);
+}
