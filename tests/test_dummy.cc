@@ -7,12 +7,17 @@
  * top-level directory                                                   *
  *************************************************************************/
 
-#include <deal.II/grid/tria.h>
+#define BOOST_TEST_MODULE dummy
 
-class Dummy
+#include "main.cc"
+
+#include "mfmg/dummy.hh"
+
+BOOST_AUTO_TEST_CASE(hyper_cube)
 {
-  public:
-    Dummy() = default;
+  Dummy dummy;
+  dealii::Triangulation<2> tria;
+  dummy.generate_mesh(tria);
 
-    void generate_mesh(dealii::Triangulation<2> &tria);
-};
+  BOOST_TEST(tria.n_active_cells() == 4);
+}

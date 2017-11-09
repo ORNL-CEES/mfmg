@@ -7,12 +7,19 @@
  * top-level directory                                                   *
  *************************************************************************/
 
-#include <deal.II/grid/tria.h>
+#define BOOST_TEST_NO_MAIN
+#include <deal.II/base/mpi.h>
+#include <boost/test/unit_test.hpp>
 
-class Dummy
+bool init_function() 
 {
-  public:
-    Dummy() = default;
+  return true;
+}
 
-    void generate_mesh(dealii::Triangulation<2> &tria);
-};
+int main(int argc, char *argv[])
+{
+  dealii::Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 
+       dealii::numbers::invalid_unsigned_int);
+
+  return boost::unit_test::unit_test_main(&init_function, argc, argv);
+}
