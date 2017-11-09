@@ -11,14 +11,14 @@
 #include <deal.II/base/mpi.h>
 #include <boost/test/unit_test.hpp>
 
-bool init_function() 
+bool init_function()
 {
   return true;
 }
 
 int main(int argc, char *argv[])
 {
-  dealii::Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv, 
+  dealii::Utilities::MPI::MPI_InitFinalize mpi_init(argc, argv,
        dealii::numbers::invalid_unsigned_int);
 
   return boost::unit_test::unit_test_main(&init_function, argc, argv);

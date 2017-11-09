@@ -11,8 +11,8 @@
 
 class Dummy
 {
-  public:
-    Dummy() = default;
+public:
+  Dummy() = default;
 
-    void generate_mesh(dealii::Triangulation<2> &tria);
+  void generate_mesh(dealii::Triangulation<2> &tria);
 };

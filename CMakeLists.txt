@@ -13,15 +13,14 @@ ENDIF()
 ENABLE_TESTING()
 INCLUDE(CTest)
 
-IF (${MFMG_ENABLE_TESTS})
+IF(${MFMG_ENABLE_TESTS})
   ADD_SUBDIRECTORY(tests)
 ENDIf()
 
-# Provide "indent" target for indenting all the header and the source files.
-ADD_CUSTOM_TARGET(indent
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  COMMAND ./indent
-  )
+# Check code style using clang-format
+IF(${MFMG_ENABLE_ClangFormat})
+  INCLUDE(CodeFormat)
+ENDIF()
 
 IF(${MFMG_ENABLE_DOCUMENTATION})
   ADD_SUBDIRECTORY(doc)
@@ -47,7 +46,7 @@ SET_TARGET_PROPERTIES(mfmg PROPERTIES
   )
 
 # Install the library
-INSTALL(TARGETS mfmg 
+INSTALL(TARGETS mfmg
   ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 # Install the header files

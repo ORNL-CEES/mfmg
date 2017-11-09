@@ -44,26 +44,29 @@ ENDIF()
 
 # Do not bother continuing if not able to fetch diff-clang-format.py
 IF(NOT skip)
+  FIND_PACKAGE(PythonInterp REQUIRED)
+
   # Download docopt command line argument parser
   FILE(DOWNLOAD
     https://raw.githubusercontent.com/docopt/docopt/0.6.2/docopt.py
     ${CMAKE_BINARY_DIR}/docopt.py
     )
   # Add a custom target that applies the C++ code formatting style to the source
-  ADD_CUSTOM_TARGET(indent
+  ADD_CUSTOM_TARGET(format
     ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/diff-clang-format.py
     --file-extension='.hh'
     --file-extension='.cc'
     --binary=${CLANG_FORMAT_EXECUTABLE}
     --style=file
-    --config=${${PACKAGE_NAME}_SOURCE_DIR}/.clang-format
+    --config=${CMAKE_SOURCE_DIR}/.clang-format
     --apply-patch
-    ${${PACKAGE_NAME}_SOURCE_DIR}/packages
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/source
     )
 
   # Add a test that checks the code is formatted properly
   FILE(WRITE
-    ${${PACKAGE_NAME}_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/check_format.sh
+    ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/check_format.sh
     "#!/usr/bin/env bash\n"
     "\n"
     "${PYTHON_EXECUTABLE} "
@@ -71,13 +74,13 @@ IF(NOT skip)
     "--file-extension='.hh' --file-extension='.cc' "
     "--binary=${CLANG_FORMAT_EXECUTABLE} "
     "--style=file "
-    "--config=${${PACKAGE_NAME}_SOURCE_DIR}/.clang-format "
-    "${${PACKAGE_NAME}_SOURCE_DIR}/packages"
+    "--config=${CMAKE_SOURCE_DIR}/.clang-format "
+    "${CMAKE_SOURCE_DIR}/packages"
     )
   FILE(COPY
-    ${${PACKAGE_NAME}_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/check_format.sh
+    ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/check_format.sh
     DESTINATION
-    ${${PACKAGE_NAME}_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}
     FILE_PERMISSIONS
     OWNER_READ OWNER_WRITE OWNER_EXECUTE
     GROUP_READ GROUP_EXECUTE
@@ -85,6 +88,6 @@ IF(NOT skip)
     )
   ADD_TEST(
     NAME check_format
-    COMMAND ${${PACKAGE_NAME}_BINARY_DIR}/check_format.sh
+    COMMAND ${CMAKE_BINARY_DIR}/check_format.sh
     )
 ENDIF() # skip when download fails
