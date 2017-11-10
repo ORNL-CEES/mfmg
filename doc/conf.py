@@ -46,8 +46,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'mfmg'
-copyright = u'2017, Bruno Turcksin, Andrey Prokopenko'
-author = u'Bruno Turcksin, Andrey Prokopenko'
+copyright = u'2017, Wayne Joubert, Andrey Prokopenko, Bruno Turcksin'
+author = u'Wayne Joubert, Andrey Prokopenko, Bruno Turcksin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -142,7 +142,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'mfmg.tex', u'mfmg Documentation',
-     u'Bruno Turcksin, Andrey Prokopenko', 'manual'),
+     u'Wayne Joubert, Andrey Prokopenko, Bruno Turcksin', 'manual'),
 ]
 
 
