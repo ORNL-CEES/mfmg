@@ -14,7 +14,7 @@ make -j12
 ctest -j12 --no-compress-output -T Test
 
 # Code coverage
-lcov --capture --directory mfmg --output-file lcov.info
+make coverage
 curl -s https://codecov.io/bash -o codecov_bash_uploader
 chmod +x codecov_bash_uploader
 ./codecov_bash_uploader -Z -X gcov -f lcov.info
