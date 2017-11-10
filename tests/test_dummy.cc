@@ -11,7 +11,7 @@
 
 #include "main.cc"
 
-#include "mfmg/dummy.hh"
+#include "mfmg/dummy.hpp"
 
 BOOST_AUTO_TEST_CASE(hyper_cube)
 {

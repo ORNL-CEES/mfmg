@@ -54,7 +54,7 @@ IF(NOT skip)
   # Add a custom target that applies the C++ code formatting style to the source
   ADD_CUSTOM_TARGET(format
     ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/diff-clang-format.py
-    --file-extension='.hh'
+    --file-extension='.hpp'
     --file-extension='.cc'
     --binary=${CLANG_FORMAT_EXECUTABLE}
     --style=file
@@ -71,7 +71,7 @@ IF(NOT skip)
     "\n"
     "${PYTHON_EXECUTABLE} "
     "${CMAKE_BINARY_DIR}/diff-clang-format.py "
-    "--file-extension='.hh' --file-extension='.cc' "
+    "--file-extension='.hpp' --file-extension='.cc' "
     "--binary=${CLANG_FORMAT_EXECUTABLE} "
     "--style=file "
     "--config=${CMAKE_SOURCE_DIR}/.clang-format "

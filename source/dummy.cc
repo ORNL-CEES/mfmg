@@ -7,7 +7,7 @@
  * top-level directory                                                   *
  *************************************************************************/
 
-#include "mfmg/dummy.hh"
+#include "mfmg/dummy.hpp"
 #include <deal.II/grid/grid_generator.h>
 
 void Dummy::generate_mesh(dealii::Triangulation<2> &tria)
