@@ -163,12 +163,15 @@ RUN export P4EST_VERSION=1.1 && \
 ENV P4EST_DIR=${INSTALL_DIR}/p4est
 
 # Install deal.II
-RUN export DEAL_II_URL=https://github.com/dealii/dealii.git && \
+RUN export DEAL_II_HASH=7ac7850030de7a2027679099073f00f59a076ac4 && \
+    export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
+    export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
     export DEAL_II_BUILD_DIR=${BUILD_DIR}/dealii && \
     export DEAL_II_INSTALL_DIR=${INSTALL_DIR}/dealii && \
-    cd ${SOURCE_DIR} && \
-    git clone --depth=1 ${DEAL_II_URL} && \
+    wget --quiet ${DEAL_II_URL} --output-document=${DEAL_II_ARCHIVE} && \
+    mkdir -p ${DEAL_II_SOURCE_DIR} && \
+    tar -xf ${DEAL_II_ARCHIVE} -C ${DEAL_II_SOURCE_DIR} --strip-components=1 && \
     mkdir -p ${DEAL_II_BUILD_DIR} && cd ${DEAL_II_BUILD_DIR} && \
     cmake -DCMAKE_BUILD_TYPE=DebugRelease \
         -DDEAL_II_WITH_MPI=ON \
@@ -176,9 +179,10 @@ RUN export DEAL_II_URL=https://github.com/dealii/dealii.git && \
         -DP4EST_DIR=${P4EST_DIR} \
         -DDEAL_II_WITH_TRILINOS=ON \
         -DTRILINOS_DIR=${TRILINOS_DIR} \
-        -DMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
+        -DCMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
         ${DEAL_II_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
+    rm -rf ${DEAL_II_ARCHIVE} && \
     rm -rf ${DEAL_II_BUILD_DIR} && \
     rm -rf ${DEAL_II_SOURCE_DIR}
 ENV DEAL_II_DIR=${INSTALL_DIR}/dealii    
