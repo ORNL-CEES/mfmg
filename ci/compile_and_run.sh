@@ -10,6 +10,7 @@ cmake \
   -D MFMG_ENABLE_COVERAGE=ON \
   -D MFMG_ENABLE_DOCUMENTATION=OFF \
   -D DEAL_II_DIR=${DEAL_II_DIR} \
+  -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow" \
 ../
 make -j12
 ctest -j12 --no-compress-output -T Test
