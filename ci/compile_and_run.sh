@@ -9,6 +9,7 @@ cmake \
   -D MFMG_ENABLE_ClangFormat=ON \
   -D MFMG_ENABLE_COVERAGE=ON \
   -D MFMG_ENABLE_DOCUMENTATION=OFF \
+  -D DEAL_II_DIR=${DEAL_II_DIR} \
 ../
 make -j12
 ctest -j12 --no-compress-output -T Test
