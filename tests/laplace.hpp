@@ -40,15 +40,18 @@ public:
 
   void setup_system();
 
-  void assemble_system();
+  void assemble_system(dealii::Function<dim> const &source);
 
   template <typename PreconditionerType>
   VectorType solve(PreconditionerType &preconditioner);
 
+  double compute_error(dealii::Function<dim> const &exact_solution);
+
   void output_results() const;
 
   template <typename PreconditionerType>
-  void run(PreconditionerType &preconditioner);
+  void run(PreconditionerType &preconditioner,
+           dealii::Function<dim> const &source);
 
 private:
   boost::mpi::communicator _comm;
@@ -109,7 +112,8 @@ void Laplace<dim, VectorType>::setup_system()
 }
 
 template <int dim, typename VectorType>
-void Laplace<dim, VectorType>::assemble_system()
+void Laplace<dim, VectorType>::assemble_system(
+    dealii::Function<dim> const &source)
 {
   unsigned int const fe_degree = _fe.degree;
   dealii::QGauss<dim> const quadrature(fe_degree + 1);
@@ -134,7 +138,8 @@ void Laplace<dim, VectorType>::assemble_system()
 
     for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
     {
-      double const rhs_value = 1;
+      double const rhs_value =
+          source.value(fe_values.quadrature_point(q_point));
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
         for (unsigned int j = 0; j < dofs_per_cell; ++j)
@@ -177,6 +182,24 @@ VectorType Laplace<dim, VectorType>::solve(PreconditionerType &preconditioner)
 }
 
 template <int dim, typename VectorType>
+double Laplace<dim, VectorType>::compute_error(
+    dealii::Function<dim> const &exact_solution)
+{
+  unsigned int const fe_degree = _fe.degree;
+  dealii::QGauss<dim> const quadrature(fe_degree + 1);
+
+  dealii::Vector<double> difference(
+      _dof_handler.get_triangulation().n_active_cells());
+  dealii::VectorTools::integrate_difference(
+      _dof_handler, _locally_relevant_solution, exact_solution, difference,
+      quadrature, dealii::VectorTools::L2_norm);
+
+  return dealii::VectorTools::compute_global_error(
+      _dof_handler.get_triangulation(), difference,
+      dealii::VectorTools::L2_norm);
+}
+
+template <int dim, typename VectorType>
 void Laplace<dim, VectorType>::output_results() const
 {
   dealii::DataOut<dim> data_out;
@@ -207,10 +230,11 @@ void Laplace<dim, VectorType>::output_results() const
 
 template <int dim, typename VectorType>
 template <typename PreconditionerType>
-void Laplace<dim, VectorType>::run(PreconditionerType &preconditioner)
+void Laplace<dim, VectorType>::run(PreconditionerType &preconditioner,
+                                   dealii::Function<dim> const &source)
 {
   setup_system();
-  assemble_system();
+  assemble_system(source);
   solve(preconditioner);
   output_results();
 }

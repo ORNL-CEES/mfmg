@@ -13,24 +13,69 @@
 
 #include "laplace.hpp"
 #include "main.cc"
-#include <cstdio>
 #include <deal.II/lac/trilinos_precondition.h>
 
+#include <cstdio>
+
 namespace tt = boost::test_tools;
+
+template <int dim>
+class ExactSolution : public dealii::Function<dim>
+{
+public:
+  ExactSolution() = default;
+
+  double value(dealii::Point<dim> const &p,
+               unsigned int const component = 0) const override;
+};
+
+template <int dim>
+double ExactSolution<dim>::value(dealii::Point<dim> const &p,
+                                 unsigned int const) const
+{
+  double val = 1.;
+  for (unsigned int d = 0; d < dim; ++d)
+    val *= (p[d] - 1.) * p[d];
+
+  return val;
+}
+
+template <int dim>
+class Source : public dealii::Function<dim>
+{
+public:
+  Source() = default;
+
+  double value(dealii::Point<dim> const &p,
+               unsigned int const component = 0) const override;
+};
+
+template <int dim>
+double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
+{
+  double val = 0.;
+  for (unsigned int d = 0; d < dim; ++d)
+    val += -2. * p[d] * (p[d] - 1.);
+
+  return val;
+}
 
 BOOST_AUTO_TEST_CASE(laplace_2d)
 {
   boost::mpi::communicator world;
 
+  Source<2> source;
+
   Laplace<2, dealii::TrilinosWrappers::MPI::Vector> laplace(world, 2);
   laplace.setup_system();
-  laplace.assemble_system();
+  laplace.assemble_system(source);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
   dealii::TrilinosWrappers::MPI::Vector solution =
       laplace.solve(preconditioner);
 
-  double ref = 0.660145;
-  BOOST_TEST(solution.l2_norm() == ref, tt::tolerance(1.e-6));
+  // The exact solution is quadratique so the error should be zero.
+  ExactSolution<2> exact_solution;
+  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
 
   laplace.output_results();
   // Remove output file
