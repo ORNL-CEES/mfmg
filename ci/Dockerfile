@@ -93,10 +93,12 @@ RUN export BOOST_VERSION=1.65.1 && \
         --prefix=${BOOST_INSTALL_DIR} \
         && \
     echo "using mpi ;" >> project-config.jam && \
-    ./b2 install \
+    ./b2 \
+        --build-dir=${BOOST_BUILD_DIR} \
+        hardcode-dll-paths=true dll-path=${BOOST_INSTALL_DIR}/lib \
         link=shared \
         variant=release \
-        --build-dir=${BOOST_BUILD_DIR} \
+        install \
         && \
     rm -rf ${BOOST_ARCHIVE} && \
     rm -rf ${BOOST_BUILD_DIR} && \
