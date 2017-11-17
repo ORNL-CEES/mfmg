@@ -1,4 +1,5 @@
 SET(MFMG_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/amge.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/dummy.cc
   )
 
