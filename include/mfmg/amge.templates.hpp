@@ -12,12 +12,15 @@
 #include <mfmg/amge.hpp>
 
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/numerics/data_out.h>
+
+#include <fstream>
 
 namespace mfmg
 {
 template <int dim, typename VectorType>
-AMGe<dim, VectorType>::AMGe(dealii::DoFHandler<dim> &dof_handler)
-    : _dof_handler(dof_handler)
+AMGe<dim, VectorType>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler)
+    : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
@@ -83,6 +86,50 @@ void AMGe<dim, VectorType>::build_agglomerate(
 
       ++agglomerate;
     }
+  }
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::output(std::string const &filename)
+{
+  dealii::DataOut<dim> data_out;
+  data_out.attach_dof_handler(_dof_handler);
+
+  unsigned int const n_active_cells =
+      _dof_handler.get_triangulation().n_active_cells();
+  dealii::Vector<float> subdomain(n_active_cells);
+  for (unsigned int i = 0; i < n_active_cells; ++i)
+    subdomain(i) = _dof_handler.get_triangulation().locally_owned_subdomain();
+  data_out.add_data_vector(subdomain, "subdomain");
+
+  dealii::Vector<float> agglomerates(n_active_cells);
+  unsigned int n = 0;
+  for (auto cell : _dof_handler.active_cell_iterators())
+  {
+    if (cell->is_locally_owned())
+      agglomerates(n) = cell->user_index();
+    ++n;
+  }
+  data_out.add_data_vector(agglomerates, "agglomerates");
+
+  data_out.build_patches();
+
+  std::string full_filename =
+      filename +
+      std::to_string(
+          _dof_handler.get_triangulation().locally_owned_subdomain());
+  std::ofstream output((full_filename + ".vtu").c_str());
+  data_out.write_vtu(output);
+
+  if (dealii::Utilities::MPI::this_mpi_process(_comm) == 0)
+  {
+    unsigned int const comm_size =
+        dealii::Utilities::MPI::n_mpi_processes(_comm);
+    std::vector<std::string> full_filenames;
+    for (unsigned int i = 0; i < comm_size; ++i)
+      full_filenames.push_back(filename + std::to_string(i) + ".vtu");
+    std::ofstream master_output(filename + ".pvtu");
+    data_out.write_pvtu_record(master_output, full_filenames);
   }
 }
 }

@@ -16,12 +16,13 @@
 #include <mfmg/amge.hpp>
 
 #include <deal.II/distributed/tria.h>
+#include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/trilinos_vector.h>
 
-#include <boost/mpi.hpp>
 #include <array>
+#include <boost/mpi.hpp>
 
 BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
 {
@@ -35,7 +36,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  mfmg::AMGe<2, dealii::TrilinosWrappers::MPI::Vector> amge(dof_handler);
+  mfmg::AMGe<2, dealii::TrilinosWrappers::MPI::Vector> amge(world, dof_handler);
 
   std::array<unsigned int, 2> agglomerate_dim = {{2, 3}};
   amge.build_agglomerate(agglomerate_dim);

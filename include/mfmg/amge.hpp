@@ -9,9 +9,11 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#include <deal.II/base/mpi.h>
 #include <deal.II/dofs/dof_handler.h>
 
 #include <array>
+#include <string>
 
 namespace mfmg
 {
@@ -19,11 +21,14 @@ template <int dim, typename VectorType>
 class AMGe
 {
 public:
-  AMGe(dealii::DoFHandler<dim> &dof_handler);
+  AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler);
 
   void build_agglomerate(std::array<unsigned int, dim> const &agglomerate_dim);
 
+  void output(std::string const &filename);
+
 private:
+  MPI_Comm _comm;
   dealii::DoFHandler<dim> &_dof_handler;
 };
 }
