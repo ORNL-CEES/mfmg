@@ -11,6 +11,8 @@
 
 #include <deal.II/dofs/dof_handler.h>
 
+#include <array>
+
 namespace mfmg
 {
 template <int dim, typename VectorType>
@@ -18,6 +20,8 @@ class AMGe
 {
 public:
   AMGe(dealii::DoFHandler<dim> &dof_handler);
+
+  void build_agglomerate(std::array<unsigned int, dim> const &agglomerate_dim);
 
 private:
   dealii::DoFHandler<dim> &_dof_handler;
