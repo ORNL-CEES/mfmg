@@ -55,7 +55,14 @@ double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
 {
   double val = 0.;
   for (unsigned int d = 0; d < dim; ++d)
-    val += -2. * p[d] * (p[d] - 1.);
+  {
+    double tmp = 0.;
+    for (unsigned int i = 0; i < dim; ++i)
+      if (i != d)
+        tmp += p[i] * (p[i] - 1.);
+
+    val += -2. * tmp;
+  }
 
   return val;
 }
@@ -86,4 +93,22 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
       BOOST_TEST(
           std::remove(("solution-" + std::to_string(i) + ".vtu").c_str()) == 0);
   }
+}
+
+BOOST_AUTO_TEST_CASE(laplace_3d)
+{
+  boost::mpi::communicator world;
+
+  Source<3> source;
+
+  Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(world, 2);
+  laplace.setup_system();
+  laplace.assemble_system(source);
+  dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
+  dealii::TrilinosWrappers::MPI::Vector solution =
+      laplace.solve(preconditioner);
+
+  // The exact solution is quadratique so the error should be zero.
+  ExactSolution<3> exact_solution;
+  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
 }
