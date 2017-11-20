@@ -62,6 +62,7 @@ IF(NOT skip)
     --apply-patch
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/source
+    ${CMAKE_SOURCE_DIR}/tests
     )
 
   # Add a test that checks the code is formatted properly
@@ -75,7 +76,9 @@ IF(NOT skip)
     "--binary=${CLANG_FORMAT_EXECUTABLE} "
     "--style=file "
     "--config=${CMAKE_SOURCE_DIR}/.clang-format "
-    "${CMAKE_SOURCE_DIR}/packages"
+    "${CMAKE_SOURCE_DIR}/include "
+    "${CMAKE_SOURCE_DIR}/source "
+    "${CMAKE_SOURCE_DIR}/tests "
     )
   FILE(COPY
     ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/check_format.sh
