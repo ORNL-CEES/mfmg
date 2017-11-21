@@ -12,6 +12,7 @@
 #include <mfmg/amge.hpp>
 
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
 
 #include <fstream>
@@ -87,6 +88,24 @@ void AMGe<dim, VectorType>::build_agglomerates(
       ++agglomerate;
     }
   }
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    unsigned int agglomerate_id,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map)
+{
+  std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
+      agglomerate;
+  for (auto cell : _dof_handler.active_cell_iterators())
+    if (cell->user_index() == agglomerate_id)
+      agglomerate.push_back(cell);
+
+  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
+      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>

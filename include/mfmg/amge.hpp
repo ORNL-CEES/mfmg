@@ -13,6 +13,7 @@
 #include <deal.II/dofs/dof_handler.h>
 
 #include <array>
+#include <map>
 #include <string>
 
 namespace mfmg
@@ -24,6 +25,13 @@ public:
   AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler);
 
   void build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
+
+  void build_agglomerate_triangulation(
+      unsigned int agglomerate_id,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map);
 
   void output(std::string const &filename);
 
