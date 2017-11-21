@@ -41,7 +41,7 @@ std::vector<unsigned int> test(boost::mpi::communicator world)
   std::array<unsigned int, dim> agglomerate_dim;
   for (unsigned int i = 0; i < dim; ++i)
     agglomerate_dim[i] = i + 2;
-  amge.build_agglomerate(agglomerate_dim);
+  amge.build_agglomerates(agglomerate_dim);
 
   std::vector<unsigned int> agglomerates;
   for (auto cell : dof_handler.active_cell_iterators())
@@ -135,7 +135,6 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
          23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 19, 19, 19, 19, 19, 19,
          19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 23, 23, 23, 23, 23, 23, 23, 23,
          24, 24, 24, 24, 24, 24, 24, 24}};
-
   }
   if (world.size() == 2)
   {

@@ -23,7 +23,7 @@ class AMGe
 public:
   AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler);
 
-  void build_agglomerate(std::array<unsigned int, dim> const &agglomerate_dim);
+  void build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
 
   void output(std::string const &filename);
 

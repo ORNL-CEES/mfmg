@@ -25,7 +25,7 @@ AMGe<dim, VectorType>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler)
 }
 
 template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::build_agglomerate(
+void AMGe<dim, VectorType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Faces in deal are orderd as follows: left (x_m) = 0, right (x_p) = 1,
