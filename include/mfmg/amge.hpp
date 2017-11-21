@@ -24,7 +24,8 @@ class AMGe
 public:
   AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler);
 
-  void build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
+  unsigned int
+  build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
 
   void build_agglomerate_triangulation(
       unsigned int agglomerate_id,
@@ -35,7 +36,24 @@ public:
 
   void output(std::string const &filename);
 
+  void setup(std::array<unsigned int, dim> const &agglomerate_dim);
+
 private:
+  struct ScratchData
+  {
+    // nothing
+  };
+
+  struct CopyData
+  {
+    // nothing
+  };
+
+  void local_worker(std::vector<unsigned int>::iterator const &agg_id,
+                    ScratchData &scratch_data, CopyData &copy_data);
+
+  void copy_local_to_global(CopyData const &copy_data);
+
   MPI_Comm _comm;
   dealii::DoFHandler<dim> &_dof_handler;
 };

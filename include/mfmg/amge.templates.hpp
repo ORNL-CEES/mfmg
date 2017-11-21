@@ -11,6 +11,7 @@
 
 #include <mfmg/amge.hpp>
 
+#include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -26,7 +27,7 @@ AMGe<dim, VectorType>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler)
 }
 
 template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::build_agglomerates(
+unsigned int AMGe<dim, VectorType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Faces in deal are orderd as follows: left (x_m) = 0, right (x_p) = 1,
@@ -88,6 +89,8 @@ void AMGe<dim, VectorType>::build_agglomerates(
       ++agglomerate;
     }
   }
+
+  return agglomerate - 1;
 }
 
 template <int dim, typename VectorType>
@@ -150,5 +153,37 @@ void AMGe<dim, VectorType>::output(std::string const &filename)
     std::ofstream master_output(filename + ".pvtu");
     data_out.write_pvtu_record(master_output, full_filenames);
   }
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::setup(
+    std::array<unsigned int, dim> const &agglomerate_dim)
+{
+  unsigned int const n_agglomerates = build_agglomerates(agglomerate_dim);
+  std::vector<unsigned int> agglomerate_ids(n_agglomerates);
+  std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
+  dealii::WorkStream::run(agglomerate_ids.begin(), agglomerate_ids.end(), *this,
+                          &AMGe::local_worker, &AMGe::copy_local_to_global,
+                          ScratchData(), CopyData());
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::local_worker(
+    std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
+    CopyData &)
+{
+  dealii::Triangulation<dim> agglomerate_triangulation;
+  std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+           typename dealii::DoFHandler<dim>::active_cell_iterator>
+      agglomerate_to_global_tria_map;
+
+  build_agglomerate_triangulation(*agg_id, agglomerate_triangulation,
+                                  agglomerate_to_global_tria_map);
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::copy_local_to_global(CopyData const &)
+{
+  // do nothing
 }
 }
