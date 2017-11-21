@@ -30,7 +30,7 @@ template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
-  // Faces in deal are orderd as follows: left (x_m) = 0, right (x_p) = 1,
+  // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
   // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
   unsigned int constexpr x_p = 1;
   unsigned int constexpr y_p = 3;
@@ -53,7 +53,7 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
           auto current_cell = current_y_cell;
           for (unsigned int k = 0; k < agglomerate_dim[0]; ++k)
           {
-            // TODO For now, we assume that there is no adaptive refine
+            // TODO For now, we assume that there is no adaptive refinement
             current_cell->set_user_index(agglomerate);
             if (current_cell->at_boundary(x_p) == false)
             {
@@ -159,7 +159,10 @@ template <int dim, typename VectorType>
 void AMGe<dim, VectorType>::setup(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
+  // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = build_agglomerates(agglomerate_dim);
+
+  // Parallel part of the setup.
   std::vector<unsigned int> agglomerate_ids(n_agglomerates);
   std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
   dealii::WorkStream::run(agglomerate_ids.begin(), agglomerate_ids.end(), *this,
