@@ -15,6 +15,7 @@
 #include <array>
 #include <map>
 #include <string>
+#include <tuple>
 
 namespace mfmg
 {
@@ -34,16 +35,13 @@ public:
 
   /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
-   * agglomerate of a given \p agglomerate_id. This function also fills a map
-   * that matches cells in the local triangulation with cells in the global
-   * triangulation.
+   * agglomerate of a given \p agglomerate_id and a map that matches cells in
+   * the local triangulation with cells in the global triangulation.
    */
-  void build_agglomerate_triangulation(
-      unsigned int agglomerate_id,
-      dealii::Triangulation<dim> &agglomerate_triangulation,
-      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-               typename dealii::DoFHandler<dim>::active_cell_iterator>
-          &agglomerate_to_global_tria_map);
+  std::tuple<dealii::Triangulation<dim>,
+             std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                      typename dealii::DoFHandler<dim>::active_cell_iterator>>
+  build_agglomerate_triangulation(unsigned int agglomerate_id);
 
   /**
    * Output the mesh and the agglomerate ids.

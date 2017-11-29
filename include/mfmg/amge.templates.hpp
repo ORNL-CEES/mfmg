@@ -94,12 +94,11 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
 }
 
 template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::build_agglomerate_triangulation(
-    unsigned int agglomerate_id,
-    dealii::Triangulation<dim> &agglomerate_triangulation,
-    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-             typename dealii::DoFHandler<dim>::active_cell_iterator>
-        &agglomerate_to_global_tria_map)
+std::tuple<dealii::Triangulation<dim>,
+           std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                    typename dealii::DoFHandler<dim>::active_cell_iterator>>
+AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    unsigned int agglomerate_id)
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
@@ -107,8 +106,17 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
     if (cell->user_index() == agglomerate_id)
       agglomerate.push_back(cell);
 
+  dealii::Triangulation<dim> agglomerate_triangulation;
+  std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+           typename dealii::DoFHandler<dim>::active_cell_iterator>
+      agglomerate_to_global_tria_map;
+
   dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
       agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+
+  // The std::move inhibits copy elision but the code does not work otherwise
+  return std::make_tuple(std::move(agglomerate_triangulation),
+                         agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>
@@ -180,8 +188,8 @@ void AMGe<dim, VectorType>::local_worker(
            typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate_to_global_tria_map;
 
-  build_agglomerate_triangulation(*agg_id, agglomerate_triangulation,
-                                  agglomerate_to_global_tria_map);
+  std::tie(agglomerate_triangulation, agglomerate_to_global_tria_map) =
+      build_agglomerate_triangulation(*agg_id);
 }
 
 template <int dim, typename VectorType>
