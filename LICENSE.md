@@ -1,8 +1,7 @@
-Modified BSD License
-====================
+BSD 3-Clause License
 
-_Copyright © `2017`, `Oak Ridge National Laboratory`_
-_All rights reserved._
+Copyright (c) `2017`, `Oak Ridge National Laboratory`
+All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
