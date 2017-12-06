@@ -21,7 +21,8 @@
 namespace mfmg
 {
 template <int dim, typename VectorType>
-AMGe<dim, VectorType>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler)
+AMGe<dim, VectorType>::AMGe(MPI_Comm comm,
+                            dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }

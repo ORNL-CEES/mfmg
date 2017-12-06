@@ -23,7 +23,7 @@ template <int dim, typename VectorType>
 class AMGe
 {
 public:
-  AMGe(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler);
+  AMGe(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
 
   /**
    * Flag cells to create agglomerates. The desired size of the agglomerates is
@@ -83,6 +83,6 @@ private:
   void copy_local_to_global(CopyData const &copy_data);
 
   MPI_Comm _comm;
-  dealii::DoFHandler<dim> &_dof_handler;
+  dealii::DoFHandler<dim> const &_dof_handler;
 };
 }
