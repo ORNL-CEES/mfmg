@@ -12,6 +12,4 @@
 #include <mfmg/amge.templates.hpp>
 #include <mfmg/instantiation.hpp>
 
-#include <deal.II/lac/trilinos_solver.h>
-
-INSTANTIATE_DIM_VECTORTYPE(TUPLE(AMGe))
+INSTANTIATE_DIM(TUPLE(AMGe))

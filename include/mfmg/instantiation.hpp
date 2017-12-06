@@ -27,7 +27,14 @@
       dealii::LinearAlgebra::distributed::Vector<double>)(                     \
       dealii::LinearAlgebra::distributed::Vector<float>)
 
-// Instantiation
+// Instantiation of the class for every dim
+#define M_DIM_INSTANT(z, dim, CLASS_NAME_TUPLE)                                \
+  template class mfmg::BOOST_PP_TUPLE_ELEM(0, CLASS_NAME_TUPLE)<dim>;
+// CLASS_NAME_TUPLE (class_name, 0)
+#define INSTANTIATE_DIM(CLASS_NAME_TUPLE)                                      \
+  BOOST_PP_REPEAT_FROM_TO(2, 4, M_DIM_INSTANT, CLASS_NAME_TUPLE)
+
+// Instantiation of the class for every dim-VectorType combination
 #define M_DIM_VECTORTYPE_INSTANT(z, CLASS_NAME_DIM_TUPLE, vector_type)         \
   template class mfmg::BOOST_PP_TUPLE_ELEM(                                    \
       0, CLASS_NAME_DIM_TUPLE)<BOOST_PP_TUPLE_ELEM(1, CLASS_NAME_DIM_TUPLE),   \

@@ -35,8 +35,7 @@ std::vector<unsigned int> test(boost::mpi::communicator world)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  mfmg::AMGe<dim, dealii::TrilinosWrappers::MPI::Vector> amge(world,
-                                                              dof_handler);
+  mfmg::AMGe<dim> amge(world, dof_handler);
 
   std::array<unsigned int, dim> agglomerate_dim;
   for (unsigned int i = 0; i < dim; ++i)

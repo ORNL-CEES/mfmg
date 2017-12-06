@@ -20,15 +20,14 @@
 
 namespace mfmg
 {
-template <int dim, typename VectorType>
-AMGe<dim, VectorType>::AMGe(MPI_Comm comm,
-                            dealii::DoFHandler<dim> const &dof_handler)
+template <int dim>
+AMGe<dim>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
-template <int dim, typename VectorType>
-unsigned int AMGe<dim, VectorType>::build_agglomerates(
+template <int dim>
+unsigned int AMGe<dim>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
@@ -94,12 +93,11 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
   return agglomerate - 1;
 }
 
-template <int dim, typename VectorType>
+template <int dim>
 std::tuple<dealii::Triangulation<dim>,
            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                     typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim, VectorType>::build_agglomerate_triangulation(
-    unsigned int agglomerate_id)
+AMGe<dim>::build_agglomerate_triangulation(unsigned int agglomerate_id)
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
@@ -120,8 +118,8 @@ AMGe<dim, VectorType>::build_agglomerate_triangulation(
                          agglomerate_to_global_tria_map);
 }
 
-template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::output(std::string const &filename)
+template <int dim>
+void AMGe<dim>::output(std::string const &filename)
 {
   dealii::DataOut<dim> data_out;
   data_out.attach_dof_handler(_dof_handler);
@@ -156,17 +154,16 @@ void AMGe<dim, VectorType>::output(std::string const &filename)
   {
     unsigned int const comm_size =
         dealii::Utilities::MPI::n_mpi_processes(_comm);
-    std::vector<std::string> full_filenames;
+    std::vector<std::string> full_filenames(comm_size);
     for (unsigned int i = 0; i < comm_size; ++i)
-      full_filenames.push_back(filename + std::to_string(i) + ".vtu");
+      full_filenames[0] = filename + std::to_string(i) + ".vtu";
     std::ofstream master_output(filename + ".pvtu");
     data_out.write_pvtu_record(master_output, full_filenames);
   }
 }
 
-template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::setup(
-    std::array<unsigned int, dim> const &agglomerate_dim)
+template <int dim>
+void AMGe<dim>::setup(std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = build_agglomerates(agglomerate_dim);
@@ -179,10 +176,9 @@ void AMGe<dim, VectorType>::setup(
                           ScratchData(), CopyData());
 }
 
-template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::local_worker(
-    std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
-    CopyData &)
+template <int dim>
+void AMGe<dim>::local_worker(std::vector<unsigned int>::iterator const &agg_id,
+                             ScratchData &, CopyData &)
 {
   dealii::Triangulation<dim> agglomerate_triangulation;
   std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -193,8 +189,8 @@ void AMGe<dim, VectorType>::local_worker(
       build_agglomerate_triangulation(*agg_id);
 }
 
-template <int dim, typename VectorType>
-void AMGe<dim, VectorType>::copy_local_to_global(CopyData const &)
+template <int dim>
+void AMGe<dim>::copy_local_to_global(CopyData const &)
 {
   // do nothing
 }

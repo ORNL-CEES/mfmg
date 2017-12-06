@@ -19,7 +19,7 @@
 
 namespace mfmg
 {
-template <int dim, typename VectorType>
+template <int dim>
 class AMGe
 {
 public:
