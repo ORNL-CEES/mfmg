@@ -42,6 +42,9 @@ unsigned int AMGe<dim>::build_agglomerates(
   {
     if ((cell->is_locally_owned()) && (cell->user_index() == 0))
     {
+#if MFMG_DEBUG
+      int const cell_level = cell->level();
+#endif
       cell->set_user_index(agglomerate);
       auto current_z_cell = cell;
       unsigned int const d_3 = (dim < 3) ? 1 : agglomerate_dim.back();
@@ -53,13 +56,17 @@ unsigned int AMGe<dim>::build_agglomerates(
           auto current_cell = current_y_cell;
           for (unsigned int k = 0; k < agglomerate_dim[0]; ++k)
           {
-            // TODO For now, we assume that there is no adaptive refinement
             current_cell->set_user_index(agglomerate);
             if (current_cell->at_boundary(x_p) == false)
             {
+              // TODO For now, we assume that there is no adaptive refinement
               auto neighbor_cell = current_cell->neighbor(x_p);
-              if ((neighbor_cell->is_locally_owned()) &&
-                  (neighbor_cell->user_index() == 0))
+#if MFMG_DEBUG
+              if ((!neighbor_cell->active()) ||
+                  (neighbor_cell->level() != cell_level))
+                throw std::runtime_error("Mesh locally refined");
+#endif
+              if (neighbor_cell->is_locally_owned())
                 current_cell = neighbor_cell;
             }
             else
@@ -68,9 +75,15 @@ unsigned int AMGe<dim>::build_agglomerates(
           if (current_y_cell->at_boundary(y_p) == false)
           {
             auto neighbor_y_cell = current_y_cell->neighbor(y_p);
-            if ((neighbor_y_cell->is_locally_owned()) &&
-                (neighbor_y_cell->user_index() == 0))
+            if (neighbor_y_cell->is_locally_owned())
+            {
+#if MFMG_DEBUG
+              if ((!neighbor_y_cell->active()) ||
+                  (neighbor_y_cell->level() != cell_level))
+                throw std::runtime_error("Mesh locally refined");
+#endif
               current_y_cell = neighbor_y_cell;
+            }
           }
           else
             break;
@@ -78,9 +91,15 @@ unsigned int AMGe<dim>::build_agglomerates(
         if ((dim == 3) && (current_z_cell->at_boundary(z_p) == false))
         {
           auto neighbor_z_cell = current_z_cell->neighbor(z_p);
-          if ((neighbor_z_cell->is_locally_owned()) &&
-              (neighbor_z_cell->user_index() == 0))
+          if (neighbor_z_cell->is_locally_owned())
+          {
+#if MFMG_DEBUG
+            if ((!neighbor_z_cell->active()) ||
+                (neighbor_z_cell->level() != cell_level))
+              throw std::runtime_error("Mesh locally refined");
+#endif
             current_z_cell = neighbor_z_cell;
+          }
         }
         else
           break;
