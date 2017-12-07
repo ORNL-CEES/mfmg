@@ -43,6 +43,7 @@ std::vector<unsigned int> test(boost::mpi::communicator world)
   amge.build_agglomerates(agglomerate_dim);
 
   std::vector<unsigned int> agglomerates;
+  agglomerates.reserve(dof_handler.get_triangulation().n_active_cells());
   for (auto cell : dof_handler.active_cell_iterators())
     agglomerates.push_back(cell->user_index());
 

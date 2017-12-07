@@ -48,13 +48,13 @@ unsigned int AMGe<dim>::build_agglomerates(
       cell->set_user_index(agglomerate);
       auto current_z_cell = cell;
       unsigned int const d_3 = (dim < 3) ? 1 : agglomerate_dim.back();
-      for (unsigned int i = 0; i < d_3; ++i)
+      for (unsigned int k = 0; k < d_3; ++k)
       {
         auto current_y_cell = current_z_cell;
         for (unsigned int j = 0; j < agglomerate_dim[1]; ++j)
         {
           auto current_cell = current_y_cell;
-          for (unsigned int k = 0; k < agglomerate_dim[0]; ++k)
+          for (unsigned int i = 0; i < agglomerate_dim[0]; ++i)
           {
             current_cell->set_user_index(agglomerate);
             if (current_cell->at_boundary(x_p) == false)
