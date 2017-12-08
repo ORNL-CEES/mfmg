@@ -9,17 +9,7 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#define BOOST_TEST_MODULE dummy
+#include <mfmg/amge.templates.hpp>
+#include <mfmg/instantiation.hpp>
 
-#include "main.cc"
-
-#include "mfmg/dummy.hpp"
-
-BOOST_AUTO_TEST_CASE(hyper_cube)
-{
-  Dummy dummy;
-  dealii::Triangulation<2> tria;
-  dummy.generate_mesh(tria);
-
-  BOOST_TEST(tria.n_active_cells() == 4);
-}
+INSTANTIATE_DIM(TUPLE(AMGe))
