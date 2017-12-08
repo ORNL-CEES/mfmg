@@ -164,6 +164,28 @@ RUN export P4EST_VERSION=1.1 && \
     rm -rf ${P4EST_SOURCE_DIR}
 ENV P4EST_DIR=${INSTALL_DIR}/p4est
 
+# Install Arpack-NG
+RUN export ARPACK_VERSION=3.5.0 && \
+    export ARPACK_URL=https://github.com/opencollab/arpack-ng/archive/${ARPACK_VERSION}.tar.gz && \
+    export ARPACK_ARCHIVE=${ARCHIVE_DIR}/arpack-${ARPACK_VERSION}.tar.gz && \
+    export ARPACK_SOURCE_DIR=${SOURCE_DIR}/arpack && \
+    export ARPACK_BUILD_DIR=${BUILD_DIR}/arpack && \
+    export ARPACK_INSTALL_DIR=${INSTALL_DIR}/arpack && \
+    wget --quiet ${ARPACK_URL} --output-document=${ARPACK_ARCHIVE} && \
+    mkdir -p ${ARPACK_SOURCE_DIR} && \
+    tar -xf ${ARPACK_ARCHIVE} -C ${ARPACK_SOURCE_DIR} --strip-components=1 && \
+    mkdir ${ARPACK_BUILD_DIR} && \
+    cd ${ARPACK_BUILD_DIR} && \
+    cmake -DMPI=ON \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_INSTALL_PREFIX=${ARPACK_INSTALL_DIR} \
+        ${ARPACK_SOURCE_DIR} && \
+    make -j${N_PROCS} install && \
+    rm -rf ${ARPACK_ARCHIVE} && \
+    rm -rf ${ARPACK_BUILD_DIR} && \
+    rm -rf ${ARPACK_SOURCE_DIR}
+ENV ARPACK_DIR=${INSTALL_DIR}/arpack
+
 # Install deal.II
 RUN export DEAL_II_HASH=7ac7850030de7a2027679099073f00f59a076ac4 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
@@ -181,6 +203,8 @@ RUN export DEAL_II_HASH=7ac7850030de7a2027679099073f00f59a076ac4 && \
         -DP4EST_DIR=${P4EST_DIR} \
         -DDEAL_II_WITH_TRILINOS=ON \
         -DTRILINOS_DIR=${TRILINOS_DIR} \
+        -DDEAL_II_WITH_ARPACK=ON \
+        -DARPACK_DIR=${ARPACK_DIR} \
         -DCMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
         ${DEAL_II_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
