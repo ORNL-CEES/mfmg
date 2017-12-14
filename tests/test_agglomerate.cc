@@ -22,7 +22,6 @@
 #include <deal.II/lac/trilinos_vector.h>
 
 #include <array>
-#include <boost/mpi.hpp>
 
 template <int dim>
 std::vector<unsigned int> test(boost::mpi::communicator world)
