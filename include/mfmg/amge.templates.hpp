@@ -9,6 +9,9 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#ifndef AMG_TEMPLATES_HPP
+#define AMG_TEMPLATES_HPP
+
 #include <mfmg/amge.hpp>
 
 #include <deal.II/base/work_stream.h>
@@ -20,15 +23,16 @@
 
 namespace mfmg
 {
-template <int dim>
-AMGe<dim>::AMGe(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler)
+template <int dim, typename NumberType>
+AMGe<dim, NumberType>::AMGe(MPI_Comm comm,
+                            dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
-template <int dim>
-unsigned int AMGe<dim>::build_agglomerates(
-    std::array<unsigned int, dim> const &agglomerate_dim)
+template <int dim, typename NumberType>
+unsigned int AMGe<dim, NumberType>::build_agglomerates(
+    std::array<unsigned int, dim> const &agglomerate_dim) const
 {
   // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
   // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
@@ -59,7 +63,8 @@ unsigned int AMGe<dim>::build_agglomerates(
             current_cell->set_user_index(agglomerate);
             if (current_cell->at_boundary(x_p) == false)
             {
-              // TODO For now, we assume that there is no adaptive refinement
+              // TODO For now, we assume that there is no adaptive refinement.
+              // When we change this, we will need to switch to hp::DoFHandler
               auto neighbor_cell = current_cell->neighbor(x_p);
 #if MFMG_DEBUG
               if ((!neighbor_cell->active()) ||
@@ -112,11 +117,12 @@ unsigned int AMGe<dim>::build_agglomerates(
   return agglomerate - 1;
 }
 
-template <int dim>
+template <int dim, typename NumberType>
 std::tuple<dealii::Triangulation<dim>,
            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                     typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim>::build_agglomerate_triangulation(unsigned int agglomerate_id)
+AMGe<dim, NumberType>::build_agglomerate_triangulation(
+    unsigned int agglomerate_id) const
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
@@ -129,6 +135,10 @@ AMGe<dim>::build_agglomerate_triangulation(unsigned int agglomerate_id)
            typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate_to_global_tria_map;
 
+  // If the agglomerate has hanging nodes, the patch is bigger than
+  // what we may expect because we cannot a create a coarse triangulation with
+  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
+  // cells.
   dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
       agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
 
@@ -137,8 +147,8 @@ AMGe<dim>::build_agglomerate_triangulation(unsigned int agglomerate_id)
                          agglomerate_to_global_tria_map);
 }
 
-template <int dim>
-void AMGe<dim>::output(std::string const &filename)
+template <int dim, typename NumberType>
+void AMGe<dim, NumberType>::output(std::string const &filename) const
 {
   dealii::DataOut<dim> data_out;
   data_out.attach_dof_handler(_dof_handler);
@@ -181,8 +191,9 @@ void AMGe<dim>::output(std::string const &filename)
   }
 }
 
-template <int dim>
-void AMGe<dim>::setup(std::array<unsigned int, dim> const &agglomerate_dim)
+template <int dim, typename NumberType>
+void AMGe<dim, NumberType>::setup(
+    std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = build_agglomerates(agglomerate_dim);
@@ -195,9 +206,10 @@ void AMGe<dim>::setup(std::array<unsigned int, dim> const &agglomerate_dim)
                           ScratchData(), CopyData());
 }
 
-template <int dim>
-void AMGe<dim>::local_worker(std::vector<unsigned int>::iterator const &agg_id,
-                             ScratchData &, CopyData &)
+template <int dim, typename NumberType>
+void AMGe<dim, NumberType>::local_worker(
+    std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
+    CopyData &)
 {
   dealii::Triangulation<dim> agglomerate_triangulation;
   std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -208,9 +220,11 @@ void AMGe<dim>::local_worker(std::vector<unsigned int>::iterator const &agg_id,
       build_agglomerate_triangulation(*agg_id);
 }
 
-template <int dim>
-void AMGe<dim>::copy_local_to_global(CopyData const &)
+template <int dim, typename NumberType>
+void AMGe<dim, NumberType>::copy_local_to_global(CopyData const &)
 {
   // do nothing
 }
 }
+
+#endif

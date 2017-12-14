@@ -9,6 +9,9 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#ifndef AMGE_HPP
+#define AMGE_HPP
+
 #include <deal.II/base/mpi.h>
 #include <deal.II/dofs/dof_handler.h>
 
@@ -19,7 +22,7 @@
 
 namespace mfmg
 {
-template <int dim>
+template <int dim, typename NumberType>
 class AMGe
 {
 public:
@@ -30,8 +33,8 @@ public:
    * given by \p agglomerate_dim. This functions returns the number of
    * agglomerates that have been created.
    */
-  unsigned int
-  build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
+  unsigned int build_agglomerates(
+      std::array<unsigned int, dim> const &agglomerate_dim) const;
 
   /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
@@ -41,12 +44,12 @@ public:
   std::tuple<dealii::Triangulation<dim>,
              std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                       typename dealii::DoFHandler<dim>::active_cell_iterator>>
-  build_agglomerate_triangulation(unsigned int agglomerate_id);
+  build_agglomerate_triangulation(unsigned int agglomerate_id) const;
 
   /**
    * Output the mesh and the agglomerate ids.
    */
-  void output(std::string const &filename);
+  void output(std::string const &filename) const;
 
   /**
    *  Build the agglomerates and their associated triangulations.
@@ -86,3 +89,5 @@ private:
   dealii::DoFHandler<dim> const &_dof_handler;
 };
 }
+
+#endif
