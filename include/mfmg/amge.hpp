@@ -16,6 +16,8 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/trilinos_sparsity_pattern.h>
 
 #include <array>
 #include <map>
@@ -79,6 +81,20 @@ public:
                          dealii::ConstraintMatrix &)> const &evaluate) const;
 
   /**
+   * Compute the restriction sparse matrix. The rows of the matrix are the
+   * computed eigenvectors. \p dof_indices_maps are used to map the indices in
+   * \p eigenvectors to the global dof indices.
+   */
+  // dealii::TrilinosWrappers::SparseMatrix has a private copy constructor and
+  // no move constructor. Thus, we pass the output by reference instead of
+  // returning it.
+  void compute_restriction_sparse_matrix(
+      std::vector<dealii::Vector<double>> const &eigenvectors,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_map,
+      dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
+
+  /**
    * Output the mesh and the agglomerate ids.
    */
   void output(std::string const &filename) const;
@@ -126,6 +142,16 @@ private:
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
       dealii::DoFHandler<dim> const &agglomerate_dof_handler) const;
+
+  /**
+   * Build the sparsity pattern of the restriction matrix, i.e., the
+   * Epetra_FECrsGraph in Trilinos nomenclature.
+   */
+  dealii::TrilinosWrappers::SparsityPattern
+  compute_restriction_sparsity_pattern(
+      std::vector<dealii::Vector<double>> const &eigenvectors,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_maps) const;
 
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;
