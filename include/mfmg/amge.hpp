@@ -9,8 +9,13 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#ifndef AMGE_HPP
+#define AMGE_HPP
+
 #include <deal.II/base/mpi.h>
 #include <deal.II/dofs/dof_handler.h>
+#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/sparse_matrix.h>
 
 #include <array>
 #include <map>
@@ -19,7 +24,7 @@
 
 namespace mfmg
 {
-template <int dim>
+template <int dim, typename ScalarType>
 class AMGe
 {
 public:
@@ -30,8 +35,8 @@ public:
    * given by \p agglomerate_dim. This functions returns the number of
    * agglomerates that have been created.
    */
-  unsigned int
-  build_agglomerates(std::array<unsigned int, dim> const &agglomerate_dim);
+  unsigned int build_agglomerates(
+      std::array<unsigned int, dim> const &agglomerate_dim) const;
 
   /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
@@ -41,12 +46,42 @@ public:
   std::tuple<dealii::Triangulation<dim>,
              std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                       typename dealii::DoFHandler<dim>::active_cell_iterator>>
-  build_agglomerate_triangulation(unsigned int agglomerate_id);
+  build_agglomerate_triangulation(unsigned int agglomerate_id) const;
+
+  /**
+   * Compute the eigenvalues and the eigenvectors. This functions takes as
+   * inputs:
+   *  - the number of eigenvalues to compute
+   *  - the tolerance (relative accuracy of the Ritz value)
+   *  - the map between the local cells and the global cells
+   *  - a function that computes the local DoFHandler, the local system sparse
+   *    matrix with its sparsity pattern, the local mass matrix with its
+   *    sparsity pattern, and local sparse matrix.
+   *
+   * The function returns the complex eigenvalues, the associated eigenvectors,
+   * and a vector that maps the dof indices from the local problem to the global
+   * problem.
+   */
+  std::tuple<std::vector<std::complex<double>>,
+             std::vector<dealii::Vector<double>>,
+             std::vector<dealii::types::global_dof_index>>
+  compute_local_eigenvectors(
+      unsigned int n_eigenvalues, double tolerance,
+      dealii::Triangulation<dim> const &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &patch_to_global_map,
+      std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                         dealii::SparsityPattern &system_sparsity_pattern,
+                         dealii::SparseMatrix<ScalarType> &,
+                         dealii::SparsityPattern &mass_sparsity_pattern,
+                         dealii::SparseMatrix<ScalarType> &,
+                         dealii::ConstraintMatrix &)> const &evaluate) const;
 
   /**
    * Output the mesh and the agglomerate ids.
    */
-  void output(std::string const &filename);
+  void output(std::string const &filename) const;
 
   /**
    *  Build the agglomerates and their associated triangulations.
@@ -82,7 +117,19 @@ private:
    */
   void copy_local_to_global(CopyData const &copy_data);
 
+  /**
+   * Compute the map between the dof indices of the local DoFHandler and the dof
+   * indices of the global DoFHandler.
+   */
+  std::vector<dealii::types::global_dof_index> compute_dof_index_map(
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &patch_to_global_map,
+      dealii::DoFHandler<dim> const &agglomerate_dof_handler) const;
+
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;
 };
 }
+
+#endif

@@ -12,4 +12,4 @@
 #include <mfmg/amge.templates.hpp>
 #include <mfmg/instantiation.hpp>
 
-INSTANTIATE_DIM(TUPLE(AMGe))
+INSTANTIATE_DIM_SCALARTYPE(TUPLE(AMGe))

@@ -7,8 +7,8 @@ SET(MFMG_VERSION
 MESSAGE("-- mfmg version: ${MFMG_VERSION}")
 
 # Set flags for Release and Debug version
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
+SET(CMAKE_CXX_FLAGS_RELEASE "-O3")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g")
 
 # Disable boost asserts in Release mode and set MFMG_DEBUG in Debug mode
 MESSAGE("-- Build type: ${CMAKE_BUILD_TYPE}")
