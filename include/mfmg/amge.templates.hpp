@@ -295,7 +295,14 @@ void AMGe<dim, ScalarType>::output(std::string const &filename) const
 
 template <int dim, typename ScalarType>
 void AMGe<dim, ScalarType>::setup(
-    std::array<unsigned int, dim> const &agglomerate_dim)
+    std::array<unsigned int, dim> const &agglomerate_dim,
+    unsigned int const n_eigenvalues, double const tolerance,
+    std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                       dealii::SparsityPattern &system_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &,
+                       dealii::SparsityPattern &mass_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &,
+                       dealii::ConstraintMatrix &)> const &evaluate) const
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = build_agglomerates(agglomerate_dim);
@@ -303,15 +310,34 @@ void AMGe<dim, ScalarType>::setup(
   // Parallel part of the setup.
   std::vector<unsigned int> agglomerate_ids(n_agglomerates);
   std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
-  dealii::WorkStream::run(agglomerate_ids.begin(), agglomerate_ids.end(), *this,
-                          &AMGe::local_worker, &AMGe::copy_local_to_global,
-                          ScratchData(), CopyData());
+  std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
+  CopyData copy_data;
+  dealii::WorkStream::run(
+      agglomerate_ids.begin(), agglomerate_ids.end(),
+      static_cast<
+          std::function<void(std::vector<unsigned int>::iterator const &,
+                             ScratchData &, CopyData &)>>(
+          std::bind(&AMGe::local_worker, *this, n_eigenvalues, tolerance,
+                    std::cref(evaluate), std::placeholders::_1,
+                    std::placeholders::_2, std::placeholders::_3)),
+      static_cast<std::function<void(CopyData const &)>>(
+          std::bind(&AMGe::copy_local_to_global, *this, std::placeholders::_1,
+                    std::ref(eigenvectors), std::ref(dof_indices_maps))),
+      ScratchData(), copy_data);
 }
 
 template <int dim, typename ScalarType>
 void AMGe<dim, ScalarType>::local_worker(
+    unsigned int const n_eigenvalues, double const tolerance,
+    std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                       dealii::SparsityPattern &system_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &,
+                       dealii::SparsityPattern &mass_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &,
+                       dealii::ConstraintMatrix &)> const &evaluate,
     std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
-    CopyData &)
+    CopyData &copy_data)
 {
   dealii::Triangulation<dim> agglomerate_triangulation;
   std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -320,12 +346,24 @@ void AMGe<dim, ScalarType>::local_worker(
 
   std::tie(agglomerate_triangulation, agglomerate_to_global_tria_map) =
       build_agglomerate_triangulation(*agg_id);
+
+  // We ignore the eigenvalues.
+  std::tie(std::ignore, copy_data.local_eigenvectors,
+           copy_data.local_dof_indices_map) =
+      compute_local_eigenvectors(n_eigenvalues, tolerance,
+                                 agglomerate_triangulation,
+                                 agglomerate_to_global_tria_map, evaluate);
 }
 
 template <int dim, typename ScalarType>
-void AMGe<dim, ScalarType>::copy_local_to_global(CopyData const &)
+void AMGe<dim, ScalarType>::copy_local_to_global(
+    CopyData const &copy_data,
+    std::vector<dealii::Vector<double>> &eigenvectors,
+    std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps)
 {
-  // do nothing
+  eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
+                      copy_data.local_eigenvectors.end());
+  dof_indices_maps.push_back(copy_data.local_dof_indices_map);
 }
 
 template <int dim, typename ScalarType>

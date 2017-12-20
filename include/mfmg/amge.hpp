@@ -102,7 +102,15 @@ public:
   /**
    *  Build the agglomerates and their associated triangulations.
    */
-  void setup(std::array<unsigned int, dim> const &agglomerate_dim);
+  void
+  setup(std::array<unsigned int, dim> const &agglomerate_dim,
+        unsigned int const n_eigenvalues, double const tolerance,
+        std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                           dealii::SparsityPattern &system_sparsity_pattern,
+                           dealii::SparseMatrix<ScalarType> &,
+                           dealii::SparsityPattern &mass_sparsity_pattern,
+                           dealii::SparseMatrix<ScalarType> &,
+                           dealii::ConstraintMatrix &)> const &evaluate) const;
 
 private:
   /**
@@ -114,28 +122,42 @@ private:
   };
 
   /**
-   * This data structure is empty but it is necessary to use WorkStream.
+   * Structure which encapsulates the data that needs to be copied add the end
+   * of Worstream.
    */
   struct CopyData
   {
-    // nothing
+    std::vector<dealii::Vector<double>> local_eigenvectors;
+    std::vector<dealii::types::global_dof_index> local_dof_indices_map;
   };
 
   /**
    * This function encapsulates the different functions that work on an
    * independent set of data.
    */
-  void local_worker(std::vector<unsigned int>::iterator const &agg_id,
-                    ScratchData &scratch_data, CopyData &copy_data);
+  void local_worker(
+      unsigned int const n_eigenvalues, double const tolerance,
+      std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                         dealii::SparsityPattern &system_sparsity_pattern,
+                         dealii::SparseMatrix<ScalarType> &,
+                         dealii::SparsityPattern &mass_sparsity_pattern,
+                         dealii::SparseMatrix<ScalarType> &,
+                         dealii::ConstraintMatrix &)> const &evaluate,
+      std::vector<unsigned int>::iterator const &agg_id,
+      ScratchData &scratch_data, CopyData &copy_data);
 
   /**
    * This function does nothing but is necessary to use WorkStream.
    */
-  void copy_local_to_global(CopyData const &copy_data);
+  void
+  copy_local_to_global(CopyData const &copy_data,
+                       std::vector<dealii::Vector<double>> &eigenvectors,
+                       std::vector<std::vector<dealii::types::global_dof_index>>
+                           &dof_indices_maps);
 
   /**
-   * Compute the map between the dof indices of the local DoFHandler and the dof
-   * indices of the global DoFHandler.
+   * Compute the map between the dof indices of the local DoFHandler and the
+   * dof indices of the global DoFHandler.
    */
   std::vector<dealii::types::global_dof_index> compute_dof_index_map(
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
