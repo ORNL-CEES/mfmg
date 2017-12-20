@@ -50,13 +50,17 @@ public:
 
   /**
    * Compute the eigenvalues and the eigenvectors. This functions takes as
-   * inputs the number of eigenvalue to compute, the tolerance (relative
-   * accuracy of the Ritz value), the map between the local cells and the global
-   * cells, and a function that computes the local DoFHandler, the local system
-   * sparse matrix with its sparsity pattern, the local mass matrix with its
-   * sparsity pattern, and local sparse matrix. The function returns the complex
-   * eigenvalues, the associated eigenvectors, and a vector that maps the dof
-   * indices from the local problem to the global problem.
+   * inputs:
+   *  - the number of eigenvalues to compute
+   *  - the tolerance (relative accuracy of the Ritz value)
+   *  - the map between the local cells and the global cells
+   *  - a function that computes the local DoFHandler, the local system sparse
+   *    matrix with its sparsity pattern, the local mass matrix with its
+   *    sparsity pattern, and local sparse matrix.
+   *
+   * The function returns the complex eigenvalues, the associated eigenvectors,
+   * and a vector that maps the dof indices from the local problem to the global
+   * problem.
    */
   std::tuple<std::vector<std::complex<double>>,
              std::vector<dealii::Vector<double>>,
