@@ -1,5 +1,5 @@
 # mfmg
-mfgm stands for matrix-free multigrid.
+mfmg stands for matrix-free multigrid.
 
 ## License
 mfmg is distributed under the 3-Clause BSD License.
