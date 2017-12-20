@@ -25,15 +25,15 @@
 
 namespace mfmg
 {
-template <int dim, typename NumberType>
-AMGe<dim, NumberType>::AMGe(MPI_Comm comm,
+template <int dim, typename ScalarType>
+AMGe<dim, ScalarType>::AMGe(MPI_Comm comm,
                             dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
-template <int dim, typename NumberType>
-unsigned int AMGe<dim, NumberType>::build_agglomerates(
+template <int dim, typename ScalarType>
+unsigned int AMGe<dim, ScalarType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
   // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
@@ -119,11 +119,11 @@ unsigned int AMGe<dim, NumberType>::build_agglomerates(
   return agglomerate - 1;
 }
 
-template <int dim, typename NumberType>
+template <int dim, typename ScalarType>
 std::tuple<dealii::Triangulation<dim>,
            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                     typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim, NumberType>::build_agglomerate_triangulation(
+AMGe<dim, ScalarType>::build_agglomerate_triangulation(
     unsigned int agglomerate_id) const
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -149,26 +149,26 @@ AMGe<dim, NumberType>::build_agglomerate_triangulation(
                          agglomerate_to_global_tria_map);
 }
 
-template <int dim, typename NumberType>
+template <int dim, typename ScalarType>
 std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
            std::vector<dealii::types::global_dof_index>>
-AMGe<dim, NumberType>::compute_local_eigenvectors(
+AMGe<dim, ScalarType>::compute_local_eigenvectors(
     unsigned int n_eigenvalues, double tolerance,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
     std::function<void(dealii::DoFHandler<dim> &, dealii::SparsityPattern &,
-                       dealii::SparseMatrix<NumberType> &,
+                       dealii::SparseMatrix<ScalarType> &,
                        dealii::SparsityPattern &,
-                       dealii::SparseMatrix<NumberType> &,
+                       dealii::SparseMatrix<ScalarType> &,
                        dealii::ConstraintMatrix &)> const &evaluate) const
 {
   dealii::SparsityPattern system_sparsity_pattern;
   dealii::SparsityPattern mass_sparsity_pattern;
-  dealii::SparseMatrix<NumberType> agglomerate_system_matrix;
-  dealii::SparseMatrix<NumberType> agglomerate_mass_matrix;
+  dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
+  dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
   dealii::ConstraintMatrix agglomerate_constraints;
 
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
@@ -219,8 +219,8 @@ AMGe<dim, NumberType>::compute_local_eigenvectors(
   return std::make_tuple(eigenvalues, eigenvectors, dof_indices_map);
 }
 
-template <int dim, typename NumberType>
-void AMGe<dim, NumberType>::output(std::string const &filename) const
+template <int dim, typename ScalarType>
+void AMGe<dim, ScalarType>::output(std::string const &filename) const
 {
   dealii::DataOut<dim> data_out;
   data_out.attach_dof_handler(_dof_handler);
@@ -263,8 +263,8 @@ void AMGe<dim, NumberType>::output(std::string const &filename) const
   }
 }
 
-template <int dim, typename NumberType>
-void AMGe<dim, NumberType>::setup(
+template <int dim, typename ScalarType>
+void AMGe<dim, ScalarType>::setup(
     std::array<unsigned int, dim> const &agglomerate_dim)
 {
   // Flag the cells to build agglomerates.
@@ -278,8 +278,8 @@ void AMGe<dim, NumberType>::setup(
                           ScratchData(), CopyData());
 }
 
-template <int dim, typename NumberType>
-void AMGe<dim, NumberType>::local_worker(
+template <int dim, typename ScalarType>
+void AMGe<dim, ScalarType>::local_worker(
     std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
     CopyData &)
 {
@@ -292,15 +292,15 @@ void AMGe<dim, NumberType>::local_worker(
       build_agglomerate_triangulation(*agg_id);
 }
 
-template <int dim, typename NumberType>
-void AMGe<dim, NumberType>::copy_local_to_global(CopyData const &)
+template <int dim, typename ScalarType>
+void AMGe<dim, ScalarType>::copy_local_to_global(CopyData const &)
 {
   // do nothing
 }
 
-template <int dim, typename NumberType>
+template <int dim, typename ScalarType>
 std::vector<dealii::types::global_dof_index>
-AMGe<dim, NumberType>::compute_dof_index_map(
+AMGe<dim, ScalarType>::compute_dof_index_map(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,

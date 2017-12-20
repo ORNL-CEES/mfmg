@@ -19,7 +19,7 @@
 // TUPLE(class_name) expend to (class_name, 0)
 #define TUPLE_N (0, 0)
 #define TUPLE(class_name) BOOST_PP_TUPLE_REPLACE(TUPLE_N, 0, class_name)
-#define NUMBER_TYPE (float)(double)
+#define SCALAR_TYPE (float)(double)
 
 // Instantiation of the class for every dim
 #define M_DIM_INSTANT(z, dim, CLASS_NAME_TUPLE)                                \
@@ -28,18 +28,18 @@
 #define INSTANTIATE_DIM(CLASS_NAME_TUPLE)                                      \
   BOOST_PP_REPEAT_FROM_TO(2, 4, M_DIM_INSTANT, CLASS_NAME_TUPLE)
 
-// Instantiation of the class for every dim-NumberType combination
-#define M_DIM_NUMBERTYPE_INSTANT(z, CLASS_NAME_DIM_TUPLE, number_type)         \
+// Instantiation of the class for every dim-ScalarType combination
+#define M_DIM_SCALARTYPE_INSTANT(z, CLASS_NAME_DIM_TUPLE, scalar_type)         \
   template class mfmg::BOOST_PP_TUPLE_ELEM(                                    \
       0, CLASS_NAME_DIM_TUPLE)<BOOST_PP_TUPLE_ELEM(1, CLASS_NAME_DIM_TUPLE),   \
-                               number_type>;
+                               scalar_type>;
 // CLASS_NAME_DIM_TUPLE (class_name, 2) (class_name, 3)
-#define M_NUMBERTYPE(z, dim, CLASS_NAME_TUPLE)                                 \
-  BOOST_PP_SEQ_FOR_EACH(M_DIM_NUMBERTYPE_INSTANT,                              \
+#define M_SCALARTYPE(z, dim, CLASS_NAME_TUPLE)                                 \
+  BOOST_PP_SEQ_FOR_EACH(M_DIM_SCALARTYPE_INSTANT,                              \
                         BOOST_PP_TUPLE_REPLACE(CLASS_NAME_TUPLE, 1, dim),      \
-                        NUMBER_TYPE)
+                        SCALAR_TYPE)
 // CLASS_NAME_TUPLE (class_name, 0)
-#define INSTANTIATE_DIM_NUMBERTYPE(CLASS_NAME_TUPLE)                           \
-  BOOST_PP_REPEAT_FROM_TO(2, 4, M_NUMBERTYPE, CLASS_NAME_TUPLE)
+#define INSTANTIATE_DIM_SCALARTYPE(CLASS_NAME_TUPLE)                           \
+  BOOST_PP_REPEAT_FROM_TO(2, 4, M_SCALARTYPE, CLASS_NAME_TUPLE)
 
 #endif

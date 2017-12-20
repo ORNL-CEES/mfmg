@@ -24,7 +24,7 @@
 
 namespace mfmg
 {
-template <int dim, typename NumberType>
+template <int dim, typename ScalarType>
 class AMGe
 {
 public:
@@ -73,9 +73,9 @@ public:
           &patch_to_global_map,
       std::function<void(dealii::DoFHandler<dim> &dof_handler,
                          dealii::SparsityPattern &system_sparsity_pattern,
-                         dealii::SparseMatrix<NumberType> &,
+                         dealii::SparseMatrix<ScalarType> &,
                          dealii::SparsityPattern &mass_sparsity_pattern,
-                         dealii::SparseMatrix<NumberType> &,
+                         dealii::SparseMatrix<ScalarType> &,
                          dealii::ConstraintMatrix &)> const &evaluate) const;
 
   /**
