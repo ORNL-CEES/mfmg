@@ -2,16 +2,17 @@
 cd $1
 rm -rf build
 mkdir build && cd build
-cmake \
-  -D CMAKE_BUILD_TYPE=Debug \
-  -D MFMG_ENABLE_TESTS=ON \
-  -D BUILD_SHARED_LIBS=ON \
-  -D MFMG_ENABLE_ClangFormat=ON \
-  -D MFMG_ENABLE_COVERAGE=ON \
-  -D MFMG_ENABLE_DOCUMENTATION=OFF \
-  -D DEAL_II_DIR=${DEAL_II_DIR} \
-  -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow" \
-../
+ARGS=(
+  -D CMAKE_BUILD_TYPE=Debug
+  -D MFMG_ENABLE_TESTS=ON
+  -D BUILD_SHARED_LIBS=ON
+  -D MFMG_ENABLE_ClangFormat=ON
+  -D MFMG_ENABLE_COVERAGE=ON
+  -D MFMG_ENABLE_DOCUMENTATION=OFF
+  -D DEAL_II_DIR=${DEAL_II_DIR}
+  -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow"
+  )
+cmake "${ARGS[@]}" ../
 make -j12
 ctest -j12 --no-compress-output -T Test
 
