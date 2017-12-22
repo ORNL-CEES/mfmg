@@ -6,6 +6,17 @@ SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 INCLUDE(SetupTPLs)
 INCLUDE(SetupMFMG)
 
+# By default build a static library because CUDA does not work with a shared
+# library
+OPTION(BUILD_SHARED_LIBS "Build a shared library" OFF)
+
+IF(${MFMG_ENABLE_CUDA})
+  IF (${BUILD_SHARED_LIBS})
+    MESSAGE(SEND_ERROR "CUDA build does not support shared library")
+  ENDIF()
+  ENABLE_LANGUAGE(CUDA)
+ENDIF()
+
 IF(${MFMG_ENABLE_COVERAGE})
   INCLUDE(CodeCoverage)
 ENDIF()
@@ -39,11 +50,29 @@ TARGET_INCLUDE_DIRECTORIES(mfmg SYSTEM PUBLIC ${DEAL_II_INCLUDE_DIRS})
 TARGET_LINK_LIBRARIES(mfmg PUBLIC ${DEAL_II_LIBRARIES})
 
 
-SET_TARGET_PROPERTIES(mfmg PROPERTIES
-  CXX_STANDARD 11
-  CXX_STANDARD_REQUIRED ON
-  VERSION ${MFMG_VERSION}
-  )
+# Ideally we would like to always set the target properties for C++ and only
+# append the property for CUDA if necessary. However, this does not work because
+# cmake then thinks that the CUDA standard is 11;11.
+IF(${MFMG_ENABLE_CUDA})
+  SET_TARGET_PROPERTIES(mfmg PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    CUDA_STANDARD 11
+    CUDA_STANDARD_REQUIRED ON
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED ON
+    # Don't use -std=gnu++11
+    CXX_EXTENSIONS OFF
+    VERSION ${MFMG_VERSION}
+    )
+ELSE()
+  SET_TARGET_PROPERTIES(mfmg PROPERTIES
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED ON
+    # Don't use -std=gnu++11
+    CXX_EXTENSIONS OFF
+    VERSION ${MFMG_VERSION}
+    )
+ENDIF()
 
 # Install the library
 INSTALL(TARGETS mfmg
