@@ -55,7 +55,9 @@ IF(NOT skip)
   ADD_CUSTOM_TARGET(format
     ${PYTHON_EXECUTABLE} ${CMAKE_BINARY_DIR}/diff-clang-format.py
     --file-extension='.hpp'
+    --file-extension='.cuh'
     --file-extension='.cc'
+    --file-extension='.cu'
     --binary=${CLANG_FORMAT_EXECUTABLE}
     --style=file
     --config=${CMAKE_SOURCE_DIR}/.clang-format
@@ -72,7 +74,7 @@ IF(NOT skip)
     "\n"
     "${PYTHON_EXECUTABLE} "
     "${CMAKE_BINARY_DIR}/diff-clang-format.py "
-    "--file-extension='.hpp' --file-extension='.cc' "
+    "--file-extension='.hpp' --file-extension='.cuh' --file-extension='.cc' --file-extension='.cu' "
     "--binary=${CLANG_FORMAT_EXECUTABLE} "
     "--style=file "
     "--config=${CMAKE_SOURCE_DIR}/.clang-format "
