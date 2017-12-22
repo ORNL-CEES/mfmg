@@ -24,7 +24,7 @@
 #include <array>
 
 template <int dim>
-std::vector<unsigned int> test(boost::mpi::communicator world)
+std::vector<unsigned int> test(MPI_Comm const &world)
 {
   dealii::parallel::distributed::Triangulation<dim> triangulation(world);
   dealii::FE_Q<dim> fe(1);
@@ -51,19 +51,22 @@ std::vector<unsigned int> test(boost::mpi::communicator world)
 
 BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
 {
-  boost::mpi::communicator world;
-  std::vector<unsigned int> agglomerates = test<2>(world);
+  std::vector<unsigned int> agglomerates = test<2>(MPI_COMM_WORLD);
 
+  unsigned int world_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  unsigned int world_rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
   std::vector<unsigned int> ref_agglomerates;
-  if (world.size() == 1)
+  if (world_size == 1)
     ref_agglomerates = {{1, 1, 1, 1, 2,  2,  2,  2,  1,  1,  3,  3, 2,
                          2, 4, 4, 5, 5,  5,  5,  6,  6,  6,  6,  5, 5,
                          7, 7, 6, 6, 8,  8,  3,  3,  3,  3,  4,  4, 4,
                          4, 9, 9, 9, 9,  10, 10, 10, 10, 7,  7,  7, 7,
                          8, 8, 8, 8, 11, 11, 11, 11, 12, 12, 12, 12}};
-  if (world.size() == 2)
+  if (world_size == 2)
   {
-    if (world.rank() == 0)
+    if (world_rank == 0)
       ref_agglomerates = {{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2,
                            4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 5, 5, 7, 7, 6, 6, 8, 8,
                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
@@ -72,22 +75,22 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
                            0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2, 4, 4,
                            5, 5, 5, 5, 6, 6, 6, 6, 5, 5, 7, 7, 6, 6, 8, 8}};
   }
-  if (world.size() == 4)
+  if (world_size == 4)
   {
-    if (world.rank() == 0)
+    if (world_rank == 0)
       ref_agglomerates = {{0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
                            1, 1, 3, 3, 2, 2, 4, 4, 0, 0, 0, 0, 0, 0, 0,
                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-    if (world.rank() == 1)
+    if (world_rank == 1)
       ref_agglomerates = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                            1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2, 4,
                            4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-    if (world.rank() == 2)
+    if (world_rank == 2)
       ref_agglomerates = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                            0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3,
                            3, 2, 2, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0}};
 
-    if (world.rank() == 3)
+    if (world_rank == 3)
       ref_agglomerates = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
                            1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2, 4, 4}};
@@ -98,11 +101,13 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
 
 BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
 {
-  boost::mpi::communicator world;
-
-  std::vector<unsigned int> agglomerates = test<3>(world);
+  unsigned int world_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  unsigned int world_rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  std::vector<unsigned int> agglomerates = test<3>(MPI_COMM_WORLD);
   std::vector<unsigned int> ref_agglomerates;
-  if (world.size() == 1)
+  if (world_size == 1)
   {
     ref_agglomerates = {
         {1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  1,  1,
@@ -135,9 +140,9 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
          19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 23, 23, 23, 23, 23, 23, 23, 23,
          24, 24, 24, 24, 24, 24, 24, 24}};
   }
-  if (world.size() == 2)
+  if (world_size == 2)
   {
-    if (world.rank() == 0)
+    if (world_rank == 0)
       ref_agglomerates = {
           {0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,
            1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  1,  1,
@@ -190,9 +195,9 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            7,  7,  8,  8,  8,  8,  8,  8,  8,  8,  11, 11, 11, 11, 11, 11, 11,
            11, 12, 12, 12, 12, 12, 12, 12, 12}};
   }
-  if (world.size() == 4)
+  if (world_size == 4)
   {
-    if (world.rank() == 0)
+    if (world_rank == 0)
       ref_agglomerates = {
           {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1,
@@ -208,7 +213,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-    if (world.rank() == 1)
+    if (world_rank == 1)
       ref_agglomerates = {
           {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -224,7 +229,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-    if (world.rank() == 2)
+    if (world_rank == 2)
       ref_agglomerates = {
           {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -240,7 +245,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-    if (world.rank() == 3)
+    if (world_rank == 3)
       ref_agglomerates = {
           {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

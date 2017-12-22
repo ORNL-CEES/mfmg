@@ -69,11 +69,9 @@ double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
 
 BOOST_AUTO_TEST_CASE(laplace_2d)
 {
-  boost::mpi::communicator world;
-
   Source<2> source;
 
-  Laplace<2, dealii::TrilinosWrappers::MPI::Vector> laplace(world, 2);
+  Laplace<2, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
   laplace.setup_system();
   laplace.assemble_system(source);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
@@ -86,10 +84,13 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
 
   laplace.output_results();
   // Remove output file
-  if (world.rank() == 0)
+  unsigned int rank = dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  unsigned int world_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  if (rank == 0)
   {
     BOOST_TEST(std::remove("solution.pvtu") == 0);
-    for (int i = 0; i < world.size(); ++i)
+    for (unsigned int i = 0; i < world_size; ++i)
       BOOST_TEST(
           std::remove(("solution-" + std::to_string(i) + ".vtu").c_str()) == 0);
   }
@@ -97,11 +98,9 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
 
 BOOST_AUTO_TEST_CASE(laplace_3d)
 {
-  boost::mpi::communicator world;
-
   Source<3> source;
 
-  Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(world, 2);
+  Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
   laplace.setup_system();
   laplace.assemble_system(source);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;

@@ -57,15 +57,13 @@ void diagonal_matrices(dealii::DoFHandler<2> &dof_handler,
 
 BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
 {
-  boost::mpi::communicator world;
-
-  dealii::parallel::distributed::Triangulation<2> triangulation(world);
+  dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(3);
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe<2, float> amge(world, dof_handler);
+  mfmg::AMGe<2, float> amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const n_eigenvalues = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
@@ -139,15 +137,13 @@ void constrained_diagonal_matrices(
 
 BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
 {
-  boost::mpi::communicator world;
-
-  dealii::parallel::distributed::Triangulation<2> triangulation(world);
+  dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(3);
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe<2, double> amge(world, dof_handler);
+  mfmg::AMGe<2, double> amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const n_eigenvalues = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
