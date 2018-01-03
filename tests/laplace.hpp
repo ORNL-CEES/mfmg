@@ -29,14 +29,13 @@
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/vector_tools.h>
 
-#include <boost/mpi.hpp>
 #include <string>
 
 template <int dim, typename VectorType>
 class Laplace
 {
 public:
-  Laplace(boost::mpi::communicator const &comm, unsigned int fe_degree);
+  Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
   void setup_system();
 
@@ -54,7 +53,7 @@ public:
            dealii::Function<dim> const &source);
 
 private:
-  boost::mpi::communicator _comm;
+  MPI_Comm _comm;
   dealii::parallel::distributed::Triangulation<dim> _triangulation;
   dealii::FE_Q<dim> _fe;
   dealii::DoFHandler<dim> _dof_handler;
@@ -67,8 +66,7 @@ private:
 };
 
 template <int dim, typename VectorType>
-Laplace<dim, VectorType>::Laplace(boost::mpi::communicator const &comm,
-                                  unsigned int fe_degree)
+Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
     : _comm(comm), _triangulation(_comm), _fe(fe_degree),
       _dof_handler(_triangulation)
 {
@@ -171,7 +169,7 @@ VectorType Laplace<dim, VectorType>::solve(PreconditionerType &preconditioner)
   preconditioner.initialize(_system_matrix);
   solver.solve(_system_matrix, solution, _system_rhs, preconditioner);
 
-  if (_comm.rank() == 0)
+  if (dealii::Utilities::MPI::this_mpi_process(_comm) == 0)
     std::cout << "Solved in " << solver_control.last_step() << " iterations."
               << std::endl;
 
@@ -218,10 +216,11 @@ void Laplace<dim, VectorType>::output_results() const
   std::ofstream output((filename + ".vtu").c_str());
   data_out.write_vtu(output);
 
-  if (_comm.rank() == 0)
+  if (dealii::Utilities::MPI::this_mpi_process(_comm) == 0)
   {
     std::vector<std::string> filenames;
-    for (int i = 0; i < _comm.size(); ++i)
+    unsigned int comm_size = dealii::Utilities::MPI::n_mpi_processes(_comm);
+    for (unsigned int i = 0; i < comm_size; ++i)
       filenames.push_back("solution-" + std::to_string(i) + ".vtu");
     std::ofstream master_output("solution.pvtu");
     data_out.write_pvtu_record(master_output, filenames);

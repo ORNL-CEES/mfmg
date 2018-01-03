@@ -23,16 +23,17 @@
 
 BOOST_AUTO_TEST_CASE(restriction_matrix)
 {
-  boost::mpi::communicator world;
-  dealii::parallel::distributed::Triangulation<3> triangulation(world);
+  dealii::parallel::distributed::Triangulation<3> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(2);
   dealii::FE_Q<3> fe(4);
   dealii::DoFHandler<3> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe<3, float> amge(world, dof_handler);
+  mfmg::AMGe<3, float> amge(MPI_COMM_WORLD, dof_handler);
 
-  unsigned int const n_local_rows = world.rank() + 3;
+  unsigned int const rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  unsigned int const n_local_rows = rank + 3;
   unsigned int const eigenvectors_size = 10;
   std::vector<dealii::Vector<double>> eigenvectors(
       n_local_rows, dealii::Vector<double>(eigenvectors_size));
@@ -56,7 +57,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
 
   // Check that the matrix was built correctly
   unsigned int row_offset = 0;
-  for (int i = 0; i < world.rank(); ++i)
+  for (unsigned int i = 0; i < rank; ++i)
     row_offset += i + 3;
   for (unsigned int i = 0; i < n_local_rows; ++i)
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
