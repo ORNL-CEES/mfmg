@@ -13,7 +13,7 @@
 
 #include "main.cc"
 
-#include <mfmg/amge.hpp>
+#include <mfmg/amge_host.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/fe/fe_q.h>
@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<3> fe(4);
   dealii::DoFHandler<3> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe<3, float> amge(MPI_COMM_WORLD, dof_handler);
+  mfmg::AMGe_host<3, float> amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const rank =
       dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
