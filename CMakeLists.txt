@@ -33,7 +33,7 @@ IF(${MFMG_ENABLE_TESTS})
 ENDIf()
 
 # Check code style using clang-format
-IF(${MFMG_ENABLE_ClangFormat})
+IF(${MFMG_ENABLE_CLANGFORMAT})
   INCLUDE(CodeFormat)
 ENDIF()
 
