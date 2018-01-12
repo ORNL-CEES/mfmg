@@ -6,10 +6,13 @@ SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 INCLUDE(SetupCUDA)
 INCLUDE(SetupTPLs)
 INCLUDE(SetupMFMG)
+INCLUDE(SetupCache)
 
 # By default build a static library because CUDA does not work with a shared
 # library
 OPTION(BUILD_SHARED_LIBS "Build a shared library" OFF)
+
+INITIALIZE_CACHE()
 
 IF(${MFMG_ENABLE_CUDA})
   IF (${BUILD_SHARED_LIBS})
