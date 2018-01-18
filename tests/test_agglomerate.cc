@@ -13,7 +13,7 @@
 
 #include "main.cc"
 
-#include <mfmg/amge.hpp>
+#include <mfmg/amge_host.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -34,7 +34,7 @@ std::vector<unsigned int> test(MPI_Comm const &world)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  mfmg::AMGe<dim, float> amge(world, dof_handler);
+  mfmg::AMGe_host<dim, float> amge(world, dof_handler);
 
   std::array<unsigned int, dim> agglomerate_dim;
   for (unsigned int i = 0; i < dim; ++i)
