@@ -24,6 +24,37 @@
 #include <random>
 #include <set>
 
+template <typename ScalarType>
+std::vector<ScalarType> copy_to_host(ScalarType *val_dev,
+                                     unsigned int n_elements)
+{
+  mfmg::ASSERT(n_elements > 0, "Cannot copy an empty array to the host");
+  std::vector<ScalarType> val_host(n_elements);
+  cudaError_t error_code =
+      cudaMemcpy(&val_host[0], val_dev, n_elements * sizeof(ScalarType),
+                 cudaMemcpyDeviceToHost);
+  mfmg::ASSERT_CUDA(error_code);
+
+  return val_host;
+}
+
+template <typename ScalarType>
+std::tuple<std::vector<ScalarType>, std::vector<int>, std::vector<int>>
+copy_sparse_matrix_to_host(
+    mfmg::SparseMatrixDevice<ScalarType> const &sparse_matrix_dev)
+{
+  std::vector<ScalarType> val =
+      copy_to_host(sparse_matrix_dev.val_dev, sparse_matrix_dev.nnz);
+
+  std::vector<int> column_index =
+      copy_to_host(sparse_matrix_dev.column_index_dev, sparse_matrix_dev.nnz);
+
+  std::vector<int> row_ptr =
+      copy_to_host(sparse_matrix_dev.row_ptr_dev, sparse_matrix_dev.n_rows + 1);
+
+  return std::make_tuple(val, column_index, row_ptr);
+}
+
 BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
 {
   // Build the sparsity pattern
@@ -55,40 +86,22 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
         sparse_matrix.set(i, j, static_cast<float>(i + j));
 
   // Move the sparse matrix to the device and change the format to a regular CSR
-  float *val_dev;
-  int *column_index_dev;
-  int *row_ptr_dev;
-  std::tie(val_dev, column_index_dev, row_ptr_dev) =
+  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
       mfmg::convert_matrix(sparse_matrix);
 
   // Copy the matrix from the gpu
-  unsigned int const nnz = sparse_matrix.n_nonzero_elements();
-  int const n_rows = sparse_matrix.m();
-  int const row_ptr_size = n_rows + 1;
-  std::vector<float> val_host(nnz);
-  cudaError_t error_code = cudaMemcpy(
-      &val_host[0], val_dev, nnz * sizeof(float), cudaMemcpyDeviceToHost);
-  mfmg::ASSERT_CUDA(error_code);
-  std::vector<int> column_index_host(nnz);
-  error_code = cudaMemcpy(&column_index_host[0], column_index_dev,
-                          nnz * sizeof(int), cudaMemcpyDeviceToHost);
-  std::vector<int> row_ptr_host(row_ptr_size);
-  error_code = cudaMemcpy(&row_ptr_host[0], row_ptr_dev,
-                          row_ptr_size * sizeof(int), cudaMemcpyDeviceToHost);
+  std::vector<float> val_host;
+  std::vector<int> column_index_host;
+  std::vector<int> row_ptr_host;
+  std::tie(val_host, column_index_host, row_ptr_host) =
+      copy_sparse_matrix_to_host(sparse_matrix_dev);
 
   // Check the result
+  unsigned int const n_rows = sparse_matrix_dev.n_rows;
   unsigned int pos = 0;
   for (unsigned int i = 0; i < n_rows; ++i)
     for (unsigned int j = row_ptr_host[i]; j < row_ptr_host[i + 1]; ++j, ++pos)
       BOOST_CHECK_EQUAL(val_host[pos], sparse_matrix(i, column_index_host[j]));
-
-  // Free the memiory allocated
-  error_code = cudaFree(val_dev);
-  mfmg::ASSERT_CUDA(error_code);
-  error_code = cudaFree(column_index_dev);
-  mfmg::ASSERT_CUDA(error_code);
-  error_code = cudaFree(row_ptr_dev);
-  mfmg::ASSERT_CUDA(error_code);
 }
 
 BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
@@ -132,24 +145,17 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
   {
     if (i == rank)
     {
-      double *val_dev;
-      int *column_index_dev;
-      int *row_ptr_dev;
-      std::tie(val_dev, column_index_dev, row_ptr_dev) =
+      // Move the sparse matrix to the device and change the format to a regular
+      // CSR
+      mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
           mfmg::convert_matrix(sparse_matrix);
+
       // Copy the matrix from the gpu
-      int const row_ptr_size = n_local_rows + 1;
-      std::vector<double> val_host(nnz);
-      cudaError_t error_code = cudaMemcpy(
-          &val_host[0], val_dev, nnz * sizeof(double), cudaMemcpyDeviceToHost);
-      mfmg::ASSERT_CUDA(error_code);
-      std::vector<int> column_index_host(nnz);
-      error_code = cudaMemcpy(&column_index_host[0], column_index_dev,
-                              nnz * sizeof(int), cudaMemcpyDeviceToHost);
-      std::vector<int> row_ptr_host(row_ptr_size);
-      error_code =
-          cudaMemcpy(&row_ptr_host[0], row_ptr_dev, row_ptr_size * sizeof(int),
-                     cudaMemcpyDeviceToHost);
+      std::vector<double> val_host;
+      std::vector<int> column_index_host;
+      std::vector<int> row_ptr_host;
+      std::tie(val_host, column_index_host, row_ptr_host) =
+          copy_sparse_matrix_to_host(sparse_matrix_dev);
 
       unsigned int pos = 0;
       for (unsigned int i = 0; i < n_local_rows; ++i)

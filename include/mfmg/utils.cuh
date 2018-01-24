@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -15,6 +15,7 @@
 #ifdef MFMG_WITH_CUDA
 
 #include <mfmg/exceptions.hpp>
+#include <mfmg/sparse_matrix_device.cuh>
 
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/trilinos_index_access.h>
@@ -27,39 +28,19 @@ namespace mfmg
 namespace internal
 {
 template <typename ScalarType>
-std::tuple<ScalarType *, int *, int *>
-copy_to_gpu(std::vector<ScalarType> const &val,
-            std::vector<int> const &column_index,
-            std::vector<int> const &row_ptr)
+ScalarType *copy_to_gpu(std::vector<ScalarType> const &val)
 {
-  unsigned int const nnz = val.size();
-  unsigned int const row_ptr_size = row_ptr.size();
-
-  // Copy the elements to the gpu
+  unsigned int const n_elements = val.size();
+  ASSERT(n_elements > 0, "Cannot copy an empty vector to the device");
   ScalarType *val_dev;
-  cudaError_t error_code = cudaMalloc(&val_dev, nnz * sizeof(ScalarType));
+  cudaError_t error_code =
+      cudaMalloc(&val_dev, n_elements * sizeof(ScalarType));
   ASSERT_CUDA(error_code);
-  error_code = cudaMemcpy(val_dev, &val[0], nnz * sizeof(ScalarType),
+  error_code = cudaMemcpy(val_dev, &val[0], n_elements * sizeof(ScalarType),
                           cudaMemcpyHostToDevice);
   ASSERT_CUDA(error_code);
 
-  // Copy the column indices to the gpu
-  int *column_index_dev;
-  error_code = cudaMalloc(&column_index_dev, nnz * sizeof(int));
-  ASSERT_CUDA(error_code);
-  error_code = cudaMemcpy(column_index_dev, &column_index[0], nnz * sizeof(int),
-                          cudaMemcpyHostToDevice);
-  ASSERT_CUDA(error_code);
-
-  // Copy the row pointer to the gpu
-  int *row_ptr_dev;
-  error_code = cudaMalloc(&row_ptr_dev, row_ptr_size * sizeof(int));
-  ASSERT_CUDA(error_code);
-  error_code = cudaMemcpy(row_ptr_dev, &row_ptr[0], row_ptr_size * sizeof(int),
-                          cudaMemcpyHostToDevice);
-  ASSERT_CUDA(error_code);
-
-  return std::make_tuple(val_dev, column_index_dev, row_ptr_dev);
+  return val_dev;
 }
 }
 
@@ -68,7 +49,7 @@ copy_to_gpu(std::vector<ScalarType> const &val,
  * the GPU.
  */
 template <typename ScalarType>
-std::tuple<ScalarType *, int *, int *>
+SparseMatrixDevice<ScalarType>
 convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
 {
   unsigned int const nnz = sparse_matrix.n_nonzero_elements();
@@ -109,19 +90,24 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
     column_index[offset + pos - 1] = diag_index;
   }
 
-  return internal::copy_to_gpu(val, column_index, row_ptr);
+  SparseMatrixDevice<ScalarType> sparse_matrix_dev(
+      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
+      internal::copy_to_gpu(row_ptr), nnz, n_rows);
+
+  return sparse_matrix_dev;
 }
 
 /**
  * Move a dealii::TrilinosWrappers::SparseMatrix to the GPU.
  */
-std::tuple<double *, int *, int *>
+SparseMatrixDevice<double>
 convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
 {
   unsigned int const n_local_rows = sparse_matrix.local_size();
   std::vector<double> val;
   std::vector<int> column_index;
   std::vector<int> row_ptr(n_local_rows + 1);
+  unsigned int local_nnz = 0;
   for (unsigned int row = 0; row < n_local_rows; ++row)
   {
     int n_entries;
@@ -136,9 +122,14 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
     for (int i = 0; i < n_entries; ++i)
       column_index.push_back(dealii::TrilinosWrappers::global_column_index(
           sparse_matrix.trilinos_matrix(), indices[i]));
+    local_nnz += n_entries;
   }
 
-  return internal::copy_to_gpu(val, column_index, row_ptr);
+  SparseMatrixDevice<double> sparse_matrix_dev(
+      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
+      internal::copy_to_gpu(row_ptr), local_nnz, n_local_rows);
+
+  return sparse_matrix_dev;
 }
 }
 
