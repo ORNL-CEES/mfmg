@@ -11,8 +11,80 @@
 
 #include <mfmg/utils.cuh>
 
+#include <mfmg/sparse_matrix_device.cuh>
+
+#include <deal.II/lac/trilinos_index_access.h>
+
 namespace mfmg
 {
+namespace internal
+{
+template <typename ScalarType>
+ScalarType *copy_to_gpu(std::vector<ScalarType> const &val)
+{
+  unsigned int const n_elements = val.size();
+  ASSERT(n_elements > 0, "Cannot copy an empty vector to the device");
+  ScalarType *val_dev;
+  cudaError_t error_code =
+      cudaMalloc(&val_dev, n_elements * sizeof(ScalarType));
+  ASSERT_CUDA(error_code);
+  error_code = cudaMemcpy(val_dev, &val[0], n_elements * sizeof(ScalarType),
+                          cudaMemcpyHostToDevice);
+  ASSERT_CUDA(error_code);
+
+  return val_dev;
+}
+}
+
+template <typename ScalarType>
+SparseMatrixDevice<ScalarType>
+convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
+{
+  unsigned int const nnz = sparse_matrix.n_nonzero_elements();
+  int const n_rows = sparse_matrix.m();
+  int const row_ptr_size = n_rows + 1;
+  std::vector<ScalarType> val;
+  val.reserve(nnz);
+  std::vector<int> column_index;
+  column_index.reserve(nnz);
+  std::vector<int> row_ptr(row_ptr_size, 0);
+
+  // deal.II stores the diagonal first in each row so we need to do some
+  // reordering
+  for (int row = 0; row < n_rows; ++row)
+  {
+    auto p_end = sparse_matrix.end(row);
+    unsigned int counter = 0;
+    for (auto p = sparse_matrix.begin(row); p != p_end; ++p)
+    {
+      val.emplace_back(p->value());
+      column_index.emplace_back(p->column());
+      ++counter;
+    }
+    row_ptr[row + 1] = row_ptr[row] + counter;
+
+    // Sort the elements in the row
+    unsigned int const offset = row_ptr[row];
+    int const diag_index = column_index[offset];
+    ScalarType diag_elem = sparse_matrix.diag_element(row);
+    unsigned int pos = 1;
+    while ((column_index[offset + pos] < row) && (pos < counter))
+    {
+      val[offset + pos - 1] = val[offset + pos];
+      column_index[offset + pos - 1] = column_index[offset + pos];
+      ++pos;
+    }
+    val[offset + pos - 1] = diag_elem;
+    column_index[offset + pos - 1] = diag_index;
+  }
+
+  SparseMatrixDevice<ScalarType> sparse_matrix_dev(
+      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
+      internal::copy_to_gpu(row_ptr), nnz, n_rows);
+
+  return sparse_matrix_dev;
+}
+
 SparseMatrixDevice<double>
 convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
 {
@@ -44,4 +116,175 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
 
   return sparse_matrix_dev;
 }
+
+namespace internal
+{
+void all_gather_dev(MPI_Comm communicator, int comm_size,
+                    unsigned int send_count, float *send_buffer,
+                    unsigned int recv_count, float *recv_buffer)
+{
+  // First gather the number of elements each proc will send
+  ASSERT(comm_size > 1, "Communicator should have more than one process");
+  std::vector<int> n_elem_per_procs(comm_size);
+  MPI_Allgather(&send_count, 1, MPI_INT, n_elem_per_procs.data(), 1, MPI_INT,
+                communicator);
+
+  // Gather the elements
+  std::vector<int> displs(comm_size);
+  for (int i = 1; i < comm_size; ++i)
+    displs[i] = displs[i - 1] + n_elem_per_procs[i - 1];
+  MPI_Allgatherv(send_buffer, send_count, MPI_FLOAT, recv_buffer,
+                 n_elem_per_procs.data(), displs.data(), MPI_FLOAT,
+                 communicator);
+}
+
+void all_gather_dev(MPI_Comm communicator, int comm_size,
+                    unsigned int send_count, double *send_buffer,
+                    unsigned int recv_count, double *recv_buffer)
+{
+  // First gather the number of elements each proc will send
+  ASSERT(comm_size > 1, "Communicator should have more than one process");
+  std::vector<int> n_elem_per_procs(comm_size);
+  MPI_Allgather(&send_count, 1, MPI_INT, n_elem_per_procs.data(), 1, MPI_INT,
+                communicator);
+
+  // Gather the elements
+  std::vector<int> displs(comm_size);
+  for (int i = 1; i < comm_size; ++i)
+    displs[i] = displs[i - 1] + n_elem_per_procs[i - 1];
+  MPI_Allgatherv(send_buffer, send_count, MPI_DOUBLE, recv_buffer,
+                 n_elem_per_procs.data(), displs.data(), MPI_DOUBLE,
+                 communicator);
+}
+}
+
+#ifdef MFMG_WITH_CUDA_MPI
+void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
+                    float *send_buffer, unsigned int recv_count,
+                    float *recv_buffer)
+{
+  // First gather the number of elements each proc will send
+  int comm_size;
+  MPI_Comm_size(&communicator, &comm_size);
+  if (comm_size > 1)
+  {
+    internal::all_gather_dev(communicator, comm_size, send_count, send_buffer,
+                             recv_count, recv_buffer);
+  }
+  else
+  {
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, send_buffer, send_count * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+}
+
+void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
+                    double *send_buffer, unsigned int recv_count,
+                    double *recv_buffer)
+{
+  // If there is only one proc, we just copy the value in the send_buffer to the
+  // recv_buffer.
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
+  if (comm_size > 1)
+  {
+    internal::all_gather_dev(communicator, comm_size, send_count, send_buffer,
+                             recv_count, recv_buffer);
+  }
+  else
+  {
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, send_buffer, send_count * sizeof(double),
+                   cudaMemcpyDeviceToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+}
+#else
+void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
+                    float *send_buffer, unsigned int recv_count,
+                    float *recv_buffer)
+{
+  // If there is only one proc, we just copy the value in the send_buffer to the
+  // recv_buffer.
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
+  if (comm_size > 1)
+  {
+    // We cannot call MPI directly, so first we copy the send_buffer to the host
+    // and after the communication, we copy the result in the recv_buffer.
+    std::vector<float> send_buffer_host(send_count);
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(&send_buffer_host[0], send_buffer,
+                   send_count * sizeof(float), cudaMemcpyDeviceToHost);
+    ASSERT_CUDA(cuda_error_code);
+    std::vector<float> recv_buffer_host(recv_count);
+
+    internal::all_gather_dev(communicator, comm_size, send_count,
+                             &send_buffer_host[0], recv_count,
+                             &recv_buffer_host[0]);
+
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, &recv_buffer_host[0],
+                   recv_count * sizeof(float), cudaMemcpyHostToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+  else
+  {
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, send_buffer, send_count * sizeof(float),
+                   cudaMemcpyDeviceToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+}
+
+void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
+                    double *send_buffer, unsigned int recv_count,
+                    double *recv_buffer)
+{
+  // If there is only one proc, we just copy the value in the send_buffer to the
+  // recv_buffer.
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
+  if (comm_size > 1)
+  {
+    // We cannot call MPI directly, so first we copy the send_buffer to the host
+    // and after the communication, we copy the result in the recv_buffer.
+    std::vector<double> send_buffer_host(send_count);
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(&send_buffer_host[0], send_buffer,
+                   send_count * sizeof(double), cudaMemcpyDeviceToHost);
+    ASSERT_CUDA(cuda_error_code);
+    std::vector<double> recv_buffer_host(recv_count);
+
+    internal::all_gather_dev(communicator, comm_size, send_count,
+                             &send_buffer_host[0], recv_count,
+                             &recv_buffer_host[0]);
+
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, &recv_buffer_host[0],
+                   recv_count * sizeof(double), cudaMemcpyHostToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+  else
+  {
+    cudaError_t cuda_error_code;
+    cuda_error_code =
+        cudaMemcpy(recv_buffer, send_buffer, send_count * sizeof(double),
+                   cudaMemcpyDeviceToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+}
+#endif
+
+template SparseMatrixDevice<float>
+convert_matrix(dealii::SparseMatrix<float> const &sparse_matrix);
+template SparseMatrixDevice<double>
+convert_matrix(dealii::SparseMatrix<double> const &sparse_matrix);
 }
