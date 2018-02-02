@@ -78,11 +78,9 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
     column_index[offset + pos - 1] = diag_index;
   }
 
-  SparseMatrixDevice<ScalarType> sparse_matrix_dev(
+  return SparseMatrixDevice<ScalarType>(
       internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
       internal::copy_to_gpu(row_ptr), nnz, n_rows);
-
-  return sparse_matrix_dev;
 }
 
 SparseMatrixDevice<double>
@@ -110,21 +108,36 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
     local_nnz += n_entries;
   }
 
-  SparseMatrixDevice<double> sparse_matrix_dev(
+  return SparseMatrixDevice<double>(
       internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
       internal::copy_to_gpu(row_ptr), local_nnz, n_local_rows);
-
-  return sparse_matrix_dev;
 }
 
-namespace internal
+void all_gather(MPI_Comm communicator, unsigned int send_count,
+                unsigned int *send_buffer, unsigned int recv_count,
+                unsigned int *recv_buffer)
 {
-void all_gather_dev(MPI_Comm communicator, int comm_size,
-                    unsigned int send_count, float *send_buffer,
-                    unsigned int recv_count, float *recv_buffer)
-{
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
   // First gather the number of elements each proc will send
-  ASSERT(comm_size > 1, "Communicator should have more than one process");
+  std::vector<int> n_elem_per_procs(comm_size);
+  MPI_Allgather(&send_count, 1, MPI_INT, n_elem_per_procs.data(), 1, MPI_INT,
+                communicator);
+
+  // Gather the elements
+  std::vector<int> displs(comm_size);
+  for (int i = 1; i < comm_size; ++i)
+    displs[i] = displs[i - 1] + n_elem_per_procs[i - 1];
+  MPI_Allgatherv(send_buffer, send_count, MPI_UNSIGNED, recv_buffer,
+                 n_elem_per_procs.data(), displs.data(), MPI_UNSIGNED,
+                 communicator);
+}
+
+void all_gather(MPI_Comm communicator, unsigned int send_count,
+                float *send_buffer, unsigned int recv_count, float *recv_buffer)
+{
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
   std::vector<int> n_elem_per_procs(comm_size);
   MPI_Allgather(&send_count, 1, MPI_INT, n_elem_per_procs.data(), 1, MPI_INT,
                 communicator);
@@ -138,12 +151,13 @@ void all_gather_dev(MPI_Comm communicator, int comm_size,
                  communicator);
 }
 
-void all_gather_dev(MPI_Comm communicator, int comm_size,
-                    unsigned int send_count, double *send_buffer,
-                    unsigned int recv_count, double *recv_buffer)
+void all_gather(MPI_Comm communicator, unsigned int send_count,
+                double *send_buffer, unsigned int recv_count,
+                double *recv_buffer)
 {
   // First gather the number of elements each proc will send
-  ASSERT(comm_size > 1, "Communicator should have more than one process");
+  int comm_size;
+  MPI_Comm_size(communicator, &comm_size);
   std::vector<int> n_elem_per_procs(comm_size);
   MPI_Allgather(&send_count, 1, MPI_INT, n_elem_per_procs.data(), 1, MPI_INT,
                 communicator);
@@ -156,7 +170,6 @@ void all_gather_dev(MPI_Comm communicator, int comm_size,
                  n_elem_per_procs.data(), displs.data(), MPI_DOUBLE,
                  communicator);
 }
-}
 
 #ifdef MFMG_WITH_CUDA_MPI
 void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
@@ -168,8 +181,7 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
   MPI_Comm_size(&communicator, &comm_size);
   if (comm_size > 1)
   {
-    internal::all_gather_dev(communicator, comm_size, send_count, send_buffer,
-                             recv_count, recv_buffer);
+    all_gather(communicator, send_count, send_buffer, recv_count, recv_buffer);
   }
   else
   {
@@ -191,8 +203,7 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
   MPI_Comm_size(communicator, &comm_size);
   if (comm_size > 1)
   {
-    internal::all_gather_dev(communicator, comm_size, send_count, send_buffer,
-                             recv_count, recv_buffer);
+    all_gather(communicator, send_count, send_buffer, recv_count, recv_buffer);
   }
   else
   {
@@ -224,9 +235,8 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
     ASSERT_CUDA(cuda_error_code);
     std::vector<float> recv_buffer_host(recv_count);
 
-    internal::all_gather_dev(communicator, comm_size, send_count,
-                             &send_buffer_host[0], recv_count,
-                             &recv_buffer_host[0]);
+    all_gather(communicator, send_count, &send_buffer_host[0], recv_count,
+               &recv_buffer_host[0]);
 
     cuda_error_code =
         cudaMemcpy(recv_buffer, &recv_buffer_host[0],
@@ -263,9 +273,8 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
     ASSERT_CUDA(cuda_error_code);
     std::vector<double> recv_buffer_host(recv_count);
 
-    internal::all_gather_dev(communicator, comm_size, send_count,
-                             &send_buffer_host[0], recv_count,
-                             &recv_buffer_host[0]);
+    all_gather(communicator, send_count, &send_buffer_host[0], recv_count,
+               &recv_buffer_host[0]);
 
     cuda_error_code =
         cudaMemcpy(recv_buffer, &recv_buffer_host[0],

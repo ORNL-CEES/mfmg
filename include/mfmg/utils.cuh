@@ -55,6 +55,18 @@ inline void cuda_malloc(T *&pointer, unsigned int n_elements)
   ASSERT_CUDA(cuda_error_code);
 }
 
+void all_gather(MPI_Comm communicator, unsigned int send_count,
+                unsigned int *send_buffer, unsigned int recv_count,
+                unsigned int *recv_buffer);
+
+void all_gather(MPI_Comm communicator, unsigned int send_count,
+                float *send_buffer, unsigned int recv_count,
+                float *recv_buffer);
+
+void all_gather_host(MPI_Comm communicator, unsigned int send_count,
+                     double *send_buffer, unsigned int recv_count,
+                     double *recv_buffer);
+
 void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
                     float *send_buffer, unsigned int recv_count,
                     float *recv_buffer);
