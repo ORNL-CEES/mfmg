@@ -178,6 +178,25 @@ SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
     ASSERT_CUSPARSE(cusparse_error_code);
   }
 }
+
+template <typename ScalarType>
+void SparseMatrixDevice<ScalarType>::vmult(VectorDevice<ScalarType> &dst,
+                                           VectorDevice<ScalarType> const &src)
+{
+  // Get the whole src vector
+  unsigned int const size = src.partitioner->size();
+  ScalarType *src_val_dev;
+  cudaError_t cuda_error_code;
+  cuda_error_code = cudaMalloc(&src_val_dev, size * sizeof(ScalarType));
+  ASSERT_CUDA(cuda_error_code);
+  internal::gather_vector<ScalarType>(src, src_val_dev);
+
+  // Perform the matrix-vector multiplication on the row that are locally
+  // owned
+  internal::csrmv(cusparse_handle, false, n_rows, size, nnz, descr, val_dev,
+                  row_ptr_dev, column_index_dev, src_val_dev, false,
+                  dst.val_dev);
+}
 }
 
 #endif

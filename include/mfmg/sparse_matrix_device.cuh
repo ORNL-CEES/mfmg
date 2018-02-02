@@ -13,6 +13,7 @@
 #define SPARSE_MATRIX_DEVICE_CUH
 
 #ifdef MFMG_WITH_CUDA
+#include <mfmg/vector_device.cuh>
 
 #include <cusparse.h>
 
@@ -39,27 +40,8 @@ public:
 
   ~SparseMatrixDevice();
 
-  ~SparseMatrixDevice()
-  {
-    if (val_dev != nullptr)
-    {
-      cudaError_t error_code = cudaFree(val_dev);
-      mfmg::ASSERT_CUDA(error_code);
-      val_dev = nullptr;
-    }
-    if (column_index_dev != nullptr)
-    {
-      cudaError_t error_code = cudaFree(column_index_dev);
-      mfmg::ASSERT_CUDA(error_code);
-      column_index_dev = nullptr;
-    }
-    if (row_ptr_dev != nullptr)
-    {
-      cudaError_t error_code = cudaFree(row_ptr_dev);
-      mfmg::ASSERT_CUDA(error_code);
-      row_ptr_dev = nullptr;
-    }
-  }
+  void vmult(VectorDevice<ScalarType> &dst,
+             VectorDevice<ScalarType> const &src);
 
   ScalarType *val_dev;
   int *column_index_dev;
