@@ -15,6 +15,8 @@
 
 #include <mfmg/utils.cuh>
 
+#include <mfmg/sparse_matrix_device.cuh>
+
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>

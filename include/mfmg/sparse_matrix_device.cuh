@@ -14,41 +14,30 @@
 
 #ifdef MFMG_WITH_CUDA
 
-#include <mfmg/exceptions.hpp>
+#include <cusparse.h>
 
 namespace mfmg
 {
 /**
- * This structure encapsulates the pointers that define a matrix on the device.
- * The destructor frees the allocated memory.
+ * This class defines a matrix on the device. The destructor frees the allocated
+ * memory.
  */
 template <typename ScalarType>
-struct SparseMatrixDevice
+class SparseMatrixDevice
 {
-  SparseMatrixDevice()
-      : val_dev(nullptr), column_index_dev(nullptr), row_ptr_dev(nullptr),
-        nnz(0), n_rows(0)
-  {
-  }
+public:
+  SparseMatrixDevice();
 
-  SparseMatrixDevice(SparseMatrixDevice<ScalarType> &&other)
-      : val_dev(other.val_dev), column_index_dev(other.column_index_dev),
-        row_ptr_dev(other.row_ptr_dev), nnz(other.nnz), n_rows(other.n_rows)
-  {
-    other.val_dev = nullptr;
-    other.column_index_dev = nullptr;
-    other.row_ptr_dev = nullptr;
-
-    other.nnz = 0;
-    other.n_rows = 0;
-  }
+  SparseMatrixDevice(SparseMatrixDevice<ScalarType> &&other);
 
   SparseMatrixDevice(ScalarType *val_dev, int *column_index_dev,
-                     int *row_ptr_dev, unsigned int nnz, unsigned int n_rows)
-      : val_dev(val_dev), column_index_dev(column_index_dev),
-        row_ptr_dev(row_ptr_dev), nnz(nnz), n_rows(n_rows)
-  {
-  }
+                     int *row_ptr_dev, unsigned int nnz, unsigned int n_rows);
+
+  SparseMatrixDevice(ScalarType *val_dev, int *column_index_dev,
+                     int *row_ptr_dev, cusparseHandle_t cusparse_handle,
+                     unsigned int nnz, unsigned int n_rows);
+
+  ~SparseMatrixDevice();
 
   ~SparseMatrixDevice()
   {
@@ -75,6 +64,8 @@ struct SparseMatrixDevice
   ScalarType *val_dev;
   int *column_index_dev;
   int *row_ptr_dev;
+  cusparseHandle_t cusparse_handle;
+  cusparseMatDescr_t descr;
 
   unsigned int nnz;
   unsigned int n_rows;

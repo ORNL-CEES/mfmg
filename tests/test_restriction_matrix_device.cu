@@ -70,25 +70,23 @@ BOOST_AUTO_TEST_CASE(restriction_matrix_device)
                  eigenvectors.size() * sizeof(float), cudaMemcpyHostToDevice);
   mfmg::ASSERT_CUDA(cuda_error_code);
 
-  std::shared_ptr<mfmg::SparseMatrixDevice<float>> restriction_matrix_dev;
-  cusparseMatDescr_t descr;
-  std::tie(restriction_matrix_dev, descr) =
+  mfmg::SparseMatrixDevice<float> restriction_matrix_dev =
       amge.compute_restriction_sparse_matrix(eigenvectors_dev,
                                              dof_indices_maps);
 
   // Check that the values in the restriction matrix are the same as the
   // eigenvectors
-  BOOST_CHECK_EQUAL(restriction_matrix_dev->val_dev, eigenvectors_dev);
+  BOOST_CHECK_EQUAL(restriction_matrix_dev.val_dev, eigenvectors_dev);
 
   std::vector<int> column_index(n_local_rows * eigenvectors_size);
   cuda_error_code =
-      cudaMemcpy(&column_index[0], restriction_matrix_dev->column_index_dev,
+      cudaMemcpy(&column_index[0], restriction_matrix_dev.column_index_dev,
                  column_index.size() * sizeof(int), cudaMemcpyDeviceToHost);
   mfmg::ASSERT_CUDA(cuda_error_code);
 
   std::vector<int> row_ptr(n_local_rows + 1);
   cuda_error_code =
-      cudaMemcpy(&row_ptr[0], restriction_matrix_dev->row_ptr_dev,
+      cudaMemcpy(&row_ptr[0], restriction_matrix_dev.row_ptr_dev,
                  (n_local_rows + 1) * sizeof(int), cudaMemcpyDeviceToHost);
   mfmg::ASSERT_CUDA(cuda_error_code);
 
