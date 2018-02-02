@@ -101,35 +101,14 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
  * Move a dealii::TrilinosWrappers::SparseMatrix to the GPU.
  */
 SparseMatrixDevice<double>
-convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
+convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix);
+
+template <typename T>
+inline void cuda_free(T *pointer)
 {
-  unsigned int const n_local_rows = sparse_matrix.local_size();
-  std::vector<double> val;
-  std::vector<int> column_index;
-  std::vector<int> row_ptr(n_local_rows + 1);
-  unsigned int local_nnz = 0;
-  for (unsigned int row = 0; row < n_local_rows; ++row)
-  {
-    int n_entries;
-    double *values;
-    int *indices;
-    sparse_matrix.trilinos_matrix().ExtractMyRowView(row, n_entries, values,
-                                                     indices);
-
-    val.insert(val.end(), values, values + n_entries);
-    row_ptr[row + 1] = row_ptr[row] + n_entries;
-    // Trilinos does not store the column indices directly
-    for (int i = 0; i < n_entries; ++i)
-      column_index.push_back(dealii::TrilinosWrappers::global_column_index(
-          sparse_matrix.trilinos_matrix(), indices[i]));
-    local_nnz += n_entries;
-  }
-
-  SparseMatrixDevice<double> sparse_matrix_dev(
-      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
-      internal::copy_to_gpu(row_ptr), local_nnz, n_local_rows);
-
-  return sparse_matrix_dev;
+  cudaError_t cuda_error_code = cudaFree(pointer);
+  ASSERT_CUDA(cuda_error_code);
+  pointer = nullptr;
 }
 }
 

@@ -31,6 +31,18 @@ struct SparseMatrixDevice
   {
   }
 
+  SparseMatrixDevice(SparseMatrixDevice<ScalarType> &&other)
+      : val_dev(other.val_dev), column_index_dev(other.column_index_dev),
+        row_ptr_dev(other.row_ptr_dev), nnz(other.nnz), n_rows(other.n_rows)
+  {
+    other.val_dev = nullptr;
+    other.column_index_dev = nullptr;
+    other.row_ptr_dev = nullptr;
+
+    other.nnz = 0;
+    other.n_rows = 0;
+  }
+
   SparseMatrixDevice(ScalarType *val_dev, int *column_index_dev,
                      int *row_ptr_dev, unsigned int nnz, unsigned int n_rows)
       : val_dev(val_dev), column_index_dev(column_index_dev),
