@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017 - 2018 by the mfmg authors                         *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -59,6 +59,17 @@ public:
           dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
           std::shared_ptr<SparseMatrixDevice<ScalarType>> &,
           std::shared_ptr<SparseMatrixDevice<ScalarType>> &)> const &evaluate);
+
+  /*
+   * Compute the restriction sparse matrix. The rows of the matrix are the
+   * computed eigenvectors. \p dof_indices_maps are used to map the indices in
+   * \p eigenvectors_dev to the global dof indices.
+   */
+  std::pair<std::shared_ptr<SparseMatrixDevice<ScalarType>>, cusparseMatDescr_t>
+  compute_restriction_sparse_matrix(
+      ScalarType *eigenvectors_dev,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_map);
 
 private:
   cusolverDnHandle_t _cusolver_dn_handle;

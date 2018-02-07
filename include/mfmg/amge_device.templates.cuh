@@ -285,6 +285,60 @@ AMGe_device<dim, ScalarType>::compute_local_eigenvectors(
   return std::make_tuple(smallest_eigenvalues_dev, eigenvectors_dev,
                          dof_indices_map);
 }
+
+template <int dim, typename ScalarType>
+std::pair<std::shared_ptr<SparseMatrixDevice<ScalarType>>, cusparseMatDescr_t>
+AMGe_device<dim, ScalarType>::compute_restriction_sparse_matrix(
+    ScalarType *eigenvectors_dev,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps)
+{
+  // The value in the sparse matrix are the same as the ones in the eigenvectors
+  // so we just to compute the sparsity pattern.
+
+  // TODO for now it doesn't work with MPI
+  // dof_indices_maps contains all column indices, we just need to move them to
+  // the GPU
+  unsigned int const n_rows = dof_indices_maps.size();
+  std::vector<int> row_ptr(n_rows + 1, 0);
+  for (unsigned int i = 0; i < n_rows; ++i)
+    row_ptr[i + 1] = row_ptr[i] + dof_indices_maps[i].size();
+  int *row_ptr_dev;
+  cudaError_t cuda_error = cudaMalloc(&row_ptr_dev, (n_rows + 1) * sizeof(int));
+  ASSERT_CUDA(cuda_error);
+  cuda_error = cudaMemcpy(row_ptr_dev, &row_ptr[0], (n_rows + 1) * sizeof(int),
+                          cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error);
+
+  std::vector<int> column_index;
+  column_index.reserve(row_ptr[n_rows]);
+  for (unsigned int i = 0; i < n_rows; ++i)
+    column_index.insert(column_index.end(), dof_indices_maps[i].begin(),
+                        dof_indices_maps[i].end());
+  int *column_index_dev;
+  cuda_error = cudaMalloc(&column_index_dev, row_ptr[n_rows] * sizeof(int));
+  ASSERT_CUDA(cuda_error);
+  cuda_error =
+      cudaMemcpy(column_index_dev, &column_index[0],
+                 row_ptr[n_rows] * sizeof(int), cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error);
+
+  cusparseStatus_t cusparse_error_code;
+  cusparseMatDescr_t descr;
+  cusparse_error_code = cusparseCreateMatDescr(&descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code =
+      cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  std::shared_ptr<SparseMatrixDevice<ScalarType>> tmp(
+      new SparseMatrixDevice<ScalarType>(eigenvectors_dev, column_index_dev,
+                                         row_ptr_dev, row_ptr[n_rows], n_rows));
+
+  return std::make_pair(tmp, descr);
+}
 }
 
 #endif
