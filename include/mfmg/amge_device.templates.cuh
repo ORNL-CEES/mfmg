@@ -287,7 +287,7 @@ AMGe_device<dim, ScalarType>::compute_local_eigenvectors(
 }
 
 template <int dim, typename ScalarType>
-std::pair<std::shared_ptr<SparseMatrixDevice<ScalarType>>, cusparseMatDescr_t>
+SparseMatrixDevice<ScalarType>
 AMGe_device<dim, ScalarType>::compute_restriction_sparse_matrix(
     ScalarType *eigenvectors_dev,
     std::vector<std::vector<dealii::types::global_dof_index>> const
@@ -323,21 +323,9 @@ AMGe_device<dim, ScalarType>::compute_restriction_sparse_matrix(
                  row_ptr[n_rows] * sizeof(int), cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error);
 
-  cusparseStatus_t cusparse_error_code;
-  cusparseMatDescr_t descr;
-  cusparse_error_code = cusparseCreateMatDescr(&descr);
-  ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_error_code = cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL);
-  ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_error_code =
-      cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
-  ASSERT_CUSPARSE(cusparse_error_code);
-
-  std::shared_ptr<SparseMatrixDevice<ScalarType>> tmp(
-      new SparseMatrixDevice<ScalarType>(eigenvectors_dev, column_index_dev,
-                                         row_ptr_dev, row_ptr[n_rows], n_rows));
-
-  return std::make_pair(tmp, descr);
+  return SparseMatrixDevice<ScalarType>(eigenvectors_dev, column_index_dev,
+                                        row_ptr_dev, _cusparse_handle,
+                                        row_ptr[n_rows], n_rows);
 }
 }
 

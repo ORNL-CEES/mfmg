@@ -7,6 +7,7 @@ IF (${MFMG_ENABLE_CUDA})
   SET(MFMG_SOURCES
     ${MFMG_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/amge_device.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparse_matrix_device.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/utils.cu
     )
 ENDIF()

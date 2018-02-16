@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -14,6 +14,8 @@
 #include "main.cc"
 
 #include <mfmg/utils.cuh>
+
+#include <mfmg/sparse_matrix_device.cuh>
 
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/sparse_matrix.h>
@@ -166,4 +168,53 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
+}
+
+BOOST_AUTO_TEST_CASE(cuda_mpi)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  unsigned int const comm_size = dealii::Utilities::MPI::n_mpi_processes(comm);
+  unsigned int const rank = dealii::Utilities::MPI::this_mpi_process(comm);
+  int n_devices = 0;
+  cudaError_t cuda_error_code = cudaGetDeviceCount(&n_devices);
+  mfmg::ASSERT_CUDA(cuda_error_code);
+
+  // Set the device for each process
+  int device_id = rank % n_devices;
+  cuda_error_code = cudaSetDevice(device_id);
+
+  unsigned int const local_size = 10 + rank;
+  std::vector<double> send_buffer_host(local_size, rank);
+  double *send_buffer_dev;
+  mfmg::cuda_malloc(send_buffer_dev, local_size);
+  cuda_error_code =
+      cudaMemcpy(send_buffer_dev, send_buffer_host.data(),
+                 local_size * sizeof(double), cudaMemcpyHostToDevice);
+  mfmg::ASSERT_CUDA(cuda_error_code);
+
+  unsigned int size = 0;
+  for (unsigned int i = 0; i < comm_size; ++i)
+    size += 10 + i;
+  double *recv_buffer_dev;
+  mfmg::cuda_malloc(recv_buffer_dev, size);
+
+  mfmg::all_gather_dev(comm, local_size, send_buffer_dev, size,
+                       recv_buffer_dev);
+
+  std::vector<double> recv_buffer_host(size);
+  cuda_error_code = cudaMemcpy(recv_buffer_host.data(), recv_buffer_dev,
+                               size * sizeof(double), cudaMemcpyDeviceToHost);
+  mfmg::ASSERT_CUDA(cuda_error_code);
+
+  std::vector<double> recv_buffer_ref;
+  recv_buffer_ref.reserve(size);
+  for (unsigned int i = 0; i < comm_size; ++i)
+    for (unsigned int j = 0; j < 10 + i; ++j)
+      recv_buffer_ref.push_back(i);
+
+  for (unsigned int i = 0; i < size; ++i)
+    BOOST_CHECK_EQUAL(recv_buffer_host[i], recv_buffer_ref[i]);
+
+  mfmg::cuda_free(send_buffer_dev);
+  mfmg::cuda_free(recv_buffer_dev);
 }

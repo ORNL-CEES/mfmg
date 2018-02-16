@@ -65,8 +65,7 @@ public:
    * computed eigenvectors. \p dof_indices_maps are used to map the indices in
    * \p eigenvectors_dev to the global dof indices.
    */
-  std::pair<std::shared_ptr<SparseMatrixDevice<ScalarType>>, cusparseMatDescr_t>
-  compute_restriction_sparse_matrix(
+  SparseMatrixDevice<ScalarType> compute_restriction_sparse_matrix(
       ScalarType *eigenvectors_dev,
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_map);

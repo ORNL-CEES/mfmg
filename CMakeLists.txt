@@ -22,6 +22,9 @@ IF(${MFMG_ENABLE_CUDA})
   # highest directory so we cannot encapsulate it
   ENABLE_LANGUAGE(CUDA)
   SET_CUDA_LIBRARIES()
+  IF (${MFMG_ENABLE_CUDA_MPI})
+    ADD_DEFINITIONS(-DMFMG_WITH_CUDA_MPI)
+  ENDIF()
 ENDIF()
 
 FIND_PACKAGE(Backtrace)
