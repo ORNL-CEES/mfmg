@@ -21,6 +21,7 @@
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/lac/la_parallel_vector.h>
 
 void diagonal_matrices(
     dealii::DoFHandler<2> &dof_handler,
@@ -83,8 +84,8 @@ BOOST_AUTO_TEST_CASE(diagonal)
   cusparse_error_code = cusparseCreate(&cusparse_handle);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
-  mfmg::AMGe_device<2, double> amge(MPI_COMM_WORLD, dof_handler,
-                                    cusolver_dn_handle, cusparse_handle);
+  mfmg::AMGe_device<2, dealii::LinearAlgebra::distributed::Vector<double>> amge(
+      MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
 
   unsigned int const n_eigenvalues = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,

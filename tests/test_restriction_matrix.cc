@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -18,6 +18,7 @@
 #include <deal.II/distributed/tria.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/lac/la_parallel_vector.h>
 
 #include <random>
 
@@ -29,7 +30,8 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<3> fe(4);
   dealii::DoFHandler<3> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<3, float> amge(MPI_COMM_WORLD, dof_handler);
+  mfmg::AMGe_host<3, dealii::LinearAlgebra::distributed::Vector<double>> amge(
+      MPI_COMM_WORLD, dof_handler);
 
   unsigned int const rank =
       dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);

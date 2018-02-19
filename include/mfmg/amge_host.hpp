@@ -16,10 +16,12 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-class AMGe_host : public AMGe<dim, ScalarType>
+template <int dim, typename VectorType>
+class AMGe_host : public AMGe<dim, VectorType>
 {
 public:
+  using ScalarType = typename VectorType::value_type;
+
   AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
 
   /**

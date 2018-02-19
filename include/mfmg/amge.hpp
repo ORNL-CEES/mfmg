@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -26,7 +26,7 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 class AMGe
 {
 public:

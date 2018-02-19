@@ -23,10 +23,12 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-class AMGe_device : public AMGe<dim, ScalarType>
+template <int dim, typename VectorType>
+class AMGe_device : public AMGe<dim, VectorType>
 {
 public:
+  using ScalarType = typename VectorType::value_type;
+
   AMGe_device(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
               cusolverDnHandle_t cusolver_dn_handle,
               cusparseHandle_t cusparse_handle);

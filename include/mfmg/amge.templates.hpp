@@ -23,15 +23,15 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-AMGe<dim, ScalarType>::AMGe(MPI_Comm comm,
+template <int dim, typename VectorType>
+AMGe<dim, VectorType>::AMGe(MPI_Comm comm,
                             dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
-template <int dim, typename ScalarType>
-unsigned int AMGe<dim, ScalarType>::build_agglomerates(
+template <int dim, typename VectorType>
+unsigned int AMGe<dim, VectorType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
   // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
@@ -117,11 +117,11 @@ unsigned int AMGe<dim, ScalarType>::build_agglomerates(
   return agglomerate - 1;
 }
 
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 std::tuple<dealii::Triangulation<dim>,
            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                     typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim, ScalarType>::build_agglomerate_triangulation(
+AMGe<dim, VectorType>::build_agglomerate_triangulation(
     unsigned int agglomerate_id) const
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -147,9 +147,9 @@ AMGe<dim, ScalarType>::build_agglomerate_triangulation(
                          agglomerate_to_global_tria_map);
 }
 
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 std::vector<dealii::types::global_dof_index>
-AMGe<dim, ScalarType>::compute_dof_index_map(
+AMGe<dim, VectorType>::compute_dof_index_map(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
@@ -175,8 +175,8 @@ AMGe<dim, ScalarType>::compute_dof_index_map(
   return dof_indices;
 }
 
-template <int dim, typename ScalarType>
-void AMGe<dim, ScalarType>::output(std::string const &filename) const
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::output(std::string const &filename) const
 {
   dealii::DataOut<dim> data_out;
   data_out.attach_dof_handler(_dof_handler);
