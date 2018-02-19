@@ -179,8 +179,8 @@ void AMGe_host<dim, VectorType>::local_worker(
            typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate_to_global_tria_map;
 
-  std::tie(agglomerate_triangulation, agglomerate_to_global_tria_map) =
-      this->build_agglomerate_triangulation(*agg_id);
+  this->build_agglomerate_triangulation(*agg_id, agglomerate_triangulation,
+                                        agglomerate_to_global_tria_map);
 
   // We ignore the eigenvalues.
   std::tie(std::ignore, copy_data.local_eigenvectors,

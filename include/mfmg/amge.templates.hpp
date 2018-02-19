@@ -118,11 +118,12 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
 }
 
 template <int dim, typename VectorType>
-std::tuple<dealii::Triangulation<dim>,
-           std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-                    typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim, VectorType>::build_agglomerate_triangulation(
-    unsigned int agglomerate_id) const
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    unsigned int agglomerate_id,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
@@ -130,21 +131,12 @@ AMGe<dim, VectorType>::build_agglomerate_triangulation(
     if (cell->user_index() == agglomerate_id)
       agglomerate.push_back(cell);
 
-  dealii::Triangulation<dim> agglomerate_triangulation;
-  std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-           typename dealii::DoFHandler<dim>::active_cell_iterator>
-      agglomerate_to_global_tria_map;
-
   // If the agglomerate has hanging nodes, the patch is bigger than
   // what we may expect because we cannot a create a coarse triangulation with
   // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
   // cells.
   dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
       agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
-
-  // The std::move inhibits copy elision but the code does not work otherwise
-  return std::make_tuple(std::move(agglomerate_triangulation),
-                         agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>
