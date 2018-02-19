@@ -198,7 +198,9 @@ void AMGe_host<dim, VectorType>::copy_local_to_global(
 {
   eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
                       copy_data.local_eigenvectors.end());
-  dof_indices_maps.push_back(copy_data.local_dof_indices_map);
+  unsigned int const n_local_eigenvectors = copy_data.local_eigenvectors.size();
+  for (unsigned int i = 0; i < n_local_eigenvectors; ++i)
+    dof_indices_maps.push_back(copy_data.local_dof_indices_map);
 }
 
 template <int dim, typename VectorType>
