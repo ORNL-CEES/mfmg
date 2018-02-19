@@ -20,6 +20,7 @@
 #include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/constraint_matrix.templates.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/trilinos_solver.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
@@ -162,7 +163,7 @@ template <int dim, typename VectorType>
 template <typename PreconditionerType>
 VectorType Laplace<dim, VectorType>::solve(PreconditionerType &preconditioner)
 {
-  dealii::TrilinosWrappers::MPI::Vector solution(_locally_owned_dofs, _comm);
+  VectorType solution(_locally_owned_dofs, _comm);
   dealii::SolverControl solver_control(_dof_handler.n_dofs(),
                                        1e-12 * _system_rhs.l2_norm());
   dealii::TrilinosWrappers::SolverCG solver(solver_control);
