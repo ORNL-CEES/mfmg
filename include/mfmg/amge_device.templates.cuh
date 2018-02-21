@@ -175,20 +175,20 @@ __global__ void restrict_array(int full_array_size, ScalarType *full_array,
 }
 }
 
-template <int dim, typename ScalarType>
-AMGe_device<dim, ScalarType>::AMGe_device(
+template <int dim, typename VectorType>
+AMGe_device<dim, VectorType>::AMGe_device(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
     cusolverDnHandle_t cusolver_dn_handle, cusparseHandle_t cusparse_handle)
-    : AMGe<dim, ScalarType>(comm, dof_handler),
+    : AMGe<dim, VectorType>(comm, dof_handler),
       _cusolver_dn_handle(cusolver_dn_handle), _cusparse_handle(cusparse_handle)
 {
 }
 
 // Cannot be const because of the handles
-template <int dim, typename ScalarType>
-std::tuple<ScalarType *, ScalarType *,
+template <int dim, typename VectorType>
+std::tuple<typename VectorType::value_type *, typename VectorType::value_type *,
            std::vector<dealii::types::global_dof_index>>
-AMGe_device<dim, ScalarType>::compute_local_eigenvectors(
+AMGe_device<dim, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvalues,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -286,9 +286,9 @@ AMGe_device<dim, ScalarType>::compute_local_eigenvectors(
                          dof_indices_map);
 }
 
-template <int dim, typename ScalarType>
-SparseMatrixDevice<ScalarType>
-AMGe_device<dim, ScalarType>::compute_restriction_sparse_matrix(
+template <int dim, typename VectorType>
+SparseMatrixDevice<typename VectorType::value_type>
+AMGe_device<dim, VectorType>::compute_restriction_sparse_matrix(
     ScalarType *eigenvectors_dev,
     std::vector<std::vector<dealii::types::global_dof_index>> const
         &dof_indices_maps)

@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -34,7 +34,8 @@ std::vector<unsigned int> test(MPI_Comm const &world)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  mfmg::AMGe_host<dim, float> amge(world, dof_handler);
+  mfmg::AMGe_host<dim, dealii::TrilinosWrappers::MPI::Vector> amge(world,
+                                                                   dof_handler);
 
   std::array<unsigned int, dim> agglomerate_dim;
   for (unsigned int i = 0; i < dim; ++i)

@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -22,11 +22,10 @@
 #include <array>
 #include <map>
 #include <string>
-#include <tuple>
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 class AMGe
 {
 public:
@@ -45,10 +44,12 @@ public:
    * agglomerate of a given \p agglomerate_id and a map that matches cells in
    * the local triangulation with cells in the global triangulation.
    */
-  std::tuple<dealii::Triangulation<dim>,
-             std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-                      typename dealii::DoFHandler<dim>::active_cell_iterator>>
-  build_agglomerate_triangulation(unsigned int agglomerate_id) const;
+  void build_agglomerate_triangulation(
+      unsigned int agglomerate_id,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map) const;
 
   /**
    * Compute the map between the dof indices of the local DoFHandler and the

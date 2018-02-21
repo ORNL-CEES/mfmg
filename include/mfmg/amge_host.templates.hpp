@@ -17,22 +17,34 @@
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/lac/arpack_solver.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparse_direct.h>
+
+#include <EpetraExt_MatrixMatrix.h>
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-AMGe_host<dim, ScalarType>::AMGe_host(
+template <int dim, typename VectorType>
+AMGe_host<dim, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler)
-    : AMGe<dim, ScalarType>(comm, dof_handler)
+    : AMGe<dim, VectorType>(comm, dof_handler)
 {
 }
 
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
+AMGe_host<dim, VectorType>::AMGe_host(AMGe_host<dim, VectorType> const &other)
+    : AMGe<dim, VectorType>(other._comm, other._dof_handler)
+{
+  _system_matrix_ptr = other._system_matrix_ptr;
+  _restriction_sparse_matrix.copy_from(other._restriction_sparse_matrix);
+  _coarse_sparse_matrix.copy_from(other._coarse_sparse_matrix);
+}
+
+template <int dim, typename VectorType>
 std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
            std::vector<dealii::types::global_dof_index>>
-AMGe_host<dim, ScalarType>::compute_local_eigenvectors(
+AMGe_host<dim, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvalues, double tolerance,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -98,8 +110,8 @@ AMGe_host<dim, ScalarType>::compute_local_eigenvectors(
   return std::make_tuple(eigenvalues, eigenvectors, dof_indices_map);
 }
 
-template <int dim, typename ScalarType>
-void AMGe_host<dim, ScalarType>::compute_restriction_sparse_matrix(
+template <int dim, typename VectorType>
+void AMGe_host<dim, VectorType>::compute_restriction_sparse_matrix(
     std::vector<dealii::Vector<double>> const &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> const
         &dof_indices_maps,
@@ -127,16 +139,17 @@ void AMGe_host<dim, ScalarType>::compute_restriction_sparse_matrix(
   restriction_sparse_matrix.compress(dealii::VectorOperation::insert);
 }
 
-template <int dim, typename ScalarType>
-void AMGe_host<dim, ScalarType>::setup(
+template <int dim, typename VectorType>
+void AMGe_host<dim, VectorType>::setup(
     std::array<unsigned int, dim> const &agglomerate_dim,
     unsigned int const n_eigenvalues, double const tolerance,
-    std::function<
-        void(dealii::DoFHandler<dim> &dof_handler, dealii::ConstraintMatrix &,
-             dealii::SparsityPattern &system_sparsity_pattern,
-             dealii::SparseMatrix<ScalarType> &,
-             dealii::SparsityPattern &mass_sparsity_pattern,
-             dealii::SparseMatrix<ScalarType> &)> const &evaluate) const
+    std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                       dealii::ConstraintMatrix &,
+                       dealii::SparsityPattern &system_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &,
+                       dealii::SparsityPattern &mass_sparsity_pattern,
+                       dealii::SparseMatrix<ScalarType> &)> const &evaluate,
+    dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
@@ -159,10 +172,29 @@ void AMGe_host<dim, ScalarType>::setup(
           &AMGe_host::copy_local_to_global, *this, std::placeholders::_1,
           std::ref(eigenvectors), std::ref(dof_indices_maps))),
       ScratchData(), copy_data);
+
+  // Return to a serial execution
+  compute_restriction_sparse_matrix(eigenvectors, dof_indices_maps,
+                                    _restriction_sparse_matrix);
+
+  // Build the coarse sparse matrix, i.e, RAP = RAR^T
+  // Compute AR^T
+  _system_matrix_ptr = &system_sparse_matrix;
+  dealii::TrilinosWrappers::SparseMatrix tmp_sparse_matrix(
+      _system_matrix_ptr->locally_owned_range_indices(),
+      _restriction_sparse_matrix.locally_owned_range_indices(),
+      _system_matrix_ptr->get_mpi_communicator());
+  EpetraExt::MatrixMatrix::Multiply(
+      _system_matrix_ptr->trilinos_matrix(), false,
+      _restriction_sparse_matrix.trilinos_matrix(), true,
+      const_cast<Epetra_CrsMatrix &>(tmp_sparse_matrix.trilinos_matrix()));
+
+  // Compute R(AR^T)
+  _restriction_sparse_matrix.mmult(_coarse_sparse_matrix, tmp_sparse_matrix);
 }
 
-template <int dim, typename ScalarType>
-void AMGe_host<dim, ScalarType>::local_worker(
+template <int dim, typename VectorType>
+void AMGe_host<dim, VectorType>::local_worker(
     unsigned int const n_eigenvalues, double const tolerance,
     std::function<void(dealii::DoFHandler<dim> &dof_handler,
                        dealii::ConstraintMatrix &,
@@ -178,8 +210,8 @@ void AMGe_host<dim, ScalarType>::local_worker(
            typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate_to_global_tria_map;
 
-  std::tie(agglomerate_triangulation, agglomerate_to_global_tria_map) =
-      this->build_agglomerate_triangulation(*agg_id);
+  this->build_agglomerate_triangulation(*agg_id, agglomerate_triangulation,
+                                        agglomerate_to_global_tria_map);
 
   // We ignore the eigenvalues.
   std::tie(std::ignore, copy_data.local_eigenvectors,
@@ -189,20 +221,22 @@ void AMGe_host<dim, ScalarType>::local_worker(
                                  agglomerate_to_global_tria_map, evaluate);
 }
 
-template <int dim, typename ScalarType>
-void AMGe_host<dim, ScalarType>::copy_local_to_global(
+template <int dim, typename VectorType>
+void AMGe_host<dim, VectorType>::copy_local_to_global(
     CopyData const &copy_data,
     std::vector<dealii::Vector<double>> &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps)
 {
   eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
                       copy_data.local_eigenvectors.end());
-  dof_indices_maps.push_back(copy_data.local_dof_indices_map);
+  unsigned int const n_local_eigenvectors = copy_data.local_eigenvectors.size();
+  for (unsigned int i = 0; i < n_local_eigenvectors; ++i)
+    dof_indices_maps.push_back(copy_data.local_dof_indices_map);
 }
 
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 dealii::TrilinosWrappers::SparsityPattern
-AMGe_host<dim, ScalarType>::compute_restriction_sparsity_pattern(
+AMGe_host<dim, VectorType>::compute_restriction_sparsity_pattern(
     std::vector<dealii::Vector<double>> const &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> const
         &dof_indices_maps) const

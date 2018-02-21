@@ -20,6 +20,7 @@
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/lac/la_parallel_vector.h>
 
 BOOST_AUTO_TEST_CASE(restriction_matrix_device)
 {
@@ -41,8 +42,8 @@ BOOST_AUTO_TEST_CASE(restriction_matrix_device)
   dealii::FE_Q<3> fe(4);
   dealii::DoFHandler<3> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_device<3, float> amge(MPI_COMM_WORLD, dof_handler,
-                                   cusolver_dn_handle, cusparse_handle);
+  mfmg::AMGe_device<3, dealii::LinearAlgebra::distributed::Vector<float>> amge(
+      MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
 
   unsigned int const n_local_rows = 3;
   unsigned int const eigenvectors_size = 10;

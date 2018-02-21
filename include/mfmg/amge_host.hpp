@@ -16,11 +16,15 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-class AMGe_host : public AMGe<dim, ScalarType>
+template <int dim, typename VectorType>
+class AMGe_host : public AMGe<dim, VectorType>
 {
 public:
+  using ScalarType = typename VectorType::value_type;
+
   AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
+
+  AMGe_host(AMGe_host<dim, VectorType> const &other);
 
   /**
    * Compute the eigenvalues and the eigenvectors. This functions takes as
@@ -73,12 +77,13 @@ public:
   void
   setup(std::array<unsigned int, dim> const &agglomerate_dim,
         unsigned int const n_eigenvalues, double const tolerance,
-        std::function<void(
-            dealii::DoFHandler<dim> &dof_handler, dealii::ConstraintMatrix &,
-            dealii::SparsityPattern &system_sparsity_pattern,
-            dealii::SparseMatrix<ScalarType> &,
-            dealii::SparsityPattern &mass_sparsity_pattern,
-            dealii::SparseMatrix<ScalarType> &)> const &evaluate) const;
+        std::function<void(dealii::DoFHandler<dim> &dof_handler,
+                           dealii::ConstraintMatrix &,
+                           dealii::SparsityPattern &system_sparsity_pattern,
+                           dealii::SparseMatrix<ScalarType> &,
+                           dealii::SparsityPattern &mass_sparsity_pattern,
+                           dealii::SparseMatrix<ScalarType> &)> const &evaluate,
+        dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix);
 
 private:
   /**
@@ -132,6 +137,10 @@ private:
       std::vector<dealii::Vector<double>> const &eigenvectors,
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps) const;
+
+  dealii::TrilinosWrappers::SparseMatrix const *_system_matrix_ptr;
+  dealii::TrilinosWrappers::SparseMatrix _restriction_sparse_matrix;
+  dealii::TrilinosWrappers::SparseMatrix _coarse_sparse_matrix;
 };
 }
 

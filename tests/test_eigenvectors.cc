@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -29,9 +29,9 @@ namespace ut = boost::unit_test;
 void diagonal_matrices(dealii::DoFHandler<2> &dof_handler,
                        dealii::ConstraintMatrix &constraints,
                        dealii::SparsityPattern &system_sparsity_pattern,
-                       dealii::SparseMatrix<float> &system_matrix,
+                       dealii::SparseMatrix<double> &system_matrix,
                        dealii::SparsityPattern &mass_sparsity_pattern,
-                       dealii::SparseMatrix<float> &mass_matrix)
+                       dealii::SparseMatrix<double> &mass_matrix)
 {
   dealii::FE_Q<2> fe(1);
   dof_handler.distribute_dofs(fe);
@@ -63,7 +63,8 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<2, float> amge(MPI_COMM_WORLD, dof_handler);
+  mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
+                                                                 dof_handler);
 
   unsigned int const n_eigenvalues = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
@@ -142,7 +143,8 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<2, double> amge(MPI_COMM_WORLD, dof_handler);
+  mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
+                                                                 dof_handler);
 
   unsigned int const n_eigenvalues = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,

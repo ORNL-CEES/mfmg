@@ -23,15 +23,15 @@
 
 namespace mfmg
 {
-template <int dim, typename ScalarType>
-AMGe<dim, ScalarType>::AMGe(MPI_Comm comm,
+template <int dim, typename VectorType>
+AMGe<dim, VectorType>::AMGe(MPI_Comm comm,
                             dealii::DoFHandler<dim> const &dof_handler)
     : _comm(comm), _dof_handler(dof_handler)
 {
 }
 
-template <int dim, typename ScalarType>
-unsigned int AMGe<dim, ScalarType>::build_agglomerates(
+template <int dim, typename VectorType>
+unsigned int AMGe<dim, VectorType>::build_agglomerates(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
   // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
@@ -117,12 +117,13 @@ unsigned int AMGe<dim, ScalarType>::build_agglomerates(
   return agglomerate - 1;
 }
 
-template <int dim, typename ScalarType>
-std::tuple<dealii::Triangulation<dim>,
-           std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-                    typename dealii::DoFHandler<dim>::active_cell_iterator>>
-AMGe<dim, ScalarType>::build_agglomerate_triangulation(
-    unsigned int agglomerate_id) const
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    unsigned int agglomerate_id,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
@@ -130,26 +131,17 @@ AMGe<dim, ScalarType>::build_agglomerate_triangulation(
     if (cell->user_index() == agglomerate_id)
       agglomerate.push_back(cell);
 
-  dealii::Triangulation<dim> agglomerate_triangulation;
-  std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-           typename dealii::DoFHandler<dim>::active_cell_iterator>
-      agglomerate_to_global_tria_map;
-
   // If the agglomerate has hanging nodes, the patch is bigger than
   // what we may expect because we cannot a create a coarse triangulation with
   // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
   // cells.
   dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
       agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
-
-  // The std::move inhibits copy elision but the code does not work otherwise
-  return std::make_tuple(std::move(agglomerate_triangulation),
-                         agglomerate_to_global_tria_map);
 }
 
-template <int dim, typename ScalarType>
+template <int dim, typename VectorType>
 std::vector<dealii::types::global_dof_index>
-AMGe<dim, ScalarType>::compute_dof_index_map(
+AMGe<dim, VectorType>::compute_dof_index_map(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
@@ -175,8 +167,8 @@ AMGe<dim, ScalarType>::compute_dof_index_map(
   return dof_indices;
 }
 
-template <int dim, typename ScalarType>
-void AMGe<dim, ScalarType>::output(std::string const &filename) const
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::output(std::string const &filename) const
 {
   dealii::DataOut<dim> data_out;
   data_out.attach_dof_handler(_dof_handler);
