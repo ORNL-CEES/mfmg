@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(diagonal)
   mfmg::AMGe_device<2, dealii::LinearAlgebra::distributed::Vector<double>> amge(
       MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
 
-  unsigned int const n_eigenvalues = 5;
+  unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
            typename dealii::DoFHandler<2>::active_cell_iterator>
       patch_to_global_map;
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(diagonal)
   double *eigenvectors_dev;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues_dev, eigenvectors_dev, dof_indices_map) =
-      amge.compute_local_eigenvectors(n_eigenvalues, triangulation,
+      amge.compute_local_eigenvectors(n_eigenvectors, triangulation,
                                       patch_to_global_map, diagonal_matrices);
 
   unsigned int const n_dofs = dof_handler.n_dofs();
@@ -111,29 +111,29 @@ BOOST_AUTO_TEST_CASE(diagonal)
     BOOST_CHECK_EQUAL(dof_indices_map[i], ref_dof_indices_map[i]);
 
   unsigned int const eigenvector_size = 30;
-  std::vector<double> ref_eigenvalues(n_eigenvalues);
+  std::vector<double> ref_eigenvalues(n_eigenvectors);
   std::vector<dealii::Vector<double>> ref_eigenvectors(
-      n_eigenvalues, dealii::Vector<double>(eigenvector_size));
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+      n_eigenvectors, dealii::Vector<double>(eigenvector_size));
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     ref_eigenvalues[i] = static_cast<double>(i + 1);
     ref_eigenvectors[i][i] = 1.;
   }
 
   cudaError_t cuda_error_code;
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
-    std::vector<double> eigenvalues(n_eigenvalues);
+    std::vector<double> eigenvalues(n_eigenvectors);
     cuda_error_code =
         cudaMemcpy(&eigenvalues[0], eigenvalues_dev,
-                   n_eigenvalues * sizeof(double), cudaMemcpyDeviceToHost);
+                   n_eigenvectors * sizeof(double), cudaMemcpyDeviceToHost);
     mfmg::ASSERT_CUDA(cuda_error_code);
     BOOST_CHECK_CLOSE(eigenvalues[i], ref_eigenvalues[i], 1e-12);
 
-    std::vector<double> eigenvectors(n_eigenvalues * eigenvector_size);
+    std::vector<double> eigenvectors(n_eigenvectors * eigenvector_size);
     cuda_error_code =
         cudaMemcpy(&eigenvectors[0], eigenvectors_dev,
-                   n_eigenvalues * eigenvector_size * sizeof(double),
+                   n_eigenvectors * eigenvector_size * sizeof(double),
                    cudaMemcpyDeviceToHost);
     mfmg::ASSERT_CUDA(cuda_error_code);
     for (unsigned int j = 0; j < eigenvector_size; ++j)

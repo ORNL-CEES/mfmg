@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
                                                                  dof_handler);
 
-  unsigned int const n_eigenvalues = 5;
+  unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
            typename dealii::DoFHandler<2>::active_cell_iterator>
       patch_to_global_map;
@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, dof_indices_map) =
-      amge.compute_local_eigenvectors(n_eigenvalues, 1e-13, triangulation,
+      amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
                                       patch_to_global_map, diagonal_matrices);
 
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(
@@ -86,16 +86,16 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   BOOST_TEST(dof_indices_map == ref_dof_indices_map, tt::per_element());
 
   unsigned int const eigenvector_size = eigenvectors[0].size();
-  std::vector<std::complex<double>> ref_eigenvalues(n_eigenvalues);
+  std::vector<std::complex<double>> ref_eigenvalues(n_eigenvectors);
   std::vector<dealii::Vector<double>> ref_eigenvectors(
-      n_eigenvalues, dealii::Vector<double>(eigenvector_size));
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+      n_eigenvectors, dealii::Vector<double>(eigenvector_size));
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     ref_eigenvalues[i] = static_cast<double>(i + 1);
     ref_eigenvectors[i][i] = 1.;
   }
 
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     BOOST_TEST(eigenvalues[i].real() == ref_eigenvalues[i].real());
     BOOST_TEST(eigenvalues[i].imag() == ref_eigenvalues[i].imag());
@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
                                                                  dof_handler);
 
-  unsigned int const n_eigenvalues = 5;
+  unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
            typename dealii::DoFHandler<2>::active_cell_iterator>
       patch_to_global_map;
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, dof_indices_map) =
-      amge.compute_local_eigenvectors(n_eigenvalues, 1e-13, triangulation,
+      amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
                                       patch_to_global_map,
                                       constrained_diagonal_matrices);
 
@@ -167,16 +167,16 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   BOOST_TEST(dof_indices_map == ref_dof_indices_map, tt::per_element());
 
   unsigned int const eigenvector_size = eigenvectors[0].size();
-  std::vector<std::complex<double>> ref_eigenvalues(n_eigenvalues);
+  std::vector<std::complex<double>> ref_eigenvalues(n_eigenvectors);
   std::vector<dealii::Vector<double>> ref_eigenvectors(
-      n_eigenvalues, dealii::Vector<double>(eigenvector_size));
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+      n_eigenvectors, dealii::Vector<double>(eigenvector_size));
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     ref_eigenvalues[i] = static_cast<double>(i + 2);
     ref_eigenvectors[i][i + 1] = 1.;
   }
 
-  for (unsigned int i = 0; i < n_eigenvalues; ++i)
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     BOOST_TEST(eigenvalues[i].real() == ref_eigenvalues[i].real());
     BOOST_TEST(eigenvalues[i].imag() == ref_eigenvalues[i].imag());

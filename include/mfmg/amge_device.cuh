@@ -52,7 +52,7 @@ public:
   std::tuple<ScalarType *, ScalarType *,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
-      unsigned int n_eigenvalues,
+      unsigned int n_eigenvectors,
       dealii::Triangulation<dim> const &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
