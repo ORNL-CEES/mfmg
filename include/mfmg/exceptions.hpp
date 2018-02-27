@@ -77,6 +77,9 @@ class NotImplementedExc : public std::exception
 
 inline void ASSERT_THROW_NOT_IMPLEMENTED()
 {
+#if MFMG_WITH_STACKTRACE
+  std::cerr << boost::stacktrace::stacktrace();
+#endif
   NotImplementedExc exception;
   throw exception;
 }
