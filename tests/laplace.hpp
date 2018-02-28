@@ -53,7 +53,7 @@ public:
   void run(PreconditionerType &preconditioner,
            dealii::Function<dim> const &source);
 
-private:
+  // private:
   MPI_Comm _comm;
   dealii::parallel::distributed::Triangulation<dim> _triangulation;
   dealii::FE_Q<dim> _fe;
