@@ -24,56 +24,55 @@
 
 namespace mfmg
 {
-template <int dim, typename VectorType>
-AMGe_host<dim, VectorType>::AMGe_host(
+template <int dim, class MeshEvaluator, typename VectorType>
+AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler)
     : AMGe<dim, VectorType>(comm, dof_handler)
 {
 }
 
-template <int dim, typename VectorType>
-AMGe_host<dim, VectorType>::AMGe_host(AMGe_host<dim, VectorType> const &other)
-    : AMGe<dim, VectorType>(other._comm, other._dof_handler)
-{
-  _system_matrix_ptr = other._system_matrix_ptr;
-  _restriction_sparse_matrix.copy_from(other._restriction_sparse_matrix);
-  _coarse_sparse_matrix.copy_from(other._coarse_sparse_matrix);
-}
-
-template <int dim, typename VectorType>
+template <int dim, class MeshEvaluator, typename VectorType>
 std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
            std::vector<dealii::types::global_dof_index>>
-AMGe_host<dim, VectorType>::compute_local_eigenvectors(
+AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvectors, double tolerance,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    std::function<void(
-        dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-        dealii::SparsityPattern &, dealii::SparseMatrix<ScalarType> &,
-        dealii::SparsityPattern &, dealii::SparseMatrix<ScalarType> &)> const
-        &evaluate) const
+    const MeshEvaluator &evaluator) const
 {
-  dealii::SparsityPattern system_sparsity_pattern;
-  dealii::SparsityPattern mass_sparsity_pattern;
-  dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
-  dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
+  dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::ConstraintMatrix agglomerate_constraints;
 
-  dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
+  DealIIMesh<dim> agglomerate_mesh(agglomerate_dof_handler,
+                                   agglomerate_constraints);
 
   // Call user function to fill in the matrix and build the mass matrix
-  evaluate(agglomerate_dof_handler, agglomerate_constraints,
-           system_sparsity_pattern, agglomerate_system_matrix,
-           mass_sparsity_pattern, agglomerate_mass_matrix);
+  auto agglomerate_operator = evaluator.get_local_operator(agglomerate_mesh);
+
+  auto agglomerate_system_matrix = agglomerate_operator->get_matrix();
+
+  // Make Identity mass matrix
+  dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
+  dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
+  unsigned int const size = agglomerate_system_matrix->m();
+  std::vector<std::vector<unsigned int>> column_indices(
+      size, std::vector<unsigned int>(1));
+  for (unsigned int i = 0; i < size; ++i)
+    column_indices[i][0] = i;
+  agglomerate_mass_sparsity_pattern.copy_from(
+      size, size, column_indices.begin(), column_indices.end());
+  agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
+  for (unsigned int i = 0; i < size; ++i)
+    agglomerate_mass_matrix.diag_element(i) = 1.;
 
   dealii::SparseDirectUMFPACK inv_system_matrix;
-  inv_system_matrix.initialize(agglomerate_system_matrix);
+  inv_system_matrix.initialize(*agglomerate_system_matrix);
 
   // Compute the eigenvalues and the eigenvectors
-  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
+  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix->m();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
   // Arpack only works with double not float
   std::vector<dealii::Vector<double>> eigenvectors(
@@ -93,14 +92,10 @@ AMGe_host<dim, VectorType>::compute_local_eigenvectors(
 
   // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
   // one.
-  std::default_random_engine generator;
-  std::uniform_real_distribution<double> distribution(0., 1.);
   dealii::Vector<double> initial_vector(n_dofs_agglomerate);
-  for (unsigned int i = 0; i < n_dofs_agglomerate; ++i)
-    if (agglomerate_constraints.is_constrained(i) == false)
-      initial_vector[i] = distribution(generator);
+  evaluator.set_initial_guess(agglomerate_mesh, initial_vector);
   solver.set_initial_vector(initial_vector);
-  solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
+  solver.solve(*agglomerate_system_matrix, agglomerate_mass_matrix,
                inv_system_matrix, eigenvalues, eigenvectors);
 
   // Compute the map between the local and the global dof indices.
@@ -110,12 +105,13 @@ AMGe_host<dim, VectorType>::compute_local_eigenvectors(
   return std::make_tuple(eigenvalues, eigenvectors, dof_indices_map);
 }
 
-template <int dim, typename VectorType>
-void AMGe_host<dim, VectorType>::compute_restriction_sparse_matrix(
-    std::vector<dealii::Vector<double>> const &eigenvectors,
-    std::vector<std::vector<dealii::types::global_dof_index>> const
-        &dof_indices_maps,
-    dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const
+template <int dim, class MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::
+    compute_restriction_sparse_matrix(
+        std::vector<dealii::Vector<double>> const &eigenvectors,
+        std::vector<std::vector<dealii::types::global_dof_index>> const
+            &dof_indices_maps,
+        dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const
 {
   // Compute the sparsity pattern (Epetra_FECrsGraph)
   dealii::TrilinosWrappers::SparsityPattern restriction_sp =
@@ -139,17 +135,12 @@ void AMGe_host<dim, VectorType>::compute_restriction_sparse_matrix(
   restriction_sparse_matrix.compress(dealii::VectorOperation::insert);
 }
 
-template <int dim, typename VectorType>
-void AMGe_host<dim, VectorType>::setup(
+template <int dim, class MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     std::array<unsigned int, dim> const &agglomerate_dim,
     unsigned int const n_eigenvectors, double const tolerance,
-    std::function<void(dealii::DoFHandler<dim> &dof_handler,
-                       dealii::ConstraintMatrix &,
-                       dealii::SparsityPattern &system_sparsity_pattern,
-                       dealii::SparseMatrix<ScalarType> &,
-                       dealii::SparsityPattern &mass_sparsity_pattern,
-                       dealii::SparseMatrix<ScalarType> &)> const &evaluate,
-    dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix)
+    const MeshEvaluator &evaluator,
+    dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
@@ -166,7 +157,7 @@ void AMGe_host<dim, VectorType>::setup(
           std::function<void(std::vector<unsigned int>::iterator const &,
                              ScratchData &, CopyData &)>>(
           std::bind(&AMGe_host::local_worker, *this, n_eigenvectors, tolerance,
-                    std::cref(evaluate), std::placeholders::_1,
+                    std::cref(evaluator), std::placeholders::_1,
                     std::placeholders::_2, std::placeholders::_3)),
       static_cast<std::function<void(CopyData const &)>>(std::bind(
           &AMGe_host::copy_local_to_global, *this, std::placeholders::_1,
@@ -175,33 +166,13 @@ void AMGe_host<dim, VectorType>::setup(
 
   // Return to a serial execution
   compute_restriction_sparse_matrix(eigenvectors, dof_indices_maps,
-                                    _restriction_sparse_matrix);
-
-  // Build the coarse sparse matrix, i.e, RAP = RAR^T
-  // Compute AR^T
-  _system_matrix_ptr = &system_sparse_matrix;
-  dealii::TrilinosWrappers::SparseMatrix tmp_sparse_matrix(
-      _system_matrix_ptr->locally_owned_range_indices(),
-      _restriction_sparse_matrix.locally_owned_range_indices(),
-      _system_matrix_ptr->get_mpi_communicator());
-  EpetraExt::MatrixMatrix::Multiply(
-      _system_matrix_ptr->trilinos_matrix(), false,
-      _restriction_sparse_matrix.trilinos_matrix(), true,
-      const_cast<Epetra_CrsMatrix &>(tmp_sparse_matrix.trilinos_matrix()));
-
-  // Compute R(AR^T)
-  _restriction_sparse_matrix.mmult(_coarse_sparse_matrix, tmp_sparse_matrix);
+                                    system_sparse_matrix);
 }
 
-template <int dim, typename VectorType>
-void AMGe_host<dim, VectorType>::local_worker(
+template <int dim, class MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
     unsigned int const n_eigenvectors, double const tolerance,
-    std::function<void(dealii::DoFHandler<dim> &dof_handler,
-                       dealii::ConstraintMatrix &,
-                       dealii::SparsityPattern &system_sparsity_pattern,
-                       dealii::SparseMatrix<ScalarType> &,
-                       dealii::SparsityPattern &mass_sparsity_pattern,
-                       dealii::SparseMatrix<ScalarType> &)> const &evaluate,
+    const MeshEvaluator &evaluator,
     std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
     CopyData &copy_data)
 {
@@ -218,11 +189,11 @@ void AMGe_host<dim, VectorType>::local_worker(
            copy_data.local_dof_indices_map) =
       compute_local_eigenvectors(n_eigenvectors, tolerance,
                                  agglomerate_triangulation,
-                                 agglomerate_to_global_tria_map, evaluate);
+                                 agglomerate_to_global_tria_map, evaluator);
 }
 
-template <int dim, typename VectorType>
-void AMGe_host<dim, VectorType>::copy_local_to_global(
+template <int dim, class MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global(
     CopyData const &copy_data,
     std::vector<dealii::Vector<double>> &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps)
@@ -234,9 +205,9 @@ void AMGe_host<dim, VectorType>::copy_local_to_global(
     dof_indices_maps.push_back(copy_data.local_dof_indices_map);
 }
 
-template <int dim, typename VectorType>
+template <int dim, class MeshEvaluator, typename VectorType>
 dealii::TrilinosWrappers::SparsityPattern
-AMGe_host<dim, VectorType>::compute_restriction_sparsity_pattern(
+AMGe_host<dim, MeshEvaluator, VectorType>::compute_restriction_sparsity_pattern(
     std::vector<dealii::Vector<double>> const &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> const
         &dof_indices_maps) const

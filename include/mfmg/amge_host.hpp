@@ -16,15 +16,14 @@
 
 namespace mfmg
 {
-template <int dim, typename VectorType>
+template <int dim, class MeshEvaluator, typename VectorType>
 class AMGe_host : public AMGe<dim, VectorType>
 {
+public:
 public:
   using ScalarType = typename VectorType::value_type;
 
   AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
-
-  AMGe_host(AMGe_host<dim, VectorType> const &other);
 
   /**
    * Compute the eigenvalues and the eigenvectors. This functions takes as
@@ -50,12 +49,7 @@ public:
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      std::function<
-          void(dealii::DoFHandler<dim> &dof_handler, dealii::ConstraintMatrix &,
-               dealii::SparsityPattern &system_sparsity_pattern,
-               dealii::SparseMatrix<ScalarType> &,
-               dealii::SparsityPattern &mass_sparsity_pattern,
-               dealii::SparseMatrix<ScalarType> &)> const &evaluate) const;
+      const MeshEvaluator &evaluator) const;
 
   /**
    * Compute the restriction sparse matrix. The rows of the matrix are the
@@ -74,16 +68,11 @@ public:
   /**
    *  Build the agglomerates and their associated triangulations.
    */
-  void
-  setup(std::array<unsigned int, dim> const &agglomerate_dim,
-        unsigned int const n_eigenvectors, double const tolerance,
-        std::function<void(dealii::DoFHandler<dim> &dof_handler,
-                           dealii::ConstraintMatrix &,
-                           dealii::SparsityPattern &system_sparsity_pattern,
-                           dealii::SparseMatrix<ScalarType> &,
-                           dealii::SparsityPattern &mass_sparsity_pattern,
-                           dealii::SparseMatrix<ScalarType> &)> const &evaluate,
-        dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix);
+  void setup_restrictor(
+      std::array<unsigned int, dim> const &agglomerate_dim,
+      unsigned int const n_eigenvectors, double const tolerance,
+      const MeshEvaluator &evalute,
+      dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix);
 
 private:
   /**
@@ -108,16 +97,10 @@ private:
    * This function encapsulates the different functions that work on an
    * independent set of data.
    */
-  void local_worker(
-      unsigned int const n_eigenvectors, double const tolerance,
-      std::function<void(dealii::DoFHandler<dim> &dof_handler,
-                         dealii::ConstraintMatrix &,
-                         dealii::SparsityPattern &system_sparsity_pattern,
-                         dealii::SparseMatrix<ScalarType> &,
-                         dealii::SparsityPattern &mass_sparsity_pattern,
-                         dealii::SparseMatrix<ScalarType> &)> const &evaluate,
-      std::vector<unsigned int>::iterator const &agg_id,
-      ScratchData &scratch_data, CopyData &copy_data);
+  void local_worker(unsigned int const n_eigenvectors, double const tolerance,
+                    const MeshEvaluator &evalute,
+                    std::vector<unsigned int>::iterator const &agg_id,
+                    ScratchData &scratch_data, CopyData &copy_data);
 
   /**
    * This function does nothing but is necessary to use WorkStream.
@@ -137,10 +120,6 @@ private:
       std::vector<dealii::Vector<double>> const &eigenvectors,
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps) const;
-
-  dealii::TrilinosWrappers::SparseMatrix const *_system_matrix_ptr;
-  dealii::TrilinosWrappers::SparseMatrix _restriction_sparse_matrix;
-  dealii::TrilinosWrappers::SparseMatrix _coarse_sparse_matrix;
 };
 }
 

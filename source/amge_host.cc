@@ -9,7 +9,26 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.templates.hpp>
 #include <mfmg/instantiation.hpp>
 
-INSTANTIATE_DIM_VECTORTYPE(TUPLE(AMGe_host))
+// INSTANTIATE_DIM_VECTORTYPE(TUPLE(AMGe_host))
+// Cannot use the instantiation macro with nvcc
+template class mfmg::AMGe_host<
+    2,
+    mfmg::DealIIMeshEvaluator<
+        2, dealii::LinearAlgebra::distributed::Vector<double>>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::AMGe_host<
+    3,
+    mfmg::DealIIMeshEvaluator<
+        3, dealii::LinearAlgebra::distributed::Vector<double>>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
+
+template class mfmg::AMGe_host<
+    2, mfmg::DealIIMeshEvaluator<2, dealii::TrilinosWrappers::MPI::Vector>,
+    dealii::TrilinosWrappers::MPI::Vector>;
+template class mfmg::AMGe_host<
+    3, mfmg::DealIIMeshEvaluator<3, dealii::TrilinosWrappers::MPI::Vector>,
+    dealii::TrilinosWrappers::MPI::Vector>;

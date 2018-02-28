@@ -13,6 +13,7 @@
 
 #include "main.cc"
 
+#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.hpp>
 
 #include <deal.II/distributed/tria.h>
@@ -34,8 +35,12 @@ std::vector<unsigned int> test(MPI_Comm const &world)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  mfmg::AMGe_host<dim, dealii::TrilinosWrappers::MPI::Vector> amge(world,
-                                                                   dof_handler);
+  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+
+  mfmg::AMGe_host<dim, DummyMeshEvaluator,
+                  dealii::TrilinosWrappers::MPI::Vector>
+      amge(world, dof_handler);
 
   std::array<unsigned int, dim> agglomerate_dim;
   for (unsigned int i = 0; i < dim; ++i)

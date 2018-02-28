@@ -13,6 +13,7 @@
 
 #include "main.cc"
 
+#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.hpp>
 
 #include <deal.II/distributed/tria.h>
@@ -24,14 +25,21 @@
 
 BOOST_AUTO_TEST_CASE(restriction_matrix)
 {
-  dealii::parallel::distributed::Triangulation<3> triangulation(MPI_COMM_WORLD);
+  const int dim = 3;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+
+  dealii::parallel::distributed::Triangulation<dim> triangulation(
+      MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(2);
   dealii::FE_Q<3> fe(4);
-  dealii::DoFHandler<3> dof_handler(triangulation);
+  dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<3, dealii::LinearAlgebra::distributed::Vector<double>> amge(
-      MPI_COMM_WORLD, dof_handler);
+  DummyMeshEvaluator evaluator;
+  mfmg::AMGe_host<dim, DummyMeshEvaluator,
+                  dealii::LinearAlgebra::distributed::Vector<double>>
+      amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const rank =
       dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);

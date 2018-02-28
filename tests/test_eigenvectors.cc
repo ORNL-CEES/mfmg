@@ -13,6 +13,7 @@
 
 #include "main.cc"
 
+#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.hpp>
 
 #include <deal.II/distributed/tria.h>
@@ -26,45 +27,52 @@
 namespace tt = boost::test_tools;
 namespace ut = boost::unit_test;
 
-void diagonal_matrices(dealii::DoFHandler<2> &dof_handler,
-                       dealii::ConstraintMatrix &constraints,
-                       dealii::SparsityPattern &system_sparsity_pattern,
-                       dealii::SparseMatrix<double> &system_matrix,
-                       dealii::SparsityPattern &mass_sparsity_pattern,
-                       dealii::SparseMatrix<double> &mass_matrix)
+template <int dim, class VectorType>
+class DiagonalTestMeshEvaluator
+    : public mfmg::DealIIMeshEvaluator<dim, VectorType>
 {
-  dealii::FE_Q<2> fe(1);
-  dof_handler.distribute_dofs(fe);
+private:
+  using value_type =
+      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
 
-  constraints.clear();
-
-  unsigned int const size = 30;
-  std::vector<std::vector<unsigned int>> column_indices(
-      size, std::vector<unsigned int>(1));
-  for (unsigned int i = 0; i < size; ++i)
-    column_indices[i][0] = i;
-  mass_sparsity_pattern.copy_from(size, size, column_indices.begin(),
-                                  column_indices.end());
-  system_sparsity_pattern.copy_from(mass_sparsity_pattern);
-  system_matrix.reinit(system_sparsity_pattern);
-  mass_matrix.reinit(mass_sparsity_pattern);
-  for (unsigned int i = 0; i < size; ++i)
+protected:
+  // Diagonal matrices. We only need local evaluate function.
+  virtual void evaluate(dealii::DoFHandler<dim> &dof_handler,
+                        dealii::ConstraintMatrix &constraints,
+                        dealii::SparsityPattern &system_sparsity_pattern,
+                        dealii::SparseMatrix<value_type> &system_matrix) const
   {
-    system_matrix.diag_element(i) = static_cast<double>(i + 1);
-    mass_matrix.diag_element(i) = 1.;
+    dealii::FE_Q<2> fe(1);
+    dof_handler.distribute_dofs(fe);
+
+    constraints.clear();
+
+    unsigned int const size = dof_handler.n_dofs();
+    std::vector<std::vector<unsigned int>> column_indices(
+        size, std::vector<unsigned int>(1));
+    for (unsigned int i = 0; i < size; ++i)
+      column_indices[i][0] = i;
+    system_sparsity_pattern.copy_from(size, size, column_indices.begin(),
+                                      column_indices.end());
+    system_matrix.reinit(system_sparsity_pattern);
+    for (unsigned int i = 0; i < size; ++i)
+      system_matrix.diag_element(i) = static_cast<double>(i + 1);
   }
-}
+};
 
 BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
 {
+  const int dim = 2;
+  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2, Vector>;
+
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(3);
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
-                                                                 dof_handler);
+  mfmg::AMGe_host<2, MeshEvaluator, Vector> amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
@@ -73,12 +81,13 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
+  DiagonalTestMeshEvaluator<dim, Vector> evaluator;
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
-                                      patch_to_global_map, diagonal_matrices);
+                                      patch_to_global_map, evaluator);
 
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(
       dof_handler.n_dofs());
@@ -104,47 +113,54 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   }
 }
 
-void constrained_diagonal_matrices(
-    dealii::DoFHandler<2> &dof_handler, dealii::ConstraintMatrix &constraints,
-    dealii::SparsityPattern &system_sparsity_pattern,
-    dealii::SparseMatrix<double> &system_matrix,
-    dealii::SparsityPattern &mass_sparsity_pattern,
-    dealii::SparseMatrix<double> &mass_matrix)
+template <int dim, class Vector>
+class ConstrainedDiagonalTestMeshEvaluator
+    : public mfmg::DealIIMeshEvaluator<dim, Vector>
 {
-  dealii::FE_Q<2> fe(1);
-  dof_handler.distribute_dofs(fe);
+private:
+  using value_type =
+      typename mfmg::DealIIMeshEvaluator<dim, Vector>::value_type;
 
-  constraints.clear();
-  constraints.add_line(0);
-  constraints.close();
-
-  unsigned int const size = 30;
-  std::vector<std::vector<unsigned int>> column_indices(
-      size, std::vector<unsigned int>(1));
-  for (unsigned int i = 0; i < size; ++i)
-    column_indices[i][0] = i;
-  mass_sparsity_pattern.copy_from(size, size, column_indices.begin(),
-                                  column_indices.end());
-  system_sparsity_pattern.copy_from(mass_sparsity_pattern);
-  system_matrix.reinit(system_sparsity_pattern);
-  mass_matrix.reinit(mass_sparsity_pattern);
-  for (unsigned int i = 0; i < size; ++i)
+protected:
+  // Diagonal matrices. We only need local evaluate function.
+  void evaluate(dealii::DoFHandler<dim> &dof_handler,
+                dealii::ConstraintMatrix &constraints,
+                dealii::SparsityPattern &system_sparsity_pattern,
+                dealii::SparseMatrix<value_type> &system_matrix) const
   {
-    system_matrix.diag_element(i) = static_cast<double>(i + 1);
-    mass_matrix.diag_element(i) = 1.;
+    dealii::FE_Q<2> fe(1);
+    dof_handler.distribute_dofs(fe);
+
+    constraints.clear();
+    constraints.add_line(0);
+    constraints.close();
+
+    unsigned int const size = dof_handler.n_dofs();
+    std::vector<std::vector<unsigned int>> column_indices(
+        size, std::vector<unsigned int>(1));
+    for (unsigned int i = 0; i < size; ++i)
+      column_indices[i][0] = i;
+    system_sparsity_pattern.copy_from(size, size, column_indices.begin(),
+                                      column_indices.end());
+    system_matrix.reinit(system_sparsity_pattern);
+    for (unsigned int i = 0; i < size; ++i)
+      system_matrix.diag_element(i) = static_cast<double>(i + 1);
   }
-}
+};
 
 BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
 {
+  const int dim = 2;
+  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2, Vector>;
+
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(3);
   dealii::FE_Q<2> fe(1);
   dealii::DoFHandler<2> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_host<2, dealii::TrilinosWrappers::MPI::Vector> amge(MPI_COMM_WORLD,
-                                                                 dof_handler);
+  mfmg::AMGe_host<2, MeshEvaluator, Vector> amge(MPI_COMM_WORLD, dof_handler);
 
   unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<2>::active_cell_iterator,
@@ -153,13 +169,13 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
+  ConstrainedDiagonalTestMeshEvaluator<dim, Vector> evaluator;
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
-                                      patch_to_global_map,
-                                      constrained_diagonal_matrices);
+                                      patch_to_global_map, evaluator);
 
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(
       dof_handler.n_dofs());
