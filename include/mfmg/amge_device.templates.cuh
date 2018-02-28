@@ -189,7 +189,7 @@ template <int dim, typename VectorType>
 std::tuple<typename VectorType::value_type *, typename VectorType::value_type *,
            std::vector<dealii::types::global_dof_index>>
 AMGe_device<dim, VectorType>::compute_local_eigenvectors(
-    unsigned int n_eigenvalues,
+    unsigned int n_eigenvectors,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
@@ -252,12 +252,13 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
   // We now have too many eigenvectors. So we only keep the ones associated to
   // the smallest ones.
   ScalarType *smallest_eigenvalues_dev = nullptr;
-  cuda_error_code =
-      cudaMalloc(&smallest_eigenvalues_dev, n_eigenvalues * sizeof(ScalarType));
+  cuda_error_code = cudaMalloc(&smallest_eigenvalues_dev,
+                               n_eigenvectors * sizeof(ScalarType));
+
   ASSERT_CUDA(cuda_error_code);
-  int n_blocks = 1 + (n_eigenvalues - 1) / BLOCK_SIZE;
+  int n_blocks = 1 + (n_eigenvectors - 1) / BLOCK_SIZE;
   internal::restrict_array<<<n_blocks, BLOCK_SIZE>>>(
-      n_rows, eigenvalues_dev, n_eigenvalues, smallest_eigenvalues_dev);
+      n_rows, eigenvalues_dev, n_eigenvectors, smallest_eigenvalues_dev);
   // Check that the kernel was launched correctly
   ASSERT_CUDA(cudaGetLastError());
   // Check the kernel ran correctly
@@ -266,11 +267,11 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
 
   ScalarType *eigenvectors_dev = nullptr;
   cuda_error_code = cudaMalloc(&eigenvectors_dev,
-                               n_eigenvalues * n_rows * sizeof(ScalarType));
+                               n_eigenvectors * n_rows * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
-  n_blocks = 1 + (n_eigenvalues * n_rows - 1) / BLOCK_SIZE;
+  n_blocks = 1 + (n_eigenvectors * n_rows - 1) / BLOCK_SIZE;
   internal::restrict_array<<<n_blocks, BLOCK_SIZE>>>(
-      n_rows * n_rows, dense_system_matrix_dev, n_eigenvalues * n_rows,
+      n_rows * n_rows, dense_system_matrix_dev, n_eigenvectors * n_rows,
       eigenvectors_dev);
   // Check that the kernel was launched correctly
   ASSERT_CUDA(cudaGetLastError());

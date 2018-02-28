@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -38,7 +38,7 @@ class Laplace
 public:
   Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
-  void setup_system();
+  void setup_system(int num_refinements = 3);
 
   void assemble_system(dealii::Function<dim> const &source);
 
@@ -74,10 +74,10 @@ Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
 }
 
 template <int dim, typename VectorType>
-void Laplace<dim, VectorType>::setup_system()
+void Laplace<dim, VectorType>::setup_system(int num_refinements)
 {
   dealii::GridGenerator::hyper_cube(_triangulation);
-  _triangulation.refine_global(3);
+  _triangulation.refine_global(num_refinements);
 
   _dof_handler.distribute_dofs(_fe);
 

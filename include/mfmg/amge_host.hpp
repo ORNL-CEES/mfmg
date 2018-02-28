@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -45,7 +45,7 @@ public:
              std::vector<dealii::Vector<double>>,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
-      unsigned int n_eigenvalues, double tolerance,
+      unsigned int n_eigenvectors, double tolerance,
       dealii::Triangulation<dim> const &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
@@ -76,7 +76,7 @@ public:
    */
   void
   setup(std::array<unsigned int, dim> const &agglomerate_dim,
-        unsigned int const n_eigenvalues, double const tolerance,
+        unsigned int const n_eigenvectors, double const tolerance,
         std::function<void(dealii::DoFHandler<dim> &dof_handler,
                            dealii::ConstraintMatrix &,
                            dealii::SparsityPattern &system_sparsity_pattern,
@@ -109,7 +109,7 @@ private:
    * independent set of data.
    */
   void local_worker(
-      unsigned int const n_eigenvalues, double const tolerance,
+      unsigned int const n_eigenvectors, double const tolerance,
       std::function<void(dealii::DoFHandler<dim> &dof_handler,
                          dealii::ConstraintMatrix &,
                          dealii::SparsityPattern &system_sparsity_pattern,

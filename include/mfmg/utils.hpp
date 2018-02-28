@@ -9,17 +9,22 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#define BOOST_TEST_NO_MAIN
+#ifndef UTILS_H
+#define UTILS_H
 
-#include <boost/test/unit_test.hpp>
-#include <deal.II/base/mpi.h>
+#include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/trilinos_vector.h>
 
-bool init_function() { return true; }
-
-int main(int argc, char *argv[])
+namespace mfmg
 {
-  dealii::Utilities::MPI::MPI_InitFinalize mpi_init(
-      argc, argv, dealii::numbers::invalid_unsigned_int);
 
-  return boost::unit_test::unit_test_main(&init_function, argc, argv);
+void matrix_market_output_file(
+    const std::string &filename,
+    const dealii::TrilinosWrappers::SparseMatrix &matrix);
+
+void matrix_market_output_file(
+    const std::string &filename,
+    const dealii::TrilinosWrappers::MPI::Vector &vector);
 }
+
+#endif

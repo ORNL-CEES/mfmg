@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017 by the mfmg authors                                *
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -45,7 +45,7 @@ std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
            std::vector<dealii::types::global_dof_index>>
 AMGe_host<dim, VectorType>::compute_local_eigenvectors(
-    unsigned int n_eigenvalues, double tolerance,
+    unsigned int n_eigenvectors, double tolerance,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
@@ -74,13 +74,13 @@ AMGe_host<dim, VectorType>::compute_local_eigenvectors(
 
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
-  std::vector<std::complex<double>> eigenvalues(n_eigenvalues);
+  std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
   // Arpack only works with double not float
   std::vector<dealii::Vector<double>> eigenvectors(
-      n_eigenvalues, dealii::Vector<double>(n_dofs_agglomerate));
+      n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
   dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
-  unsigned int const n_arnoldi_vectors = 2 * n_eigenvalues + 2;
+  unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
   bool const symmetric = true;
   // We want the eigenvalues of the smallest magnitudes but we need to ask for
   // the ones with the largest magnitudes because they are computed for the
@@ -142,7 +142,7 @@ void AMGe_host<dim, VectorType>::compute_restriction_sparse_matrix(
 template <int dim, typename VectorType>
 void AMGe_host<dim, VectorType>::setup(
     std::array<unsigned int, dim> const &agglomerate_dim,
-    unsigned int const n_eigenvalues, double const tolerance,
+    unsigned int const n_eigenvectors, double const tolerance,
     std::function<void(dealii::DoFHandler<dim> &dof_handler,
                        dealii::ConstraintMatrix &,
                        dealii::SparsityPattern &system_sparsity_pattern,
@@ -165,7 +165,7 @@ void AMGe_host<dim, VectorType>::setup(
       static_cast<
           std::function<void(std::vector<unsigned int>::iterator const &,
                              ScratchData &, CopyData &)>>(
-          std::bind(&AMGe_host::local_worker, *this, n_eigenvalues, tolerance,
+          std::bind(&AMGe_host::local_worker, *this, n_eigenvectors, tolerance,
                     std::cref(evaluate), std::placeholders::_1,
                     std::placeholders::_2, std::placeholders::_3)),
       static_cast<std::function<void(CopyData const &)>>(std::bind(
@@ -195,7 +195,7 @@ void AMGe_host<dim, VectorType>::setup(
 
 template <int dim, typename VectorType>
 void AMGe_host<dim, VectorType>::local_worker(
-    unsigned int const n_eigenvalues, double const tolerance,
+    unsigned int const n_eigenvectors, double const tolerance,
     std::function<void(dealii::DoFHandler<dim> &dof_handler,
                        dealii::ConstraintMatrix &,
                        dealii::SparsityPattern &system_sparsity_pattern,
@@ -216,7 +216,7 @@ void AMGe_host<dim, VectorType>::local_worker(
   // We ignore the eigenvalues.
   std::tie(std::ignore, copy_data.local_eigenvectors,
            copy_data.local_dof_indices_map) =
-      compute_local_eigenvectors(n_eigenvalues, tolerance,
+      compute_local_eigenvectors(n_eigenvectors, tolerance,
                                  agglomerate_triangulation,
                                  agglomerate_to_global_tria_map, evaluate);
 }
