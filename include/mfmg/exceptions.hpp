@@ -23,11 +23,6 @@
 #include <boost/stacktrace.hpp>
 #endif
 
-#if MFMG_WITH_CUDA
-#include <cusolverDn.h>
-#include <cusparse.h>
-#endif
-
 namespace mfmg
 {
 #if MFMG_DEBUG
@@ -83,8 +78,16 @@ inline void ASSERT_THROW_NOT_IMPLEMENTED()
   NotImplementedExc exception;
   throw exception;
 }
+} // namespace mfmg
+
+#ifdef __CUDACC__
+#include <cusolverDn.h>
+#include <cusparse.h>
 
 #if MFMG_WITH_CUDA
+
+namespace mfmg
+{
 #if MFMG_DEBUG
 namespace internal
 {
@@ -192,7 +195,7 @@ inline std::string get_cusolver_error_string(cusolverStatus_t error_code)
 
   return message;
 }
-}
+} // namespace internal
 
 inline void ASSERT_CUDA(cudaError_t error_code)
 {
@@ -213,13 +216,16 @@ inline void ASSERT_CUSOLVER(cusolverStatus_t error_code)
   std::string message = internal::get_cusolver_error_string(error_code);
   ASSERT(error_code == CUSOLVER_STATUS_SUCCESS, "cuSolver error: " + message);
 }
-#else
+#else  // #if MFMG_DEBUG
 inline void ASSERT_CUDA(cudaError_t error_code) { (void)error_code; }
 inline void ASSERT_CUDA_SYNCHRONIZE() {}
 inline void ASSERT_CUSPARSE(cusparseStatus_t error_code) { (void)error_code; }
 inline void ASSERT_CUSOLVER(cusolverStatus_t error_code) { (void)error_code; }
-#endif
-#endif
-}
+#endif // #if MFMG_DEBUG
+
+} // namespace mfmg
+#endif // #if MFMG_WITH_CUDA
+
+#endif // #ifdef __CUDACC__
 
 #endif
