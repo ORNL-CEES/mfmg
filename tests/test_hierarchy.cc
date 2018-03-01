@@ -63,19 +63,19 @@ private:
 
 protected:
   // diagonal matrices
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::TrilinosWrappers::SparsityPattern &system_sparsity_pattern,
-           dealii::TrilinosWrappers::SparseMatrix &system_matrix) const override
+  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                        dealii::TrilinosWrappers::SparsityPattern &,
+                        dealii::TrilinosWrappers::SparseMatrix &system_matrix)
+      const override final
   {
     system_matrix.copy_from(_matrix);
   }
+
   virtual void
   evaluate(dealii::DoFHandler<dim> &dof_handler,
            dealii::ConstraintMatrix &constraints,
            dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override
+           dealii::SparseMatrix<value_type> &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);

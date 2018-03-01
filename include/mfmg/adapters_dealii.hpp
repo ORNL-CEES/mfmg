@@ -59,18 +59,16 @@ public:
                            dealii::Vector<value_type>>;
 
 protected:
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::TrilinosWrappers::SparsityPattern &system_sparsity_pattern,
-           dealii::TrilinosWrappers::SparseMatrix &system_matrix) const
+  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                        dealii::TrilinosWrappers::SparsityPattern &,
+                        dealii::TrilinosWrappers::SparseMatrix &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
-  virtual void evaluate(dealii::DoFHandler<dim> &dof_handler,
-                        dealii::ConstraintMatrix &constraints,
-                        dealii::SparsityPattern &system_sparsity_pattern,
-                        dealii::SparseMatrix<value_type> &system_matrix) const
+
+  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                        dealii::SparsityPattern &,
+                        dealii::SparseMatrix<value_type> &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
