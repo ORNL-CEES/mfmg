@@ -12,12 +12,15 @@
 #ifndef MFMG_DEALII_OPERATOR_HPP
 #define MFMG_DEALII_OPERATOR_HPP
 
-#include <deal.II/lac/trilinos_precondition.h>
-
 #include <mfmg/concepts.hpp>
 #include <mfmg/exceptions.hpp>
 
-#include "EpetraExt_Transpose_RowMatrix.h"
+#include <deal.II/lac/trilinos_precondition.h>
+#include <deal.II/lac/trilinos_solver.h>
+
+#include <EpetraExt_Transpose_RowMatrix.h>
+
+#include <boost/property_tree/ptree.hpp>
 
 namespace mfmg
 {
@@ -34,10 +37,15 @@ public:
   virtual std::shared_ptr<vector_type> build_domain_vector() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
+
   virtual std::shared_ptr<vector_type> build_range_vector() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 };
 
@@ -58,7 +66,8 @@ public:
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
-  void apply(const vector_type &x, vector_type &y) const
+
+  virtual void apply(const vector_type &x, vector_type &y) const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
@@ -78,11 +87,13 @@ public:
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
-  std::shared_ptr<vector_type> build_domain_vector() const
+  virtual std::shared_ptr<vector_type>
+  build_domain_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
-  std::shared_ptr<vector_type> build_range_vector() const
+
+  virtual std::shared_ptr<vector_type> build_range_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
@@ -109,7 +120,8 @@ public:
       : _sparsity_pattern(sparsity_pattern), _matrix(matrix)
   {
   }
-  void apply(const vector_type &x, vector_type &y) const
+
+  virtual void apply(const vector_type &x, vector_type &y) const override final
   {
     _matrix->vmult(y, x);
   }
@@ -117,22 +129,32 @@ public:
   std::shared_ptr<operator_type> transpose() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   std::shared_ptr<operator_type> multiply(const operator_type &operator_b) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
-  std::shared_ptr<vector_type> build_domain_vector() const
+  virtual std::shared_ptr<vector_type>
+  build_domain_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
-  std::shared_ptr<vector_type> build_range_vector() const
+
+  virtual std::shared_ptr<vector_type> build_range_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
 private:
@@ -165,7 +187,8 @@ public:
       : _sparsity_pattern(sparsity_pattern), _matrix(matrix)
   {
   }
-  void apply(const vector_type &x, vector_type &y) const
+
+  virtual void apply(const vector_type &x, vector_type &y) const override final
   {
     _matrix->vmult(y, x);
   }
@@ -197,13 +220,15 @@ public:
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
-  std::shared_ptr<vector_type> build_domain_vector() const
+  virtual std::shared_ptr<vector_type>
+  build_domain_vector() const override final
   {
     return std::make_shared<vector_type>(
         _matrix->locally_owned_domain_indices(),
         _matrix->get_mpi_communicator());
   }
-  std::shared_ptr<vector_type> build_range_vector() const
+
+  std::shared_ptr<vector_type> build_range_vector() const override final
   {
     return std::make_shared<vector_type>(_matrix->locally_owned_range_indices(),
                                          _matrix->get_mpi_communicator());

@@ -28,10 +28,6 @@
 
 #include <random>
 
-unsigned int constexpr dim = 2;
-using ScalarType = double;
-using Vector = typename dealii::LinearAlgebra::distributed::Vector<ScalarType>;
-
 template <int dim>
 class Source : public dealii::Function<dim>
 {
@@ -67,18 +63,19 @@ private:
 
 protected:
   // diagonal matrices
-  void
+  virtual void
   evaluate(dealii::DoFHandler<dim> &dof_handler,
            dealii::ConstraintMatrix &constraints,
            dealii::TrilinosWrappers::SparsityPattern &system_sparsity_pattern,
-           dealii::TrilinosWrappers::SparseMatrix &system_matrix) const
+           dealii::TrilinosWrappers::SparseMatrix &system_matrix) const override
   {
     system_matrix.copy_from(_matrix);
   }
-  void evaluate(dealii::DoFHandler<dim> &dof_handler,
-                dealii::ConstraintMatrix &constraints,
-                dealii::SparsityPattern &system_sparsity_pattern,
-                dealii::SparseMatrix<value_type> &system_matrix) const
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &dof_handler,
+           dealii::ConstraintMatrix &constraints,
+           dealii::SparsityPattern &system_sparsity_pattern,
+           dealii::SparseMatrix<value_type> &system_matrix) const override
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -148,9 +145,9 @@ private:
 
 BOOST_AUTO_TEST_CASE(hierarchy_2d)
 {
+  unsigned int constexpr dim = 2;
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
-  using Operator = typename MeshEvaluator::global_operator_type;
   using Mesh = mfmg::DealIIMesh<dim>;
 
   MPI_Comm comm = MPI_COMM_WORLD;

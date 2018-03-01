@@ -37,10 +37,11 @@ private:
 
 protected:
   // Diagonal matrices. We only need local evaluate function.
-  virtual void evaluate(dealii::DoFHandler<dim> &dof_handler,
-                        dealii::ConstraintMatrix &constraints,
-                        dealii::SparsityPattern &system_sparsity_pattern,
-                        dealii::SparseMatrix<value_type> &system_matrix) const
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &dof_handler,
+           dealii::ConstraintMatrix &constraints,
+           dealii::SparsityPattern &system_sparsity_pattern,
+           dealii::SparseMatrix<value_type> &system_matrix) const override
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -123,10 +124,11 @@ private:
 
 protected:
   // Diagonal matrices. We only need local evaluate function.
-  void evaluate(dealii::DoFHandler<dim> &dof_handler,
-                dealii::ConstraintMatrix &constraints,
-                dealii::SparsityPattern &system_sparsity_pattern,
-                dealii::SparseMatrix<value_type> &system_matrix) const
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &dof_handler,
+           dealii::ConstraintMatrix &constraints,
+           dealii::SparsityPattern &system_sparsity_pattern,
+           dealii::SparseMatrix<value_type> &system_matrix) const override
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
