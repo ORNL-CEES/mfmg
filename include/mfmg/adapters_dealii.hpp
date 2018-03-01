@@ -17,7 +17,6 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/trilinos_solver.h>
 
-#include "amge_device.cuh"
 #include "amge_host.hpp"
 
 #include <mfmg/concepts.hpp>
