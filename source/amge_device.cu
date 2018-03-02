@@ -17,11 +17,7 @@
 // Cannot use the instantiation macro with nvcc
 template class mfmg::AMGe_device<2, dealii::TrilinosWrappers::MPI::Vector>;
 template class mfmg::AMGe_device<
-    2, dealii::LinearAlgebra::distributed::Vector<float>>;
-template class mfmg::AMGe_device<
     2, dealii::LinearAlgebra::distributed::Vector<double>>;
 template class mfmg::AMGe_device<3, dealii::TrilinosWrappers::MPI::Vector>;
-template class mfmg::AMGe_device<
-    3, dealii::LinearAlgebra::distributed::Vector<float>>;
 template class mfmg::AMGe_device<
     3, dealii::LinearAlgebra::distributed::Vector<double>>;
