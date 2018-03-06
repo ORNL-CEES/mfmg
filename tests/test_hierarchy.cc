@@ -18,6 +18,7 @@
 #include <mfmg/adapters_dealii.hpp>
 #include <mfmg/hierarchy.hpp>
 
+#include <deal.II/base/conditional_ostream.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/la_parallel_vector.h>
@@ -34,40 +35,30 @@ class Source : public dealii::Function<dim>
 public:
   Source() = default;
 
-  double value(dealii::Point<dim> const &p,
-               unsigned int const component = 0) const override;
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override final;
 };
 
 template <int dim>
-double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
+double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
 {
-  double val = 0.;
-  for (unsigned int d = 0; d < dim; ++d)
-  {
-    double tmp = 0.;
-    for (unsigned int i = 0; i < dim; ++i)
-      tmp += p[i] * (1 + p[i] * (1 + p[i] * (1 + p[i] * (1 + p[i]))));
-
-    val += 2. * tmp;
-  }
-
-  return val;
+  return 1.;
 }
 
-template <int dim, class Vector>
-class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, Vector>
+template <int dim, typename VectorType>
+class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
 {
 private:
   using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, Vector>::value_type;
+      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
 
 protected:
-  // diagonal matrices
   virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
                         dealii::TrilinosWrappers::SparsityPattern &,
                         dealii::TrilinosWrappers::SparseMatrix &system_matrix)
       const override final
   {
+    // TODO this is pretty expansive, we should use a shared pointer
     system_matrix.copy_from(_matrix);
   }
 
@@ -89,10 +80,6 @@ protected:
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
     dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
-    // TODO what should we do with the boundary condition?
-    // dealii::VectorTools::interpolate_boundary_values(
-    //     _dof_handler, 0, dealii::Functions::ZeroFunction<dim>(),
-    //     _constraints);
     constraints.close();
 
     // Build the system sparsity pattern and reinitialize the system sparse
@@ -146,73 +133,59 @@ private:
 BOOST_AUTO_TEST_CASE(hierarchy_2d)
 {
   unsigned int constexpr dim = 2;
-  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+  using DVector = dealii::TrilinosWrappers::MPI::Vector;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
   using Mesh = mfmg::DealIIMesh<dim>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
+  dealii::ConditionalOStream pcout(
+      std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
+
   Source<dim> source;
 
-  const int num_refinements = 6;
+  const int num_refinements = 5;
 
-  Laplace<dim, Vector> laplace(comm, 1);
-  laplace.setup_system(num_refinements);
+  Laplace<dim, DVector> laplace(comm, 1);
+  laplace.setup_system();
   laplace.assemble_system(source);
 
   auto mesh =
       std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
 
-  const auto &a = laplace._system_matrix;
-  Vector solution(laplace._locally_owned_dofs, comm);
-  Vector rhs(laplace._system_rhs);
+  auto const &a = laplace._system_matrix;
+  auto const locally_owned_dofs = laplace._locally_owned_dofs;
+  DVector solution(locally_owned_dofs, comm);
+  DVector rhs(laplace._system_rhs);
 
   const int local_size = rhs.local_size();
 
   std::default_random_engine generator;
-  std::uniform_real_distribution<typename Vector::value_type> distribution(0.,
-                                                                           1.);
-  for (int i = 0; i < local_size; i++)
-    solution.local_element(i) = distribution(generator);
-  a.vmult(rhs, solution);
+  std::uniform_real_distribution<typename DVector::value_type> distribution(0.,
+                                                                            1.);
+  for (auto const index : locally_owned_dofs)
+    solution[index] = distribution(generator);
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   params->put("eigensolver: number of eigenvectors", 1);
   params->put("eigensolver: tolerance", 1e-14);
-  params->put<unsigned int>("agglomeration: nx", 2);
-  params->put<unsigned int>("agglomeration: ny", 2);
-  params->put<unsigned int>("agglomeration: nz", 2);
+  params->put("agglomeration: nx", 2);
+  params->put("agglomeration: ny", 2);
 
-  TestMeshEvaluator<dim, Vector> evaluator(a);
-  mfmg::Hierarchy<MeshEvaluator, Vector> hierarchy(comm, evaluator, *mesh,
-                                                   params);
+  TestMeshEvaluator<dim, DVector> evaluator(a);
+  mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
+                                                    params);
 
-  dealii::SolverControl solver_control(laplace._dof_handler.n_dofs(),
-                                       1e-12 * rhs.l2_norm());
-  dealii::SolverCG<Vector> solver(solver_control);
-
-  solution = 0.;
-  solver.solve(laplace._system_matrix, solution, rhs, hierarchy);
-
-  if (dealii::Utilities::MPI::this_mpi_process(comm) == 0)
-    std::cout << "AMGe: Solved in " << solver_control.last_step()
-              << " iterations." << std::endl;
-
-  laplace._constraints.distribute(solution);
-  laplace._locally_relevant_solution = solution;
-
-  solution = 0.;
-  solver.solve(laplace._system_matrix, solution, rhs,
-               dealii::PreconditionIdentity());
-  if (dealii::Utilities::MPI::this_mpi_process(comm) == 0)
-    std::cout << "Identity: Solved in " << solver_control.last_step()
-              << " iterations." << std::endl;
-
-  solution = 0.;
-  dealii::TrilinosWrappers::PreconditionSSOR ssor;
-  ssor.initialize(laplace._system_matrix);
-  solver.solve(laplace._system_matrix, solution, rhs, ssor);
-  if (dealii::Utilities::MPI::this_mpi_process(comm) == 0)
-    std::cout << "SSOR: Solved in " << solver_control.last_step()
-              << " iterations." << std::endl;
+  // We want to do 20 V-cycle iterations. The rhs of is zero.
+  DVector residual(rhs);
+  unsigned int const n_cycles = 20;
+  std::cout << std::scientific;
+  for (unsigned int i = 0; i < n_cycles; ++i)
+  {
+    laplace._system_matrix.vmult(residual, solution);
+    pcout << "Residual before: " << residual.l2_norm() << std::endl;
+    hierarchy.apply(rhs, solution);
+    laplace._system_matrix.vmult(residual, solution);
+    pcout << "Residual after: " << residual.l2_norm() << std::endl;
+  }
 }
