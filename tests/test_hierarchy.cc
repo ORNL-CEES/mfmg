@@ -178,6 +178,10 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
                                                     params);
 
+  pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
+  pcout << "Operator complexity: " << hierarchy.operator_complexity()
+        << std::endl;
+
   // We want to do 20 V-cycle iterations. The rhs of is zero.
   // TODO (AP): huh? what does this mean?
   DVector residual(rhs);
