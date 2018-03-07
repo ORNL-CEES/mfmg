@@ -85,8 +85,9 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   DiagonalTestMeshEvaluator<dim, Vector> evaluator;
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<double> diag_elements;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
-  std::tie(eigenvalues, eigenvectors, dof_indices_map) =
+  std::tie(eigenvalues, eigenvectors, diag_elements, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
                                       patch_to_global_map, evaluator);
 
@@ -174,8 +175,9 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   ConstrainedDiagonalTestMeshEvaluator<dim, Vector> evaluator;
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<double> diag_elements;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
-  std::tie(eigenvalues, eigenvectors, dof_indices_map) =
+  std::tie(eigenvalues, eigenvectors, diag_elements, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
                                       patch_to_global_map, evaluator);
 

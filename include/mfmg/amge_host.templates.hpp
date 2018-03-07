@@ -16,6 +16,7 @@
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
 #include <deal.II/lac/arpack_solver.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparse_direct.h>
@@ -34,6 +35,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
 template <int dim, class MeshEvaluator, typename VectorType>
 std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
+           std::vector<typename VectorType::value_type>,
            std::vector<dealii::types::global_dof_index>>
 AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvectors, double tolerance,
@@ -54,10 +56,15 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   auto agglomerate_system_matrix = agglomerate_operator->get_matrix();
 
+  // Get the diagonal elements
+  unsigned int const size = agglomerate_system_matrix->m();
+  std::vector<ScalarType> diag_elements(size);
+  for (unsigned int i = 0; i < size; ++i)
+    diag_elements[i] = agglomerate_system_matrix->diag_element(i);
+
   // Make Identity mass matrix
   dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
   dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
-  unsigned int const size = agglomerate_system_matrix->m();
   std::vector<std::vector<unsigned int>> column_indices(
       size, std::vector<unsigned int>(1));
   for (unsigned int i = 0; i < size; ++i)
@@ -102,17 +109,38 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::types::global_dof_index> dof_indices_map =
       this->compute_dof_index_map(patch_to_global_map, agglomerate_dof_handler);
 
-  return std::make_tuple(eigenvalues, eigenvectors, dof_indices_map);
+  return std::make_tuple(eigenvalues, eigenvectors, diag_elements,
+                         dof_indices_map);
 }
 
 template <int dim, class MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::
     compute_restriction_sparse_matrix(
         std::vector<dealii::Vector<double>> const &eigenvectors,
+        std::vector<std::vector<typename VectorType::value_type>> const
+            &diag_elements,
         std::vector<std::vector<dealii::types::global_dof_index>> const
             &dof_indices_maps,
+        std::vector<unsigned int> const &n_local_eigenvectors,
+        dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix,
         dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const
 {
+  // Extract the diagonal of the system sparse matrix. Each processor gets the
+  // locally relevant indices, i.e., owned + ghost
+  dealii::IndexSet locally_owned_dofs =
+      system_sparse_matrix.locally_owned_domain_indices();
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(this->_dof_handler,
+                                                  locally_relevant_dofs);
+  VectorType locally_owned_global_diag(locally_owned_dofs, this->_comm);
+  for (auto const val : locally_owned_dofs)
+    locally_owned_global_diag[val] = system_sparse_matrix.diag_element(val);
+  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+  VectorType locally_relevant_global_diag(locally_owned_dofs,
+                                          locally_relevant_dofs, this->_comm);
+  locally_relevant_global_diag = locally_owned_global_diag;
+
   // Compute the sparsity pattern (Epetra_FECrsGraph)
   dealii::TrilinosWrappers::SparsityPattern restriction_sp =
       compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps);
@@ -123,24 +151,39 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
   std::pair<dealii::types::global_dof_index,
             dealii::types::global_dof_index> const local_range =
       restriction_sp.local_range();
-
-  for (unsigned int i = 0; i < n_local_rows; ++i)
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
   {
-    restriction_sparse_matrix.set(
-        local_range.first + i, dof_indices_maps[i].size(),
-        &(dof_indices_maps[i][0]), eigenvectors[i].begin());
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int k = 0; k < n_local_eig; ++k)
+    {
+      unsigned int const n_elem = eigenvectors[pos].size();
+      for (unsigned int j = 0; j < n_elem; ++j)
+      {
+        dealii::types::global_dof_index const global_pos =
+            dof_indices_maps[i][j];
+        restriction_sparse_matrix.add(
+            local_range.first + pos, global_pos,
+            diag_elements[i][j] / locally_relevant_global_diag[global_pos] *
+                eigenvectors[pos][j]);
+      }
+      ++pos;
+    }
   }
 
   // Compress the matrix
-  restriction_sparse_matrix.compress(dealii::VectorOperation::insert);
+  restriction_sparse_matrix.compress(dealii::VectorOperation::add);
 }
 
 template <int dim, class MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     std::array<unsigned int, dim> const &agglomerate_dim,
     unsigned int const n_eigenvectors, double const tolerance,
-    const MeshEvaluator &evaluator,
-    dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix)
+    MeshEvaluator const &evaluator,
+    std::shared_ptr<typename MeshEvaluator::global_operator_type const>
+        global_operator,
+    dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
@@ -149,7 +192,9 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   std::vector<unsigned int> agglomerate_ids(n_agglomerates);
   std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
   std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<std::vector<ScalarType>> diag_elements;
   std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
+  std::vector<unsigned int> n_local_eigenvectors;
   CopyData copy_data;
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
@@ -161,12 +206,15 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
                     std::placeholders::_2, std::placeholders::_3)),
       static_cast<std::function<void(CopyData const &)>>(std::bind(
           &AMGe_host::copy_local_to_global, *this, std::placeholders::_1,
-          std::ref(eigenvectors), std::ref(dof_indices_maps))),
+          std::ref(eigenvectors), std::ref(diag_elements),
+          std::ref(dof_indices_maps), std::ref(n_local_eigenvectors))),
       ScratchData(), copy_data);
 
   // Return to a serial execution
-  compute_restriction_sparse_matrix(eigenvectors, dof_indices_maps,
-                                    system_sparse_matrix);
+  auto system_sparse_matrix = global_operator->get_matrix();
+  compute_restriction_sparse_matrix(
+      eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
+      *system_sparse_matrix, restriction_sparse_matrix);
 }
 
 template <int dim, class MeshEvaluator, typename VectorType>
@@ -185,7 +233,7 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
                                         agglomerate_to_global_tria_map);
 
   // We ignore the eigenvalues.
-  std::tie(std::ignore, copy_data.local_eigenvectors,
+  std::tie(std::ignore, copy_data.local_eigenvectors, copy_data.diag_elements,
            copy_data.local_dof_indices_map) =
       compute_local_eigenvectors(n_eigenvectors, tolerance,
                                  agglomerate_triangulation,
@@ -196,13 +244,18 @@ template <int dim, class MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global(
     CopyData const &copy_data,
     std::vector<dealii::Vector<double>> &eigenvectors,
-    std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps)
+    std::vector<std::vector<typename VectorType::value_type>> &diag_elements,
+    std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps,
+    std::vector<unsigned int> &n_local_eigenvectors)
 {
   eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
                       copy_data.local_eigenvectors.end());
-  unsigned int const n_local_eigenvectors = copy_data.local_eigenvectors.size();
-  for (unsigned int i = 0; i < n_local_eigenvectors; ++i)
-    dof_indices_maps.push_back(copy_data.local_dof_indices_map);
+
+  diag_elements.push_back(copy_data.diag_elements);
+
+  dof_indices_maps.push_back(copy_data.local_dof_indices_map);
+
+  n_local_eigenvectors.push_back(copy_data.local_eigenvectors.size());
 }
 
 template <int dim, class MeshEvaluator, typename VectorType>

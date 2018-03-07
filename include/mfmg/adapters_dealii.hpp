@@ -152,7 +152,7 @@ protected:
 public:
   static std::shared_ptr<operator_type>
   build_restrictor(MPI_Comm comm, const mesh_evaluator_type &evaluator,
-                   const mesh_type &mesh,
+                   mesh_type &mesh,
                    std::shared_ptr<boost::property_tree::ptree> params)
   {
     AMGe_host<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
@@ -169,8 +169,9 @@ public:
 
     auto restrictor_matrix =
         std::make_shared<typename global_operator_type::matrix_type>();
+    auto global_operator = evaluator.get_global_operator(mesh);
     amge.setup_restrictor(agglomerate_dim, n_eigenvectors, tolerance, evaluator,
-                          *restrictor_matrix);
+                          global_operator, *restrictor_matrix);
 
     return std::make_shared<global_operator_type>(restrictor_matrix);
   }
