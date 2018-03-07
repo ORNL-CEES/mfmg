@@ -73,11 +73,24 @@ public:
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
-  virtual size_t m() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
+  virtual size_t m() const override final
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
 
-  virtual size_t n() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
+    return 0;
+  }
 
-  virtual size_t nnz() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
+  virtual size_t n() const override final
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+    return 0;
+  }
+
+  virtual size_t nnz() const override final
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+    return 0;
+  }
 
   virtual void apply(const vector_type &x, vector_type &y) const override final
   {
@@ -87,27 +100,37 @@ public:
   std::shared_ptr<operator_type> transpose() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   std::shared_ptr<operator_type> multiply(const operator_type &operator_b) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   std::shared_ptr<matrix_type> get_matrix() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   virtual std::shared_ptr<vector_type>
   build_domain_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   virtual std::shared_ptr<vector_type> build_range_vector() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 };
 
