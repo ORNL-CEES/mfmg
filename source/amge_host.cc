@@ -9,7 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.templates.hpp>
 #include <mfmg/instantiation.hpp>
 
-INSTANTIATE_DIM_VECTORTYPE(TUPLE(AMGe_host))
+INSTANTIATE_DIM_VECTORTYPE(TUPLE_PARAM(AMGe_host, DealIIMeshEvaluator))

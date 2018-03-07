@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix_device)
   dealii::FE_Q<3> fe(4);
   dealii::DoFHandler<3> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_device<3, dealii::LinearAlgebra::distributed::Vector<float>> amge(
+  mfmg::AMGe_device<3, dealii::LinearAlgebra::distributed::Vector<double>> amge(
       MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
 
   unsigned int const n_local_rows = 3;
@@ -62,16 +62,16 @@ BOOST_AUTO_TEST_CASE(restriction_matrix_device)
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
       dof_indices_maps[i][j] = distribution(generator);
 
-  float *eigenvectors_dev = nullptr;
+  double *eigenvectors_dev = nullptr;
   cudaError_t cuda_error_code =
-      cudaMalloc(&eigenvectors_dev, eigenvectors.size() * sizeof(float));
+      cudaMalloc(&eigenvectors_dev, eigenvectors.size() * sizeof(double));
   mfmg::ASSERT_CUDA(cuda_error_code);
   cuda_error_code =
       cudaMemcpy(eigenvectors_dev, &eigenvectors[0],
-                 eigenvectors.size() * sizeof(float), cudaMemcpyHostToDevice);
+                 eigenvectors.size() * sizeof(double), cudaMemcpyHostToDevice);
   mfmg::ASSERT_CUDA(cuda_error_code);
 
-  mfmg::SparseMatrixDevice<float> restriction_matrix_dev =
+  mfmg::SparseMatrixDevice<double> restriction_matrix_dev =
       amge.compute_restriction_sparse_matrix(eigenvectors_dev,
                                              dof_indices_maps);
 
