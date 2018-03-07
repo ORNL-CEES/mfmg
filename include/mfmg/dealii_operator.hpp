@@ -37,6 +37,9 @@ public:
 public:
   virtual void apply(const vector_type &x, vector_type &y) const = 0;
 
+  virtual size_t m() const = 0;
+  virtual size_t n() const = 0;
+
   virtual std::shared_ptr<vector_type> build_domain_vector() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
@@ -69,6 +72,12 @@ public:
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
+
+  virtual size_t m() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
+
+  virtual size_t n() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
+
+  virtual size_t nnz() const override final { ASSERT_THROW_NOT_IMPLEMENTED(); }
 
   virtual void apply(const vector_type &x, vector_type &y) const override final
   {
@@ -123,6 +132,12 @@ public:
       : _sparsity_pattern(sparsity_pattern), _matrix(matrix)
   {
   }
+
+  virtual size_t m() const override final { return _matrix->m(); }
+
+  virtual size_t n() const override final { return _matrix->n(); }
+
+  size_t nnz() const { return _matrix->n_nonzero_elements(); }
 
   virtual void apply(const vector_type &x, vector_type &y) const override final
   {
@@ -190,6 +205,12 @@ public:
       : _sparsity_pattern(sparsity_pattern), _matrix(matrix)
   {
   }
+
+  virtual size_t m() const override final { return _matrix->m(); }
+
+  virtual size_t n() const override final { return _matrix->n(); }
+
+  size_t nnz() const { return _matrix->n_nonzero_elements(); }
 
   virtual void apply(const vector_type &x, vector_type &y) const override final
   {
@@ -273,6 +294,10 @@ public:
     _prec_type = string2type(prec_name);
     initialize(_prec_type);
   }
+
+  virtual size_t m() const override final { return _matrix.m(); }
+
+  virtual size_t n() const override final { return _matrix.n(); }
 
   void apply(const vector_type &b, vector_type &x) const
   {
@@ -368,7 +393,13 @@ public:
   {
     _solver = std::make_shared<solver_type>(_solver_control);
     _solver->initialize(a);
+    _m = a.m();
+    _n = a.n();
   }
+
+  virtual size_t m() const override final { return _m; }
+
+  virtual size_t n() const override final { return _n; }
 
   void apply(const vector_type &b, vector_type &x) const
   {
@@ -378,6 +409,8 @@ public:
 private:
   dealii::SolverControl _solver_control;
   std::shared_ptr<dealii::TrilinosWrappers::SolverDirect> _solver;
+  size_t _m;
+  size_t _n;
 };
 }
 

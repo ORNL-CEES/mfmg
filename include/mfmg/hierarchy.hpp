@@ -191,6 +191,40 @@ public:
     }
   }
 
+  double grid_complexity() const
+  {
+    auto const num_levels = _levels.size();
+
+    if (num_levels == 0)
+      return -1.0;
+
+    auto level0_m = _levels[0].get_operator()->m();
+    ASSERT(level0_m, "The size of the finest level operator is 0.");
+    double complexity = level0_m;
+    for (int i = 1; i < num_levels; i++)
+      complexity += _levels[i].get_operator()->m();
+    return complexity / level0_m;
+  }
+
+  double operator_complexity() const
+  {
+    auto const num_levels = _levels.size();
+
+    if (num_levels == 0)
+      return -1.0;
+
+    auto level0_nnz = std::dynamic_pointer_cast<const global_operator_type>(
+                          _levels[0].get_operator())
+                          ->nnz();
+    ASSERT(level0_nnz, "The nnz of the finest level operator is 0.");
+    double complexity = level0_nnz;
+    for (int i = 1; i < num_levels; i++)
+      complexity += std::dynamic_pointer_cast<const global_operator_type>(
+                        _levels[i].get_operator())
+                        ->nnz();
+    return complexity / level0_nnz;
+  }
+
 private:
   std::vector<Level<operator_type>> _levels;
   bool _is_preconditioner = true;
