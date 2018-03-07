@@ -32,16 +32,16 @@ public:
    *  - the tolerance (relative accuracy of the Ritz value)
    *  - the triangulation of the agglomerate
    *  - the map between the local cells and the global cells
-   *  - a function that evaluates the local DoFHandler, the local
-   *    ConstraintMatrix, the local system sparse matrix with its sparsity
-   *    pattern, and the local mass matrix with its sparsity pattern.
+   *  - an object that can evaluates the local DoFHandler, the local
+   *    ConstraintMatrix, and the local system sparse matrix with its sparsity
+   *    pattern.
    *
    * The function returns the complex eigenvalues, the associated eigenvectors,
-   * and a vector that maps the dof indices from the local problem to the global
-   * problem.
+   * the diagonal elements of the local system matrix, and a vector that maps
+   * the dof indices from the local problem to the global problem.
    */
   std::tuple<std::vector<std::complex<double>>,
-             std::vector<dealii::Vector<double>>,
+             std::vector<dealii::Vector<double>>, std::vector<ScalarType>,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
       unsigned int n_eigenvectors, double tolerance,
@@ -52,8 +52,8 @@ public:
       const MeshEvaluator &evaluator) const;
 
   /**
-   * Compute the restriction sparse matrix. The rows of the matrix are the
-   * computed eigenvectors. \p dof_indices_maps are used to map the indices in
+   * Compute the restriction sparse matrix. The rows of the matrix are
+   * weighted eigenvectors. \p dof_indices_maps are used to map the indices in
    * \p eigenvectors to the global dof indices.
    */
   // dealii::TrilinosWrappers::SparseMatrix has a private copy constructor and
@@ -61,8 +61,11 @@ public:
   // returning it.
   void compute_restriction_sparse_matrix(
       std::vector<dealii::Vector<double>> const &eigenvectors,
+      std::vector<std::vector<ScalarType>> const &diag_elements,
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_map,
+      std::vector<unsigned int> const &n_local_eigenvectors,
+      dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
 
   /**
@@ -71,8 +74,10 @@ public:
   void setup_restrictor(
       std::array<unsigned int, dim> const &agglomerate_dim,
       unsigned int const n_eigenvectors, double const tolerance,
-      const MeshEvaluator &evalute,
-      dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix);
+      MeshEvaluator const &evaluator,
+      std::shared_ptr<typename MeshEvaluator::global_operator_type const>
+          global_operator,
+      dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix);
 
 private:
   /**
@@ -90,6 +95,7 @@ private:
   struct CopyData
   {
     std::vector<dealii::Vector<double>> local_eigenvectors;
+    std::vector<ScalarType> diag_elements;
     std::vector<dealii::types::global_dof_index> local_dof_indices_map;
   };
 
@@ -103,13 +109,16 @@ private:
                     ScratchData &scratch_data, CopyData &copy_data);
 
   /**
-   * This function does nothing but is necessary to use WorkStream.
+   * This function copies quantities computed in local worker to output
+   * variables.
    */
   void
   copy_local_to_global(CopyData const &copy_data,
                        std::vector<dealii::Vector<double>> &eigenvectors,
+                       std::vector<std::vector<ScalarType>> &diag_elements,
                        std::vector<std::vector<dealii::types::global_dof_index>>
-                           &dof_indices_maps);
+                           &dof_indices_maps,
+                       std::vector<unsigned int> &n_local_eigenvectors);
 
   /**
    * Build the sparsity pattern of the restriction matrix, i.e., the
