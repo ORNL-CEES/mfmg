@@ -22,6 +22,9 @@
 
 #include <boost/property_tree/ptree.hpp>
 
+#include <algorithm>
+#include <string>
+
 namespace mfmg
 {
 
@@ -251,13 +254,24 @@ public:
   using vector_type = VectorType;
   using matrix_type = dealii::TrilinosWrappers::SparseMatrix;
 
+private:
+  enum SmootherType
+  {
+    SGS,
+    GS,
+    JACOBI,
+    ILU
+  };
+
 public:
   DealIISmootherOperator(const matrix_type &matrix,
                          std::shared_ptr<boost::property_tree::ptree> params)
       : _matrix(matrix)
   {
-    // For now, ignore all parameters
-    _smoother.initialize(matrix);
+    std::string prec_name = params->get<std::string>("preconditioner: type",
+                                                     "Symmetric Gauss-Seidel");
+    _prec_type = string2type(prec_name);
+    initialize(_prec_type);
   }
 
   void apply(const vector_type &b, vector_type &x) const
@@ -269,13 +283,76 @@ public:
 
     // x = x + B^{-1} (-r)
     vector_type tmp(x);
-    _smoother.vmult(tmp, r);
+    smoother_vmult(tmp, r);
     x.add(-1., tmp);
   }
 
 private:
+  SmootherType string2type(const std::string &prec_name) const
+  {
+    // Make parameters case-insensitive
+    std::string prec_name_lower = prec_name;
+    std::transform(prec_name_lower.begin(), prec_name_lower.end(),
+                   prec_name_lower.begin(), ::tolower);
+    if (prec_name_lower == "symmetric gauss-seidel")
+      return SGS;
+    else if (prec_name_lower == "gauss-seidel")
+      return GS;
+    else if (prec_name_lower == "jacobi")
+      return JACOBI;
+    else if (prec_name_lower == "ilu")
+      return ILU;
+    else
+      throw std::runtime_error("Unknown smoother name: \"" + prec_name_lower +
+                               "\"");
+  }
+  void initialize(const SmootherType prec_type)
+  {
+    switch (prec_type)
+    {
+    case SGS:
+      _sgs_smoother.initialize(_matrix);
+      break;
+    case GS:
+      _gs_smoother.initialize(_matrix);
+      break;
+    case JACOBI:
+      _jacobi_smoother.initialize(_matrix);
+      break;
+    case ILU:
+      _ilu_smoother.initialize(_matrix);
+      break;
+    };
+  }
+
+  void smoother_vmult(vector_type &x, const vector_type &b) const
+  {
+    {
+      switch (_prec_type)
+      {
+      case SGS:
+        _sgs_smoother.vmult(x, b);
+        break;
+      case GS:
+        _gs_smoother.vmult(x, b);
+        break;
+      case JACOBI:
+        _jacobi_smoother.vmult(x, b);
+        break;
+      case ILU:
+        _ilu_smoother.vmult(x, b);
+        break;
+      };
+    }
+  }
+
+private:
   const matrix_type &_matrix;
-  dealii::TrilinosWrappers::PreconditionSSOR _smoother;
+  SmootherType _prec_type;
+  dealii::TrilinosWrappers::PreconditionSSOR _sgs_smoother;
+  dealii::TrilinosWrappers::PreconditionSOR _gs_smoother;
+  dealii::TrilinosWrappers::PreconditionJacobi _jacobi_smoother;
+  dealii::TrilinosWrappers::PreconditionILU _ilu_smoother;
 };
 
 template <class VectorType>
