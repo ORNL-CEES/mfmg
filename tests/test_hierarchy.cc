@@ -169,6 +169,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   auto params = std::make_shared<boost::property_tree::ptree>();
   params->put("eigensolver: number of eigenvectors", 1);
   params->put("eigensolver: tolerance", 1e-14);
+  params->put("preconditioner: type", "Gauss-Seidel");
   params->put("is preconditioner", false);
   params->put("agglomeration: nx", 2);
   params->put("agglomeration: ny", 2);
