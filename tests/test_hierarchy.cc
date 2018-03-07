@@ -42,7 +42,7 @@ public:
 template <int dim>
 double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
 {
-  return 1.;
+  return 0.;
 }
 
 template <int dim, typename VectorType>
@@ -184,8 +184,12 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
 
   // We want to do 20 V-cycle iterations. The rhs of is zero.
   // TODO (AP): huh? what does this mean?
+  // (BT): When I was debugging the compiler gave me strange error message
+  // because deal has its own Vector so I replaced Vector with
+  // D(istributed)Vector
   DVector residual(rhs);
   unsigned int const n_cycles = 20;
+  std::vector<double> res(n_cycles + 1);
 
   a.vmult(residual, solution);
   residual.sadd(-1., 1., rhs);
@@ -193,13 +197,18 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
 
   std::cout << std::scientific;
   pcout << "#0: " << 1.0 << std::endl;
+  res[0] = 1.0;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
     hierarchy.apply(rhs, solution);
 
     a.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);
-    pcout << "#" << i + 1 << ": " << residual.l2_norm() / residual0_norm
-          << std::endl;
+    double rel_residual = residual.l2_norm() / residual0_norm;
+    pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
+    res[i + 1] = rel_residual;
   }
+
+  pcout << "Convergence rate: " << res[n_cycles] / res[n_cycles - 1]
+        << std::endl;
 }
