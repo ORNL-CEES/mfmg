@@ -82,6 +82,8 @@ public:
 
     using HierarchyHelpers = Adapter<mesh_evaluator_type>;
 
+    _is_preconditioner = params->get<bool>("is preconditioner", true);
+
     // TODO: add stopping criteria for levels (number of levels / coarse size)
     const int num_levels = params->get<int>("max levels", 2);
     _levels.resize(num_levels);
@@ -136,7 +138,12 @@ public:
     auto &level_fine = _levels[level_index];
     auto a = level_fine.get_operator();
 
-    x = 0.;
+    if (level_index > 0 || _is_preconditioner)
+    {
+      // Zero out any garbage in x.
+      // The only exception is when it's the finest level in a standalone mode.
+      x = 0.;
+    }
 
     if (level_index == num_levels - 1)
     {
@@ -186,6 +193,7 @@ public:
 
 private:
   std::vector<Level<operator_type>> _levels;
+  bool _is_preconditioner = true;
 };
 }
 

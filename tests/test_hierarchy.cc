@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   const int num_refinements = 5;
 
   Laplace<dim, DVector> laplace(comm, 1);
-  laplace.setup_system();
+  laplace.setup_system(num_refinements);
   laplace.assemble_system(source);
 
   auto mesh =
@@ -169,6 +169,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   auto params = std::make_shared<boost::property_tree::ptree>();
   params->put("eigensolver: number of eigenvectors", 1);
   params->put("eigensolver: tolerance", 1e-14);
+  params->put("is preconditioner", false);
   params->put("agglomeration: nx", 2);
   params->put("agglomeration: ny", 2);
 
@@ -177,15 +178,23 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
                                                     params);
 
   // We want to do 20 V-cycle iterations. The rhs of is zero.
+  // TODO (AP): huh? what does this mean?
   DVector residual(rhs);
   unsigned int const n_cycles = 20;
+
+  a.vmult(residual, solution);
+  residual.sadd(-1., 1., rhs);
+  auto const residual0_norm = residual.l2_norm();
+
   std::cout << std::scientific;
+  pcout << "#0: " << 1.0 << std::endl;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
-    laplace._system_matrix.vmult(residual, solution);
-    pcout << "Residual before: " << residual.l2_norm() << std::endl;
     hierarchy.apply(rhs, solution);
-    laplace._system_matrix.vmult(residual, solution);
-    pcout << "Residual after: " << residual.l2_norm() << std::endl;
+
+    a.vmult(residual, solution);
+    residual.sadd(-1., 1., rhs);
+    pcout << "#" << i + 1 << ": " << residual.l2_norm() / residual0_norm
+          << std::endl;
   }
 }
