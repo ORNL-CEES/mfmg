@@ -17,3 +17,5 @@ IF(${MFMG_ENABLE_CUDA})
   MFMG_ADD_CUDA_TEST(test_restriction_matrix_device 1)
   MFMG_ADD_CUDA_TEST(test_sparse_matrix_device 1 2 4)
 ENDIF()
+
+MFMG_COPY_INPUT_FILE(hierarchy_input.info  tests/data)
