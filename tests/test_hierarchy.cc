@@ -209,6 +209,6 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
     res[i + 1] = rel_residual;
   }
 
-  pcout << "Convergence rate: " << res[n_cycles] / res[n_cycles - 1]
-        << std::endl;
+  pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
+        << res[n_cycles] / res[n_cycles - 1] << std::endl;
 }
