@@ -143,7 +143,8 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
 
   // Compute the sparsity pattern (Epetra_FECrsGraph)
   dealii::TrilinosWrappers::SparsityPattern restriction_sp =
-      compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps);
+      compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps,
+                                           n_local_eigenvectors);
 
   // Build the restriction sparse matrix
   restriction_sparse_matrix.reinit(restriction_sp);
@@ -263,7 +264,8 @@ dealii::TrilinosWrappers::SparsityPattern
 AMGe_host<dim, MeshEvaluator, VectorType>::compute_restriction_sparsity_pattern(
     std::vector<dealii::Vector<double>> const &eigenvectors,
     std::vector<std::vector<dealii::types::global_dof_index>> const
-        &dof_indices_maps) const
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors) const
 {
   // Compute the row IndexSet
   int const n_procs = dealii::Utilities::MPI::n_mpi_processes(this->_comm);
@@ -288,9 +290,18 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_restriction_sparsity_pattern(
   dealii::TrilinosWrappers::SparsityPattern sp(
       row_indexset, this->_dof_handler.locally_owned_dofs(), this->_comm);
 
-  for (unsigned int i = 0; i < n_local_rows; ++i)
-    sp.add_entries(n_rows_before + i, dof_indices_maps[i].begin(),
-                   dof_indices_maps[i].end());
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int row = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int j = 0; j < n_local_eig; ++j)
+    {
+      sp.add_entries(n_rows_before + row, dof_indices_maps[i].begin(),
+                     dof_indices_maps[i].end());
+      ++row;
+    }
+  }
 
   sp.compress();
 
