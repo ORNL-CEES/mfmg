@@ -128,7 +128,8 @@ private:
   compute_restriction_sparsity_pattern(
       std::vector<dealii::Vector<double>> const &eigenvectors,
       std::vector<std::vector<dealii::types::global_dof_index>> const
-          &dof_indices_maps) const;
+          &dof_indices_maps,
+      std::vector<unsigned int> const &n_local_eigenvectors) const;
 };
 }
 
