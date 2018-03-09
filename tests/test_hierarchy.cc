@@ -27,6 +27,8 @@
 #include <deal.II/lac/trilinos_linear_operator.h>
 #include <deal.II/lac/trilinos_vector.h>
 
+#include <boost/property_tree/info_parser.hpp>
+
 #include <random>
 
 template <int dim>
@@ -167,12 +169,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
     solution[index] = distribution(generator);
 
   auto params = std::make_shared<boost::property_tree::ptree>();
-  params->put("eigensolver: number of eigenvectors", 2);
-  params->put("eigensolver: tolerance", 1e-14);
-  params->put("preconditioner: type", "Gauss-Seidel");
-  params->put("is preconditioner", false);
-  params->put("agglomeration: nx", 2);
-  params->put("agglomeration: ny", 2);
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
 
   TestMeshEvaluator<dim, DVector> evaluator(a);
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
