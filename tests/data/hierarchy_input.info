@@ -4,3 +4,8 @@
 "is preconditioner" false
 "agglomeration: nx" 2
 "agglomeration: ny" 2
+
+material_property
+{
+  type constant
+}

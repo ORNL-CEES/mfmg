@@ -40,7 +40,8 @@ public:
 
   void setup_system(int num_refinements = 3);
 
-  void assemble_system(dealii::Function<dim> const &source);
+  void assemble_system(dealii::Function<dim> const &source,
+                       dealii::Function<dim> const &material_property);
 
   template <typename PreconditionerType>
   VectorType solve(PreconditionerType &preconditioner);
@@ -51,7 +52,8 @@ public:
 
   template <typename PreconditionerType>
   void run(PreconditionerType &preconditioner,
-           dealii::Function<dim> const &source);
+           dealii::Function<dim> const &source,
+           dealii::Function<dim> const &material_property);
 
   // The following variable should be private but there are public for
   // simplicity
@@ -113,7 +115,8 @@ void Laplace<dim, VectorType>::setup_system(int num_refinements)
 
 template <int dim, typename VectorType>
 void Laplace<dim, VectorType>::assemble_system(
-    dealii::Function<dim> const &source)
+    dealii::Function<dim> const &source,
+    dealii::Function<dim> const &material_property)
 {
   unsigned int const fe_degree = _fe.degree;
   dealii::QGauss<dim> const quadrature(fe_degree + 1);
@@ -140,12 +143,14 @@ void Laplace<dim, VectorType>::assemble_system(
     {
       double const rhs_value =
           source.value(fe_values.quadrature_point(q_point));
+      double const diffusion_coefficient =
+          material_property.value(fe_values.quadrature_point(q_point));
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
         for (unsigned int j = 0; j < dofs_per_cell; ++j)
-          cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
-                               fe_values.shape_grad(j, q_point) *
-                               fe_values.JxW(q_point);
+          cell_matrix(i, j) +=
+              diffusion_coefficient * fe_values.shape_grad(i, q_point) *
+              fe_values.shape_grad(j, q_point) * fe_values.JxW(q_point);
         cell_rhs(i) += rhs_value * fe_values.shape_value(i, q_point) *
                        fe_values.JxW(q_point);
       }
@@ -231,11 +236,12 @@ void Laplace<dim, VectorType>::output_results() const
 
 template <int dim, typename VectorType>
 template <typename PreconditionerType>
-void Laplace<dim, VectorType>::run(PreconditionerType &preconditioner,
-                                   dealii::Function<dim> const &source)
+void Laplace<dim, VectorType>::run(
+    PreconditionerType &preconditioner, dealii::Function<dim> const &source,
+    dealii::Function<dim> const &material_property)
 {
   setup_system();
-  assemble_system(source);
+  assemble_system(source, material_property);
   solve(preconditioner);
   output_results();
 }

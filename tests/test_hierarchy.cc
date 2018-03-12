@@ -47,6 +47,107 @@ double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
   return 0.;
 }
 
+template <int dim>
+class ConstantMaterialProperty : public dealii::Function<dim>
+{
+public:
+  ConstantMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override final;
+};
+
+template <int dim>
+double ConstantMaterialProperty<dim>::value(dealii::Point<dim> const &,
+                                            unsigned int const) const
+{
+  return 1.;
+}
+
+template <int dim>
+class LinearXMaterialProperty : public dealii::Function<dim>
+{
+public:
+  LinearXMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override final;
+};
+
+template <int dim>
+double LinearXMaterialProperty<dim>::value(dealii::Point<dim> const &p,
+                                           unsigned int const) const
+{
+  return 1. + p[0];
+}
+
+template <int dim>
+class LinearMaterialProperty : public dealii::Function<dim>
+{
+public:
+  LinearMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override final;
+};
+
+template <int dim>
+double LinearMaterialProperty<dim>::value(dealii::Point<dim> const &p,
+                                          unsigned int const) const
+{
+  double value = 1.;
+  for (unsigned int d = 0; d < dim; ++d)
+    value += p[d];
+
+  return value;
+}
+
+template <int dim>
+class DiscontinuousMaterialProperty : public dealii::Function<dim>
+{
+public:
+  DiscontinuousMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override final;
+};
+
+template <int dim>
+double DiscontinuousMaterialProperty<dim>::value(dealii::Point<dim> const &p,
+                                                 unsigned int const) const
+{
+  double value = 10.;
+  for (unsigned int d = 0; d < dim; ++d)
+    if (p[d] > 0.5)
+      value *= value;
+
+  return value;
+}
+
+template <int dim>
+class MaterialPropertyFactory
+{
+public:
+  static std::shared_ptr<dealii::Function<dim>>
+  create_material_property(std::string const &material_type)
+  {
+    if (material_type == "constant")
+      return std::make_shared<ConstantMaterialProperty<dim>>();
+    else if (material_type == "linear_x")
+      return std::make_shared<LinearXMaterialProperty<dim>>();
+    else if (material_type == "linear")
+      return std::make_shared<LinearMaterialProperty<dim>>();
+    else if (material_type == "discontinuous")
+      return std::make_shared<DiscontinuousMaterialProperty<dim>>();
+    else
+    {
+      mfmg::ASSERT_THROW_NOT_IMPLEMENTED();
+
+      return nullptr;
+    }
+  }
+};
+
 template <int dim, typename VectorType>
 class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
 {
@@ -110,11 +211,15 @@ protected:
       fe_values.reinit(cell);
 
       for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+      {
+        double const diffusion_coefficient =
+            _material_property->value(fe_values.quadrature_point(q_point));
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           for (unsigned int j = 0; j < dofs_per_cell; ++j)
             cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
                                  fe_values.shape_grad(j, q_point) *
                                  fe_values.JxW(q_point);
+      }
 
       cell->get_dof_indices(local_dof_indices);
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
@@ -123,13 +228,15 @@ protected:
   }
 
 public:
-  TestMeshEvaluator(const dealii::TrilinosWrappers::SparseMatrix &matrix)
-      : _matrix(matrix)
+  TestMeshEvaluator(dealii::TrilinosWrappers::SparseMatrix const &matrix,
+                    std::shared_ptr<dealii::Function<dim>> material_property)
+      : _matrix(matrix), _material_property(material_property)
   {
   }
 
 private:
   const dealii::TrilinosWrappers::SparseMatrix &_matrix;
+  std::shared_ptr<dealii::Function<dim>> _material_property;
 };
 
 BOOST_AUTO_TEST_CASE(hierarchy_2d)
@@ -144,13 +251,19 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   dealii::ConditionalOStream pcout(
       std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
 
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+
+  auto material_property =
+      MaterialPropertyFactory<dim>::create_material_property(
+          params->get<std::string>("material_property.type"));
   Source<dim> source;
 
   const int num_refinements = 5;
 
   Laplace<dim, DVector> laplace(comm, 1);
   laplace.setup_system(num_refinements);
-  laplace.assemble_system(source);
+  laplace.assemble_system(source, *material_property);
 
   auto mesh =
       std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
@@ -168,10 +281,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  auto params = std::make_shared<boost::property_tree::ptree>();
-  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-
-  TestMeshEvaluator<dim, DVector> evaluator(a);
+  TestMeshEvaluator<dim, DVector> evaluator(a, material_property);
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
                                                     params);
 
