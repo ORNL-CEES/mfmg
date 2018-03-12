@@ -14,6 +14,7 @@
 #include <deal.II/base/quadrature.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
@@ -38,7 +39,8 @@ class Laplace
 public:
   Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
-  void setup_system(int num_refinements = 3);
+  void setup_system(unsigned int const num_refinements = 3,
+                    std::string const &renumbering = "None");
 
   void assemble_system(dealii::Function<dim> const &source,
                        dealii::Function<dim> const &material_property);
@@ -77,12 +79,22 @@ Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
 }
 
 template <int dim, typename VectorType>
-void Laplace<dim, VectorType>::setup_system(int num_refinements)
+void Laplace<dim, VectorType>::setup_system(unsigned int const num_refinements,
+                                            std::string const &renumbering)
 {
   dealii::GridGenerator::hyper_cube(_triangulation);
   _triangulation.refine_global(num_refinements);
 
   _dof_handler.distribute_dofs(_fe);
+
+  if (renumbering == "Reverse Cuthill-McKee")
+    dealii::DoFRenumbering::Cuthill_McKee(_dof_handler, true);
+  else if (renumbering == "King")
+    dealii::DoFRenumbering::boost::king_ordering(_dof_handler);
+  else if (renumbering == "Reverse minimum degree")
+    dealii::DoFRenumbering::boost::minimum_degree(_dof_handler, true);
+  else if (renumbering == "Hierarchical")
+    dealii::DoFRenumbering::hierarchical(_dof_handler);
 
   // Get the IndexSets
   _locally_owned_dofs = _dof_handler.locally_owned_dofs();
