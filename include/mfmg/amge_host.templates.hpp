@@ -175,6 +175,38 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
 
   // Compress the matrix
   restriction_sparse_matrix.compress(dealii::VectorOperation::add);
+
+#if MFMG_DEBUG
+  // Check that the sum of the weight matrices is the identity
+  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
+                                               locally_owned_dofs, this->_comm);
+  for (auto local_index : locally_owned_dofs)
+    sp.add(local_index, local_index);
+  sp.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
+  pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    unsigned int const n_elem = eigenvectors[pos].size();
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      double const value =
+          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
+      weight_matrix.add(global_pos, global_pos, value);
+    }
+    ++pos;
+  }
+
+  // Compress the matrix
+  weight_matrix.compress(dealii::VectorOperation::add);
+
+  for (auto index : locally_owned_dofs)
+    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
+           "Sum of local weight matrices is not the identity");
+#endif
 }
 
 template <int dim, class MeshEvaluator, typename VectorType>

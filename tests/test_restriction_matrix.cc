@@ -86,7 +86,14 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
 
   // Fill diag_elements
   std::vector<std::vector<double>> diag_elements(
-      n_local_rows, std::vector<double>(eigenvectors_size, 1));
+      n_local_rows, std::vector<double>(eigenvectors_size));
+  std::map<unsigned int, double> count_elem;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    for (unsigned int j = 0; j < eigenvectors_size; ++j)
+      count_elem[dof_indices_maps[i][j]] += 1.0;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    for (unsigned int j = 0; j < eigenvectors_size; ++j)
+      diag_elements[i][j] = 1. / count_elem[dof_indices_maps[i][j]];
 
   // Fill n_local_eigenvectors
   std::vector<unsigned int> n_local_eigenvectors(n_local_rows, 1);
@@ -111,7 +118,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   {
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
       BOOST_TEST(restriction_sparse_matrix(index, dof_indices_maps[pos][j]) ==
-                 eigenvectors[pos][j]);
+                 diag_elements[pos][j] * eigenvectors[pos][j]);
     ++pos;
   }
 }
