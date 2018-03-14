@@ -13,6 +13,7 @@
 #define AMGE_HOST_TEMPLATES_HPP
 
 #include <mfmg/amge_host.hpp>
+#include <mfmg/dealii_adapters.hpp>
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>

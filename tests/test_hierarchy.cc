@@ -15,7 +15,7 @@
 
 #include "laplace.hpp"
 
-#include <mfmg/adapters_dealii.hpp>
+#include <mfmg/dealii_adapters.hpp>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>

@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef MFMG_ADAPTERS_DEALII_HPP
-#define MFMG_ADAPTERS_DEALII_HPP
+#ifndef MFMG_DEALII_ADAPTERS_HPP
+#define MFMG_DEALII_ADAPTERS_HPP
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -120,7 +120,7 @@ public:
   // modes and some scaling difficulties. If we use `apply` for deal.II, we
   // don't need this as we can apply the constraints immediately after
   // applying the matrix and before any norms and dot products.
-  //
+
   // In addition, this has to work only for ARPACK with dealii::Vector<double>
   void set_initial_guess(const mesh_type &mesh,
                          typename local_operator_type::vector_type &x) const

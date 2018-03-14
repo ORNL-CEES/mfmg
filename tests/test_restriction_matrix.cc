@@ -15,8 +15,8 @@
 
 #include "laplace.hpp"
 
-#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.hpp>
+#include <mfmg/dealii_adapters.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/distributed/tria.h>
