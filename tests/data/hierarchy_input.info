@@ -10,4 +10,8 @@ material_property
   type constant
 }
 
-renumbering None
+laplace
+{
+  renumbering None
+  n_refinements 5
+}

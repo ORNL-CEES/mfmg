@@ -259,11 +259,9 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
           params->get<std::string>("material_property.type"));
   Source<dim> source;
 
-  unsigned int const num_refinements = 5;
-
+  auto laplace_ptree = params->get_child("laplace");
   Laplace<dim, DVector> laplace(comm, 1);
-  laplace.setup_system(num_refinements,
-                       params->get<std::string>("renumbering"));
+  laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 
   auto mesh =

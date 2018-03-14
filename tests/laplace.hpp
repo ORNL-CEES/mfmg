@@ -20,6 +20,8 @@
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/manifold_lib.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/constraint_matrix.templates.h>
 #include <deal.II/lac/full_matrix.h>
@@ -31,6 +33,8 @@
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/vector_tools.h>
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <string>
 
 template <int dim, typename VectorType>
@@ -39,8 +43,7 @@ class Laplace
 public:
   Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
-  void setup_system(unsigned int const num_refinements = 3,
-                    std::string const &renumbering = "None");
+  void setup_system(boost::property_tree::ptree const ptree);
 
   void assemble_system(dealii::Function<dim> const &source,
                        dealii::Function<dim> const &material_property);
@@ -60,6 +63,8 @@ public:
   // The following variable should be private but there are public for
   // simplicity
   MPI_Comm _comm;
+  // The manifold must outlive the Triangulation
+  dealii::SphericalManifold<dim> _spherical_manifold;
   dealii::parallel::distributed::Triangulation<dim> _triangulation;
   dealii::FE_Q<dim> _fe;
   dealii::DoFHandler<dim> _dof_handler;
@@ -79,14 +84,27 @@ Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
 }
 
 template <int dim, typename VectorType>
-void Laplace<dim, VectorType>::setup_system(unsigned int const num_refinements,
-                                            std::string const &renumbering)
+void Laplace<dim, VectorType>::setup_system(
+    boost::property_tree::ptree const ptree)
 {
-  dealii::GridGenerator::hyper_cube(_triangulation);
-  _triangulation.refine_global(num_refinements);
+  std::string const mesh = ptree.get("mesh", "hyper_cube");
+  if (mesh == "hyper_ball")
+  {
+    dealii::GridGenerator::hyper_ball(_triangulation);
+    _triangulation.set_all_manifold_ids_on_boundary(0);
+    _triangulation.set_manifold(0, _spherical_manifold);
+  }
+  else
+    dealii::GridGenerator::hyper_cube(_triangulation);
+
+  _triangulation.refine_global(ptree.get("n_refinements", 3));
+
+  if (ptree.get("distort_random", false))
+    dealii::GridTools::distort_random(0.2, _triangulation);
 
   _dof_handler.distribute_dofs(_fe);
 
+  std::string const renumbering = ptree.get("renumbering", "None");
   if (renumbering == "Reverse Cuthill-McKee")
     dealii::DoFRenumbering::Cuthill_McKee(_dof_handler, true);
   else if (renumbering == "King")
@@ -252,7 +270,7 @@ void Laplace<dim, VectorType>::run(
     PreconditionerType &preconditioner, dealii::Function<dim> const &source,
     dealii::Function<dim> const &material_property)
 {
-  setup_system();
+  setup_system(boost::property_tree::ptree());
   assemble_system(source, material_property);
   solve(preconditioner);
   output_results();

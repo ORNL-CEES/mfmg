@@ -90,7 +90,7 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
   Source<2> source;
 
   Laplace<2, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
-  laplace.setup_system();
+  laplace.setup_system(boost::property_tree::ptree());
   laplace.assemble_system(source, material_property);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
   dealii::TrilinosWrappers::MPI::Vector solution =
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
   Source<3> source;
 
   Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
-  laplace.setup_system();
+  laplace.setup_system(boost::property_tree::ptree());
   laplace.assemble_system(source, material_property);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
   dealii::TrilinosWrappers::MPI::Vector solution =
