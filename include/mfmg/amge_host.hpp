@@ -23,7 +23,8 @@ public:
 public:
   using ScalarType = typename VectorType::value_type;
 
-  AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
+  AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
+            bool const use_arpack = true);
 
   /**
    * Compute the eigenvalues and the eigenvectors. This functions takes as
@@ -130,6 +131,8 @@ private:
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
+
+  bool const _use_arpack;
 };
 }
 
