@@ -14,11 +14,14 @@
 #include <deal.II/base/quadrature.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_handler.h>
+#include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/manifold_lib.h>
 #include <deal.II/lac/constraint_matrix.h>
 #include <deal.II/lac/constraint_matrix.templates.h>
 #include <deal.II/lac/full_matrix.h>
@@ -30,6 +33,8 @@
 #include <deal.II/numerics/error_estimator.h>
 #include <deal.II/numerics/vector_tools.h>
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <string>
 
 template <int dim, typename VectorType>
@@ -38,9 +43,10 @@ class Laplace
 public:
   Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
-  void setup_system(int num_refinements = 3);
+  void setup_system(boost::property_tree::ptree const ptree);
 
-  void assemble_system(dealii::Function<dim> const &source);
+  void assemble_system(dealii::Function<dim> const &source,
+                       dealii::Function<dim> const &material_property);
 
   template <typename PreconditionerType>
   VectorType solve(PreconditionerType &preconditioner);
@@ -51,11 +57,14 @@ public:
 
   template <typename PreconditionerType>
   void run(PreconditionerType &preconditioner,
-           dealii::Function<dim> const &source);
+           dealii::Function<dim> const &source,
+           dealii::Function<dim> const &material_property);
 
   // The following variable should be private but there are public for
   // simplicity
   MPI_Comm _comm;
+  // The manifold must outlive the Triangulation
+  dealii::SphericalManifold<dim> _spherical_manifold;
   dealii::parallel::distributed::Triangulation<dim> _triangulation;
   dealii::FE_Q<dim> _fe;
   dealii::DoFHandler<dim> _dof_handler;
@@ -75,12 +84,35 @@ Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
 }
 
 template <int dim, typename VectorType>
-void Laplace<dim, VectorType>::setup_system(int num_refinements)
+void Laplace<dim, VectorType>::setup_system(
+    boost::property_tree::ptree const ptree)
 {
-  dealii::GridGenerator::hyper_cube(_triangulation);
-  _triangulation.refine_global(num_refinements);
+  std::string const mesh = ptree.get("mesh", "hyper_cube");
+  if (mesh == "hyper_ball")
+  {
+    dealii::GridGenerator::hyper_ball(_triangulation);
+    _triangulation.set_all_manifold_ids_on_boundary(0);
+    _triangulation.set_manifold(0, _spherical_manifold);
+  }
+  else
+    dealii::GridGenerator::hyper_cube(_triangulation);
+
+  _triangulation.refine_global(ptree.get("n_refinements", 3));
+
+  if (ptree.get("distort_random", false))
+    dealii::GridTools::distort_random(0.2, _triangulation);
 
   _dof_handler.distribute_dofs(_fe);
+
+  std::string const reordering = ptree.get("reordering", "None");
+  if (reordering == "Reverse Cuthill-McKee")
+    dealii::DoFRenumbering::Cuthill_McKee(_dof_handler, true);
+  else if (reordering == "King")
+    dealii::DoFRenumbering::boost::king_ordering(_dof_handler);
+  else if (reordering == "Reverse minimum degree")
+    dealii::DoFRenumbering::boost::minimum_degree(_dof_handler, true);
+  else if (reordering == "Hierarchical")
+    dealii::DoFRenumbering::hierarchical(_dof_handler);
 
   // Get the IndexSets
   _locally_owned_dofs = _dof_handler.locally_owned_dofs();
@@ -113,7 +145,8 @@ void Laplace<dim, VectorType>::setup_system(int num_refinements)
 
 template <int dim, typename VectorType>
 void Laplace<dim, VectorType>::assemble_system(
-    dealii::Function<dim> const &source)
+    dealii::Function<dim> const &source,
+    dealii::Function<dim> const &material_property)
 {
   unsigned int const fe_degree = _fe.degree;
   dealii::QGauss<dim> const quadrature(fe_degree + 1);
@@ -140,12 +173,14 @@ void Laplace<dim, VectorType>::assemble_system(
     {
       double const rhs_value =
           source.value(fe_values.quadrature_point(q_point));
+      double const diffusion_coefficient =
+          material_property.value(fe_values.quadrature_point(q_point));
       for (unsigned int i = 0; i < dofs_per_cell; ++i)
       {
         for (unsigned int j = 0; j < dofs_per_cell; ++j)
-          cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
-                               fe_values.shape_grad(j, q_point) *
-                               fe_values.JxW(q_point);
+          cell_matrix(i, j) +=
+              diffusion_coefficient * fe_values.shape_grad(i, q_point) *
+              fe_values.shape_grad(j, q_point) * fe_values.JxW(q_point);
         cell_rhs(i) += rhs_value * fe_values.shape_value(i, q_point) *
                        fe_values.JxW(q_point);
       }
@@ -231,11 +266,12 @@ void Laplace<dim, VectorType>::output_results() const
 
 template <int dim, typename VectorType>
 template <typename PreconditionerType>
-void Laplace<dim, VectorType>::run(PreconditionerType &preconditioner,
-                                   dealii::Function<dim> const &source)
+void Laplace<dim, VectorType>::run(
+    PreconditionerType &preconditioner, dealii::Function<dim> const &source,
+    dealii::Function<dim> const &material_property)
 {
-  setup_system();
-  assemble_system(source);
+  setup_system(boost::property_tree::ptree());
+  assemble_system(source, material_property);
   solve(preconditioner);
   output_results();
 }

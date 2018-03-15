@@ -19,6 +19,7 @@
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/lac/arpack_solver.h>
 #include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/lapack_full_matrix.h>
 #include <deal.II/lac/sparse_direct.h>
 
 #include <EpetraExt_MatrixMatrix.h>
@@ -27,8 +28,10 @@ namespace mfmg
 {
 template <int dim, class MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
-    MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler)
-    : AMGe<dim, VectorType>(comm, dof_handler)
+    MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
+    std::string const eigensolver_type)
+    : AMGe<dim, VectorType>(comm, dof_handler),
+      _eigensolver_type(eigensolver_type)
 {
 }
 
@@ -62,22 +65,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix->diag_element(i);
 
-  // Make Identity mass matrix
-  dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
-  dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
-  std::vector<std::vector<unsigned int>> column_indices(
-      size, std::vector<unsigned int>(1));
-  for (unsigned int i = 0; i < size; ++i)
-    column_indices[i][0] = i;
-  agglomerate_mass_sparsity_pattern.copy_from(
-      size, size, column_indices.begin(), column_indices.end());
-  agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
-  for (unsigned int i = 0; i < size; ++i)
-    agglomerate_mass_matrix.diag_element(i) = 1.;
-
-  dealii::SparseDirectUMFPACK inv_system_matrix;
-  inv_system_matrix.initialize(*agglomerate_system_matrix);
-
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix->m();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
@@ -85,25 +72,65 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
-  dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
-  unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
-  bool const symmetric = true;
-  // We want the eigenvalues of the smallest magnitudes but we need to ask for
-  // the ones with the largest magnitudes because they are computed for the
-  // inverse of the matrix we care about.
-  dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
-      dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
-  dealii::ArpackSolver::AdditionalData additional_data(
-      n_arnoldi_vectors, which_eigenvalues, symmetric);
-  dealii::ArpackSolver solver(solver_control, additional_data);
+  if (_eigensolver_type == "arpack")
+  {
+    // Make Identity mass matrix
+    dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
+    dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
+    std::vector<std::vector<unsigned int>> column_indices(
+        size, std::vector<unsigned int>(1));
+    for (unsigned int i = 0; i < size; ++i)
+      column_indices[i][0] = i;
+    agglomerate_mass_sparsity_pattern.copy_from(
+        size, size, column_indices.begin(), column_indices.end());
+    agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
+    for (unsigned int i = 0; i < size; ++i)
+      agglomerate_mass_matrix.diag_element(i) = 1.;
+    dealii::SparseDirectUMFPACK inv_system_matrix;
+    inv_system_matrix.initialize(*agglomerate_system_matrix);
 
-  // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
-  // one.
-  dealii::Vector<double> initial_vector(n_dofs_agglomerate);
-  evaluator.set_initial_guess(agglomerate_mesh, initial_vector);
-  solver.set_initial_vector(initial_vector);
-  solver.solve(*agglomerate_system_matrix, agglomerate_mass_matrix,
-               inv_system_matrix, eigenvalues, eigenvectors);
+    dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
+    unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
+    bool const symmetric = true;
+    // We want the eigenvalues of the smallest magnitudes but we need to ask for
+    // the ones with the largest magnitudes because they are computed for the
+    // inverse of the matrix we care about.
+    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+        dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
+    dealii::ArpackSolver::AdditionalData additional_data(
+        n_arnoldi_vectors, which_eigenvalues, symmetric);
+    dealii::ArpackSolver solver(solver_control, additional_data);
+
+    // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
+    // one.
+    dealii::Vector<double> initial_vector(n_dofs_agglomerate);
+    evaluator.set_initial_guess(agglomerate_mesh, initial_vector);
+    solver.set_initial_vector(initial_vector);
+    solver.solve(*agglomerate_system_matrix, agglomerate_mass_matrix,
+                 inv_system_matrix, eigenvalues, eigenvectors);
+  }
+  else
+  {
+    // Use Lapack to compute the eigenvalues
+    dealii::LAPACKFullMatrix<double> full_matrix;
+    full_matrix.copy_from(*agglomerate_system_matrix);
+
+    double const lower_bound = -0.5;
+    double const upper_bound = 100.;
+    double const tol = 1e-12;
+    dealii::Vector<double> lapack_eigenvalues(size);
+    dealii::FullMatrix<double> lapack_eigenvectors;
+    full_matrix.compute_eigenvalues_symmetric(
+        lower_bound, upper_bound, tol, lapack_eigenvalues, lapack_eigenvectors);
+
+    // Copy the eigenvalues and the eigenvectors in the right format
+    for (unsigned int i = 0; i < n_eigenvectors; ++i)
+      eigenvalues[i] = lapack_eigenvalues[i];
+
+    for (unsigned int i = 0; i < n_eigenvectors; ++i)
+      for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
+        eigenvectors[i][j] = lapack_eigenvectors[j][i];
+  }
 
   // Compute the map between the local and the global dof indices.
   std::vector<dealii::types::global_dof_index> dof_indices_map =

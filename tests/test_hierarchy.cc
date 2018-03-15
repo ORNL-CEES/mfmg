@@ -28,8 +28,13 @@
 #include <deal.II/lac/trilinos_vector.h>
 
 #include <boost/property_tree/info_parser.hpp>
+#include <boost/test/data/monomorphic.hpp>
+#include <boost/test/data/test_case.hpp>
 
 #include <random>
+
+namespace bdata = boost::unit_test::data;
+namespace tt = boost::test_tools;
 
 template <int dim>
 class Source : public dealii::Function<dim>
@@ -37,15 +42,98 @@ class Source : public dealii::Function<dim>
 public:
   Source() = default;
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const component = 0) const override final;
+  virtual double value(dealii::Point<dim> const &,
+                       unsigned int const = 0) const override final
+  {
+    return 0.;
+  }
 };
 
 template <int dim>
-double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
+class ConstantMaterialProperty : public dealii::Function<dim>
 {
-  return 0.;
-}
+public:
+  ConstantMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &,
+                       unsigned int const = 0) const override final
+  {
+    return 1.;
+  }
+};
+
+template <int dim>
+class LinearXMaterialProperty : public dealii::Function<dim>
+{
+public:
+  LinearXMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const = 0) const override final
+  {
+    return 1. + p[0];
+  }
+};
+
+template <int dim>
+class LinearMaterialProperty : public dealii::Function<dim>
+{
+public:
+  LinearMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const = 0) const override final
+  {
+    double value = 1.;
+    for (unsigned int d = 0; d < dim; ++d)
+      value += (1. + d) * p[d];
+
+    return value;
+  }
+};
+
+template <int dim>
+class DiscontinuousMaterialProperty : public dealii::Function<dim>
+{
+public:
+  DiscontinuousMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const = 0) const override final
+
+  {
+    double value = 10.;
+    for (unsigned int d = 0; d < dim; ++d)
+      if (p[d] > 0.5)
+        value *= value;
+
+    return value;
+  }
+};
+
+template <int dim>
+class MaterialPropertyFactory
+{
+public:
+  static std::shared_ptr<dealii::Function<dim>>
+  create_material_property(std::string const &material_type)
+  {
+    if (material_type == "constant")
+      return std::make_shared<ConstantMaterialProperty<dim>>();
+    else if (material_type == "linear_x")
+      return std::make_shared<LinearXMaterialProperty<dim>>();
+    else if (material_type == "linear")
+      return std::make_shared<LinearMaterialProperty<dim>>();
+    else if (material_type == "discontinuous")
+      return std::make_shared<DiscontinuousMaterialProperty<dim>>();
+    else
+    {
+      mfmg::ASSERT_THROW_NOT_IMPLEMENTED();
+
+      return nullptr;
+    }
+  }
+};
 
 template <int dim, typename VectorType>
 class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
@@ -110,11 +198,15 @@ protected:
       fe_values.reinit(cell);
 
       for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+      {
+        double const diffusion_coefficient =
+            _material_property->value(fe_values.quadrature_point(q_point));
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           for (unsigned int j = 0; j < dofs_per_cell; ++j)
             cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
                                  fe_values.shape_grad(j, q_point) *
                                  fe_values.JxW(q_point);
+      }
 
       cell->get_dof_indices(local_dof_indices);
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
@@ -123,18 +215,20 @@ protected:
   }
 
 public:
-  TestMeshEvaluator(const dealii::TrilinosWrappers::SparseMatrix &matrix)
-      : _matrix(matrix)
+  TestMeshEvaluator(dealii::TrilinosWrappers::SparseMatrix const &matrix,
+                    std::shared_ptr<dealii::Function<dim>> material_property)
+      : _matrix(matrix), _material_property(material_property)
   {
   }
 
 private:
   const dealii::TrilinosWrappers::SparseMatrix &_matrix;
+  std::shared_ptr<dealii::Function<dim>> _material_property;
 };
 
-BOOST_AUTO_TEST_CASE(hierarchy_2d)
+template <int dim>
+double test(std::shared_ptr<boost::property_tree::ptree> params)
 {
-  unsigned int constexpr dim = 2;
   using DVector = dealii::TrilinosWrappers::MPI::Vector;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
   using Mesh = mfmg::DealIIMesh<dim>;
@@ -144,13 +238,15 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   dealii::ConditionalOStream pcout(
       std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
 
+  auto material_property =
+      MaterialPropertyFactory<dim>::create_material_property(
+          params->get<std::string>("material_property.type"));
   Source<dim> source;
 
-  const int num_refinements = 5;
-
+  auto laplace_ptree = params->get_child("laplace");
   Laplace<dim, DVector> laplace(comm, 1);
-  laplace.setup_system(num_refinements);
-  laplace.assemble_system(source);
+  laplace.setup_system(laplace_ptree);
+  laplace.assemble_system(source, *material_property);
 
   auto mesh =
       std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
@@ -168,10 +264,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  auto params = std::make_shared<boost::property_tree::ptree>();
-  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-
-  TestMeshEvaluator<dim, DVector> evaluator(a);
+  TestMeshEvaluator<dim, DVector> evaluator(a, material_property);
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
                                                     params);
 
@@ -180,10 +273,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
         << std::endl;
 
   // We want to do 20 V-cycle iterations. The rhs of is zero.
-  // TODO (AP): huh? what does this mean?
-  // (BT): When I was debugging the compiler gave me strange error message
-  // because deal has its own Vector so I replaced Vector with
-  // D(istributed)Vector
+  // Use D(istributed)Vector because deal has its own Vector class
   DVector residual(rhs);
   unsigned int const n_cycles = 20;
   std::vector<double> res(n_cycles + 1);
@@ -206,6 +296,73 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
     res[i + 1] = rel_residual;
   }
 
+  double const conv_rate = res[n_cycles] / res[n_cycles - 1];
   pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
-        << res[n_cycles] / res[n_cycles - 1] << std::endl;
+        << conv_rate << std::endl;
+
+  return conv_rate;
+}
+
+BOOST_AUTO_TEST_CASE(benchmark)
+{
+  unsigned int constexpr dim = 2;
+
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+
+  test<dim>(params);
+}
+
+BOOST_DATA_TEST_CASE(hierarchy_3d,
+                     bdata::make({"hyper_cube", "hyper_ball"}) *
+                         bdata::make({false, true}) *
+                         bdata::make({"None", "Reverse Cuthill_McKee"}),
+                     mesh, distort_random, reordering)
+{
+  // TODO investigate why there is large difference in convergence rate when
+  // running in parallel.
+  if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
+  {
+    unsigned int constexpr dim = 3;
+    auto params = std::make_shared<boost::property_tree::ptree>();
+    boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                 *params);
+
+    params->put("eigensolver: type", "lapack");
+    params->put("agglomeration: nz", 2);
+    params->put("laplace.n_refinements", 2);
+    params->put("laplace.mesh", mesh);
+    params->put("laplace.distort_random", distort_random);
+    params->put("laplace.reordering", reordering);
+
+    double const conv_rate = test<dim>(params);
+
+    // This is gold standard test. Not the greatest but it makes sure we don't
+    // break the code
+    std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
+    ref_solution[std::make_tuple("hyper_cube", false, "None")] = 0.0425111106;
+    ref_solution[std::make_tuple("hyper_cube", false,
+                                 "Reverse Cuthill_McKee")] = 0.0425111106;
+    ref_solution[std::make_tuple("hyper_cube", true, "None")] = 0.0398672044;
+    ref_solution[std::make_tuple("hyper_cube", true, "Reverse Cuthill_McKee")] =
+        0.0398672044;
+    ref_solution[std::make_tuple("hyper_ball", false, "None")] = 0.1303442282;
+    ref_solution[std::make_tuple("hyper_ball", false,
+                                 "Reverse Cuthill_McKee")] = 0.1303442282;
+    ref_solution[std::make_tuple("hyper_ball", true, "None")] = 0.1431096468;
+    ref_solution[std::make_tuple("hyper_ball", true, "Reverse Cuthill_McKee")] =
+        0.1431096468;
+
+    if (mesh == std::string("hyper_cube"))
+      BOOST_TEST(
+          conv_rate ==
+              ref_solution[std::make_tuple(mesh, distort_random, reordering)],
+          tt::tolerance(1e-6));
+    else
+      // TODO investigate why on the hyper_ball the error is larger on the
+      // testing machine
+      BOOST_TEST(
+          conv_rate <
+          2 * ref_solution[std::make_tuple(mesh, distort_random, reordering)]);
+  }
 }

@@ -67,13 +67,31 @@ double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
   return val;
 }
 
+template <int dim>
+class MaterialProperty : public dealii::Function<dim>
+{
+public:
+  MaterialProperty() = default;
+
+  double value(dealii::Point<dim> const &p,
+               unsigned int const component = 0) const override;
+};
+
+template <int dim>
+double MaterialProperty<dim>::value(dealii::Point<dim> const &,
+                                    unsigned int const) const
+{
+  return 1.0;
+}
+
 BOOST_AUTO_TEST_CASE(laplace_2d)
 {
+  MaterialProperty<2> material_property;
   Source<2> source;
 
   Laplace<2, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
-  laplace.setup_system();
-  laplace.assemble_system(source);
+  laplace.setup_system(boost::property_tree::ptree());
+  laplace.assemble_system(source, material_property);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
   dealii::TrilinosWrappers::MPI::Vector solution =
       laplace.solve(preconditioner);
@@ -98,11 +116,12 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
 
 BOOST_AUTO_TEST_CASE(laplace_3d)
 {
+  MaterialProperty<3> material_property;
   Source<3> source;
 
   Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD, 2);
-  laplace.setup_system();
-  laplace.assemble_system(source);
+  laplace.setup_system(boost::property_tree::ptree());
+  laplace.assemble_system(source, material_property);
   dealii::TrilinosWrappers::PreconditionSSOR preconditioner;
   dealii::TrilinosWrappers::MPI::Vector solution =
       laplace.solve(preconditioner);
