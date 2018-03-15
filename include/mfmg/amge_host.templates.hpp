@@ -29,8 +29,9 @@ namespace mfmg
 template <int dim, class MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-    bool const use_arpack)
-    : AMGe<dim, VectorType>(comm, dof_handler), _use_arpack(use_arpack)
+    std::string const eigensolver_type)
+    : AMGe<dim, VectorType>(comm, dof_handler),
+      _eigensolver_type(eigensolver_type)
 {
 }
 
@@ -71,7 +72,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
-  if (_use_arpack)
+  if (_eigensolver_type == "arpack")
   {
     // Make Identity mass matrix
     dealii::SparsityPattern agglomerate_mass_sparsity_pattern;

@@ -12,6 +12,7 @@ material_property
 
 laplace
 {
-  renumbering None
+  distort_random false
+  reordering None
   n_refinements 5
 }

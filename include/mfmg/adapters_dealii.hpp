@@ -156,7 +156,7 @@ public:
                    std::shared_ptr<boost::property_tree::ptree> params)
   {
     AMGe_host<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
-        comm, mesh._dof_handler, params->get("eigensolver: arpack", true));
+        comm, mesh._dof_handler, params->get("eigensolver: type", "arpack"));
 
     std::array<unsigned int, dim> agglomerate_dim;
     agglomerate_dim[0] = params->get<unsigned int>("agglomeration: nx");

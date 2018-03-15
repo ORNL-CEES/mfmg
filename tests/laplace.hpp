@@ -104,14 +104,14 @@ void Laplace<dim, VectorType>::setup_system(
 
   _dof_handler.distribute_dofs(_fe);
 
-  std::string const renumbering = ptree.get("renumbering", "None");
-  if (renumbering == "Reverse Cuthill-McKee")
+  std::string const reordering = ptree.get("reordering", "None");
+  if (reordering == "Reverse Cuthill-McKee")
     dealii::DoFRenumbering::Cuthill_McKee(_dof_handler, true);
-  else if (renumbering == "King")
+  else if (reordering == "King")
     dealii::DoFRenumbering::boost::king_ordering(_dof_handler);
-  else if (renumbering == "Reverse minimum degree")
+  else if (reordering == "Reverse minimum degree")
     dealii::DoFRenumbering::boost::minimum_degree(_dof_handler, true);
-  else if (renumbering == "Hierarchical")
+  else if (reordering == "Hierarchical")
     dealii::DoFRenumbering::hierarchical(_dof_handler);
 
   // Get the IndexSets

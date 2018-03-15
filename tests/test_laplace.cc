@@ -78,7 +78,7 @@ public:
 };
 
 template <int dim>
-double MaterialProperty<dim>::value(dealii::Point<dim> const &p,
+double MaterialProperty<dim>::value(dealii::Point<dim> const &,
                                     unsigned int const) const
 {
   return 1.0;
