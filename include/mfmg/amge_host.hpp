@@ -16,7 +16,7 @@
 
 namespace mfmg
 {
-template <int dim, class MeshEvaluator, typename VectorType>
+template <int dim, typename MeshEvaluator, typename VectorType>
 class AMGe_host : public AMGe<dim, VectorType>
 {
 public:
@@ -50,7 +50,7 @@ public:
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      const MeshEvaluator &evaluator) const;
+      MeshEvaluator const &evaluator) const;
 
   /**
    * Compute the restriction sparse matrix. The rows of the matrix are
@@ -105,7 +105,7 @@ private:
    * independent set of data.
    */
   void local_worker(unsigned int const n_eigenvectors, double const tolerance,
-                    const MeshEvaluator &evalute,
+                    MeshEvaluator const &evalute,
                     std::vector<unsigned int>::iterator const &agg_id,
                     ScratchData &scratch_data, CopyData &copy_data);
 
