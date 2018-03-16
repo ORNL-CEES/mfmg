@@ -139,6 +139,19 @@ double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
   return 0.;
 }
 
+template <int dim>
+class ConstantMaterialProperty : public dealii::Function<dim>
+{
+public:
+  ConstantMaterialProperty() = default;
+
+  virtual double value(dealii::Point<dim> const &,
+                       unsigned int const = 0) const override final
+  {
+    return 1.;
+  }
+};
+
 template <int dim, typename VectorType>
 class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
 {
@@ -239,30 +252,29 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-14))
 
   Source<dim> source;
 
-  const int num_refinements = 4;
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("eigensolver: number of eigenvectors", 1);
+  std::array<unsigned int, dim> agglomerate_dim;
+  agglomerate_dim[0] = params->get<unsigned int>("agglomeration: nx");
+  agglomerate_dim[1] = params->get<unsigned int>("agglomeration: ny");
+  int n_eigenvectors =
+      params->get<int>("eigensolver: number of eigenvectors", 1);
+  double tolerance = params->get<double>("eigensolver: tolerance", 1e-14);
 
+  params->put("laplace.n_refinements", 4);
+  std::shared_ptr<dealii::Function<dim>> material_property =
+      std::make_shared<ConstantMaterialProperty<dim>>();
+  auto laplace_ptree = params->get_child("laplace");
   Laplace<dim, DVector> laplace(comm, 1);
-  laplace.setup_system(num_refinements);
-  laplace.assemble_system(source);
+  laplace.setup_system(laplace_ptree);
+  laplace.assemble_system(source, *material_property);
 
   auto mesh =
       std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
 
-  auto params = std::make_shared<boost::property_tree::ptree>();
-  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  params->put("eigensolver: number of eigenvectors", 1);
-
   TestMeshEvaluator<dim, DVector> evaluator(laplace._system_matrix);
   mfmg::AMGe_host<dim, MeshEvaluator, DVector> amge(comm, mesh->_dof_handler);
-
-  std::array<unsigned int, dim> agglomerate_dim;
-  agglomerate_dim[0] = params->get<unsigned int>("agglomeration: nx");
-  agglomerate_dim[1] = params->get<unsigned int>("agglomeration: ny");
-  if (dim == 3)
-    agglomerate_dim[2] = params->get<unsigned int>("agglomeration: nz");
-  int n_eigenvectors =
-      params->get<int>("eigensolver: number of eigenvectors", 1);
-  double tolerance = params->get<double>("eigensolver: tolerance", 1e-14);
 
   auto restrictor_matrix = std::make_shared<typename mfmg::DealIIMeshEvaluator<
       dim, MeshEvaluator>::global_operator_type::matrix_type>();
