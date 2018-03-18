@@ -12,6 +12,7 @@ Welcome to mfmg's documentation!
 
 
    overview
+   install
 
 Indices and tables
 ==================
