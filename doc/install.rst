@@ -8,21 +8,21 @@ Install third-party libraries
 
 The following third party libraries (TPLs) are used by mfmg:
 
-+------------------------+---------+
-| Packages               | Version |
-+========================+=========+
-| ARPACK                 | N/A     |
-+------------------------+---------+
-| Boost                  | 1.65.1  |
-+------------------------+---------+
-| BLAS/LAPACK            | N/A     |
-+------------------------+---------+
-| deal.II                | 8.5     |
-+------------------------+---------+
-| MPI                    | N/A     |
-+------------------------+---------+
-| Trilinos               | 12.X    |
-+------------------------+---------+
++------------------------+-----------------------------------+
+| Packages               | Version                           |
++========================+===================================+
+| ARPACK                 | N/A                               |
++------------------------+-----------------------------------+
+| Boost                  | 1.65.1                            |
++------------------------+-----------------------------------+
+| BLAS/LAPACK            | N/A                               |
++------------------------+-----------------------------------+
+| deal.II                | 8.5 (development for CUDA support)|
++------------------------+-----------------------------------+
+| MPI                    | N/A                               |
++------------------------+-----------------------------------+
+| Trilinos               | 12.X                              |
++------------------------+-----------------------------------+
 
 The dependencies of mfmg may be built using `Spack
 <https://github.com/llnl/spack>`_ package manager. You need to install the
@@ -32,7 +32,13 @@ following package:
 
     $ spack install dealii
 
-This will install all the dependencies of mfmg.
+This will install all the dependencies of mfmg. If you want to use CUDA, you
+will need to install the development version of deal.II
+
+.. code::
+
+    $ spack install dealii@develop
+
 
 Building mfmg
 -------------
