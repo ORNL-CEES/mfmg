@@ -22,47 +22,53 @@
 namespace mfmg
 {
 
-template <class OperatorType>
+template <typename OperatorType>
 class Level
 {
 public:
   using operator_type = OperatorType;
 
 public:
-  std::shared_ptr<const operator_type> get_operator() const
+  std::shared_ptr<operator_type const> get_operator() const
   {
     return _operator;
   }
-  std::shared_ptr<const operator_type> get_restrictor() const
+
+  std::shared_ptr<operator_type const> get_restrictor() const
   {
     return _restrictor;
   }
-  std::shared_ptr<const operator_type> get_prolongator() const
+
+  std::shared_ptr<operator_type const> get_prolongator() const
   {
     return _prolongator;
   }
-  std::shared_ptr<const operator_type> get_smoother() const
+
+  std::shared_ptr<operator_type const> get_smoother() const
   {
     return _smoother;
   }
 
-  void set_operator(std::shared_ptr<const operator_type> op) { _operator = op; }
-  void set_restrictor(std::shared_ptr<const operator_type> r)
+  void set_operator(std::shared_ptr<operator_type const> op) { _operator = op; }
+
+  void set_restrictor(std::shared_ptr<operator_type const> r)
   {
     _restrictor = r;
   }
-  void set_prolongator(std::shared_ptr<const operator_type> p)
+
+  void set_prolongator(std::shared_ptr<operator_type const> p)
   {
     _prolongator = p;
   }
-  void set_smoother(std::shared_ptr<const operator_type> s) { _smoother = s; }
+
+  void set_smoother(std::shared_ptr<operator_type const> s) { _smoother = s; }
 
 private:
-  std::shared_ptr<const operator_type> _operator, _prolongator, _restrictor,
+  std::shared_ptr<operator_type const> _operator, _prolongator, _restrictor,
       _smoother;
 };
 
-template <class MeshEvaluatorType, class VectorType>
+template <typename MeshEvaluatorType, typename VectorType>
 class Hierarchy
 {
 public:
@@ -82,10 +88,10 @@ public:
 
     using HierarchyHelpers = Adapter<mesh_evaluator_type>;
 
-    _is_preconditioner = params->get<bool>("is preconditioner", true);
+    _is_preconditioner = params->get("is preconditioner", true);
 
     // TODO: add stopping criteria for levels (number of levels / coarse size)
-    const int num_levels = params->get<int>("max levels", 2);
+    const int num_levels = params->get("max levels", 2);
     _levels.resize(num_levels);
 
     _levels[0].set_operator(evaluator.get_global_operator(mesh));
@@ -93,13 +99,14 @@ public:
     {
       auto &level_fine = _levels[level_index];
 
-      auto a = std::dynamic_pointer_cast<const global_operator_type>(
+      auto a = std::dynamic_pointer_cast<global_operator_type const>(
           level_fine.get_operator());
 
       if (level_index == num_levels - 1)
       {
         auto direct_solver = HierarchyHelpers::build_direct_solver(*a);
         level_fine.set_smoother(direct_solver);
+
         break;
       }
 
@@ -118,7 +125,7 @@ public:
       level_coarse.set_prolongator(prolongator);
 
       auto ap =
-          std::dynamic_pointer_cast<const global_operator_type>(a)->multiply(
+          std::dynamic_pointer_cast<global_operator_type const>(a)->multiply(
               *prolongator);
       auto a_coarse =
           std::dynamic_pointer_cast<global_operator_type>(restrictor)
@@ -129,9 +136,9 @@ public:
 
   // TODO: should this go to some kind of deal.ii mfmg adapter? This is deal.ii
   // specific.
-  void vmult(vector_type &x, const vector_type &b) const { apply(b, x, 0); }
+  void vmult(vector_type &x, vector_type const &b) const { apply(b, x, 0); }
 
-  void apply(const vector_type &b, vector_type &x, int level_index = 0) const
+  void apply(vector_type const &b, vector_type &x, int level_index = 0) const
   {
     auto const num_levels = _levels.size();
 
@@ -200,9 +207,11 @@ public:
 
     auto level0_m = _levels[0].get_operator()->m();
     ASSERT(level0_m, "The size of the finest level operator is 0.");
+
     double complexity = level0_m;
     for (int i = 1; i < num_levels; i++)
       complexity += _levels[i].get_operator()->m();
+
     return complexity / level0_m;
   }
 
@@ -213,10 +222,11 @@ public:
     if (num_levels == 0)
       return -1.0;
 
-    auto level0_nnz = std::dynamic_pointer_cast<const global_operator_type>(
+    auto level0_nnz = std::dynamic_pointer_cast<global_operator_type const>(
                           _levels[0].get_operator())
                           ->nnz();
     ASSERT(level0_nnz, "The nnz of the finest level operator is 0.");
+
     double complexity = level0_nnz;
     for (int i = 1; i < num_levels; i++)
       complexity += std::dynamic_pointer_cast<const global_operator_type>(

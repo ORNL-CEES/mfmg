@@ -31,15 +31,43 @@
 #define VECTOR_TYPE                                                            \
   (dealii::TrilinosWrappers::MPI::Vector)(                                     \
       dealii::LinearAlgebra::distributed::Vector<double>)
+#define SERIAL_VECTOR_TYPE (dealii::Vector<double>)
 
-// Instantiation of the class for every dim
+//////////////////////////////////////////////
+// Instantiation of the class for every dim //
+//////////////////////////////////////////////
+
 #define M_DIM_INSTANT(z, dim, CLASS_NAME_TUPLE)                                \
   template class mfmg::BOOST_PP_TUPLE_ELEM(0, CLASS_NAME_TUPLE)<dim>;
 // CLASS_NAME_TUPLE (class_name, 0)
 #define INSTANTIATE_DIM(CLASS_NAME_TUPLE)                                      \
   BOOST_PP_REPEAT_FROM_TO(2, 4, M_DIM_INSTANT, CLASS_NAME_TUPLE)
 
-// Instantiation of the class for every dim-ScalarType combination
+/////////////////////////////////////////////////////
+// Instantiation of the class for every VectorType //
+/////////////////////////////////////////////////////
+
+#define M_VECTORTYPE_INSTANT(z, CLASS_NAME_TUPLE, vector_type)                 \
+  template class mfmg::BOOST_PP_TUPLE_ELEM(0, CLASS_NAME_TUPLE)<vector_type>;
+// CLASS_NAME_TUPLE (class_name, 0)
+#define INSTANTIATE_VECTORTYPE(CLASS_NAME_TUPLE)                               \
+  BOOST_PP_SEQ_FOR_EACH(M_VECTORTYPE_INSTANT, CLASS_NAME_TUPLE, VECTOR_TYPE)
+
+///////////////////////////////////////////////////////////
+// Instantiation of the class for every SerialVectorType //
+///////////////////////////////////////////////////////////
+
+#define M_SERIALVECTORTYPE_INSTANT(z, CLASS_NAME_TUPLE, vector_type)           \
+  template class mfmg::BOOST_PP_TUPLE_ELEM(0, CLASS_NAME_TUPLE)<vector_type>;
+// CLASS_NAME_TUPLE (class_name, 0)
+#define INSTANTIATE_SERIALVECTORTYPE(CLASS_NAME_TUPLE)                         \
+  BOOST_PP_SEQ_FOR_EACH(M_SERIALVECTORTYPE_INSTANT, CLASS_NAME_TUPLE,          \
+                        SERIAL_VECTOR_TYPE)
+
+/////////////////////////////////////////////////////////////////////
+// Instantiation of the class for every dim-ScalarType combination //
+/////////////////////////////////////////////////////////////////////
+
 #define M_DIM_SCALARTYPE_INSTANT(z, CLASS_NAME_DIM_TUPLE, scalar_type)         \
   template class mfmg::BOOST_PP_TUPLE_ELEM(                                    \
       0, CLASS_NAME_DIM_TUPLE)<BOOST_PP_TUPLE_ELEM(1, CLASS_NAME_DIM_TUPLE),   \
@@ -52,6 +80,10 @@
 // CLASS_NAME_TUPLE (class_name, 0)
 #define INSTANTIATE_DIM_SCALARTYPE(CLASS_NAME_TUPLE)                           \
   BOOST_PP_REPEAT_FROM_TO(2, 4, M_SCALARTYPE, CLASS_NAME_TUPLE)
+
+/////////////////////////////////////////////////////////////////////
+// Instantiation of the class for every dim-VectorType combination //
+/////////////////////////////////////////////////////////////////////
 
 // Because BOOST_PP_COMMA expands to comma only when followed by () and that we
 // cannot expand the macro inside BOOST_PP_IF we need to split the instantiation

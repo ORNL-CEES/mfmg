@@ -15,7 +15,7 @@
 
 #include "laplace.hpp"
 
-#include <mfmg/adapters_dealii.hpp>
+#include <mfmg/dealii_adapters.hpp>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -198,15 +198,11 @@ protected:
       fe_values.reinit(cell);
 
       for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
-      {
-        double const diffusion_coefficient =
-            _material_property->value(fe_values.quadrature_point(q_point));
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           for (unsigned int j = 0; j < dofs_per_cell; ++j)
             cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
                                  fe_values.shape_grad(j, q_point) *
                                  fe_values.JxW(q_point);
-      }
 
       cell->get_dof_indices(local_dof_indices);
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
@@ -255,8 +251,6 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto const locally_owned_dofs = laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
   DVector rhs(laplace._system_rhs);
-
-  const int local_size = rhs.local_size();
 
   std::default_random_engine generator;
   std::uniform_real_distribution<typename DVector::value_type> distribution(0.,

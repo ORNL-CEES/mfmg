@@ -13,8 +13,8 @@
 
 #include "main.cc"
 
-#include <mfmg/adapters_dealii.hpp>
 #include <mfmg/amge_host.hpp>
+#include <mfmg/dealii_adapters.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>

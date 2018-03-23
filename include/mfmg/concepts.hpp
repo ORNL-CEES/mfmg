@@ -14,29 +14,43 @@
 
 #include <mfmg/exceptions.hpp>
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <memory>
+#include <mpi.h>
 
 namespace mfmg
 {
 
-template <class VectorType>
+template <typename VectorType>
 class Operator
 {
 public:
   using operator_type = Operator<VectorType>;
   using vector_type = VectorType;
 
-public:
-  void apply(const vector_type &x, vector_type &y) const;
-  std::shared_ptr<operator_type> transpose() const;
-  std::shared_ptr<operator_type> multiply(const operator_type &b) const;
+  virtual size_t m() const = 0;
+  virtual size_t n() const = 0;
+  virtual void apply(vector_type const &x, vector_type &y) const = 0;
 
-  std::shared_ptr<vector_type> build_domain_vector() const;
-  std::shared_ptr<vector_type> build_range_vector() const;
+  virtual std::shared_ptr<vector_type> build_domain_vector() const = 0;
+  virtual std::shared_ptr<vector_type> build_range_vector() const = 0;
 };
 
-template <class Mesh, class GlobalOperatorType,
-          class LocalOperatorType = GlobalOperatorType>
+template <typename VectorType>
+class MatrixOperator : public Operator<VectorType>
+{
+public:
+  using operator_type = MatrixOperator<VectorType>;
+  using vector_type = VectorType;
+
+  virtual std::shared_ptr<operator_type> transpose() const = 0;
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &b) const = 0;
+};
+
+template <typename Mesh, typename GlobalOperatorType,
+          typename LocalOperatorType = GlobalOperatorType>
 class MeshEvaluator
 {
 public:
@@ -44,34 +58,56 @@ public:
   using local_operator_type = LocalOperatorType;
   using mesh_type = Mesh;
 
-public:
   std::shared_ptr<global_operator_type>
-  get_global_operator(const mesh_type &mesh) const
+  get_global_operator(mesh_type const &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
+
   std::shared_ptr<local_operator_type>
-  get_local_operator(const mesh_type &mesh) const
+  get_local_operator(mesh_type const &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 };
 
-template <class MeshEvaluatorType>
+template <typename MeshEvaluatorType>
 class Adapter
 {
 public:
   using mesh_type = typename MeshEvaluatorType::mesh_type;
+  using operator_type = typename MeshEvaluatorType::operator_type;
   using global_operator_type = typename MeshEvaluatorType::global_operator_type;
   using mesh_evaluator_type = MeshEvaluatorType;
 
-public:
-  std::shared_ptr<global_operator_type> build_restrictor(
-      MPI_Comm comm, const mesh_evaluator_type &evaluator,
-      const mesh_type &mesh,
-      std::shared_ptr<const boost::property_tree::ptree> params) const
+  static std::shared_ptr<operator_type>
+  build_restrictor(MPI_Comm, mesh_evaluator_type const &, mesh_type const &,
+                   std::shared_ptr<boost::property_tree::ptree const>)
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
+  }
+
+  static std::shared_ptr<operator_type>
+  build_smoother(operator_type const &,
+                 std::shared_ptr<boost::property_tree::ptree>)
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
+  }
+
+  static std::shared_ptr<operator_type>
+  build_direct_solver(operator_type const &)
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 };
 }

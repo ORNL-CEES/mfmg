@@ -1,6 +1,7 @@
 SET(MFMG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/amge.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/amge_host.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/dealii_operator.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/utils.cc
   )
 
