@@ -29,16 +29,24 @@ public:
   using operator_type = Operator<VectorType>;
   using vector_type = VectorType;
 
-public:
   virtual size_t m() const = 0;
   virtual size_t n() const = 0;
   virtual void apply(vector_type const &x, vector_type &y) const = 0;
-  virtual std::shared_ptr<operator_type> transpose() const = 0;
-  virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &b) const = 0;
 
   virtual std::shared_ptr<vector_type> build_domain_vector() const = 0;
   virtual std::shared_ptr<vector_type> build_range_vector() const = 0;
+};
+
+template <typename VectorType>
+class MatrixOperator : public Operator<VectorType>
+{
+public:
+  using operator_type = MatrixOperator<VectorType>;
+  using vector_type = VectorType;
+
+  virtual std::shared_ptr<operator_type> transpose() const = 0;
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &b) const = 0;
 };
 
 template <typename Mesh, typename GlobalOperatorType,
@@ -50,7 +58,6 @@ public:
   using local_operator_type = LocalOperatorType;
   using mesh_type = Mesh;
 
-public:
   std::shared_ptr<global_operator_type>
   get_global_operator(mesh_type const &) const
   {
@@ -77,7 +84,6 @@ public:
   using global_operator_type = typename MeshEvaluatorType::global_operator_type;
   using mesh_evaluator_type = MeshEvaluatorType;
 
-public:
   static std::shared_ptr<operator_type>
   build_restrictor(MPI_Comm, mesh_evaluator_type const &, mesh_type const &,
                    std::shared_ptr<boost::property_tree::ptree const>)

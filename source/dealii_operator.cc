@@ -12,7 +12,7 @@
 #include <mfmg/dealii_operator.templates.hpp>
 #include <mfmg/instantiation.hpp>
 
-INSTANTIATE_SERIALVECTORTYPE(TUPLE(dealii_adapter::DealIIMatrixOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(dealii_adapter::TrilinosMatrixOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(dealii_adapter::SmootherOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(dealii_adapter::DirectOperator))
+INSTANTIATE_SERIALVECTORTYPE(TUPLE(DealIIMatrixOperator))
+INSTANTIATE_VECTORTYPE(TUPLE(DealIITrilinosMatrixOperator))
+INSTANTIATE_VECTORTYPE(TUPLE(DealIISmootherOperator))
+INSTANTIATE_VECTORTYPE(TUPLE(DealIIDirectOperator))

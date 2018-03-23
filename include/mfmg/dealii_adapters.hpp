@@ -50,10 +50,8 @@ public:
   using vector_type = VectorType;
   using value_type = typename VectorType::value_type;
   using operator_type = Operator<vector_type>;
-  using global_operator_type =
-      dealii_adapter::TrilinosMatrixOperator<vector_type>;
-  using local_operator_type =
-      dealii_adapter::DealIIMatrixOperator<dealii::Vector<value_type>>;
+  using global_operator_type = DealIITrilinosMatrixOperator<vector_type>;
+  using local_operator_type = DealIIMatrixOperator<dealii::Vector<value_type>>;
 
   DealIIMeshEvaluator() = default;
 
@@ -158,8 +156,8 @@ protected:
   using operator_type = typename mesh_evaluator_type::operator_type;
   using global_operator_type =
       typename mesh_evaluator_type::global_operator_type;
-  using smoother_type = dealii_adapter::SmootherOperator<VectorType>;
-  using direct_solver_type = dealii_adapter::DirectOperator<VectorType>;
+  using smoother_type = DealIISmootherOperator<VectorType>;
+  using direct_solver_type = DealIIDirectOperator<VectorType>;
   using vector_type = typename operator_type::vector_type;
 
 public:

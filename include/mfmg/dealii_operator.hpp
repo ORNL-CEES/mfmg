@@ -31,18 +31,15 @@
 namespace mfmg
 {
 
-namespace dealii_adapter
-{
-
 template <typename VectorType>
-class DealIIMatrixOperator : public Operator<VectorType>
+class DealIIMatrixOperator : public MatrixOperator<VectorType>
 {
 public:
   using value_type = typename VectorType::value_type;
   using sparsity_pattern_type = dealii::SparsityPattern;
   using matrix_type = dealii::SparseMatrix<value_type>;
   using vector_type = VectorType;
-  using operator_type = Operator<vector_type>;
+  using operator_type = MatrixOperator<vector_type>;
 
   DealIIMatrixOperator(std::shared_ptr<matrix_type> matrix,
                        std::shared_ptr<sparsity_pattern_type> sparsity_pattern);
@@ -78,16 +75,16 @@ private:
 };
 
 template <typename VectorType>
-class TrilinosMatrixOperator : public Operator<VectorType>
+class DealIITrilinosMatrixOperator : public MatrixOperator<VectorType>
 {
 public:
   using value_type = typename VectorType::value_type;
   using sparsity_pattern_type = dealii::TrilinosWrappers::SparsityPattern;
   using matrix_type = dealii::TrilinosWrappers::SparseMatrix;
   using vector_type = VectorType;
-  using operator_type = Operator<vector_type>;
+  using operator_type = MatrixOperator<vector_type>;
 
-  TrilinosMatrixOperator(
+  DealIITrilinosMatrixOperator(
       std::shared_ptr<matrix_type> matrix,
       std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
 
@@ -116,26 +113,21 @@ private:
 };
 
 template <typename VectorType>
-class SmootherOperator : public Operator<VectorType>
+class DealIISmootherOperator : public Operator<VectorType>
 {
 public:
   using vector_type = VectorType;
   using matrix_type = dealii::TrilinosWrappers::SparseMatrix;
   using operator_type = Operator<vector_type>;
 
-  SmootherOperator(matrix_type const &matrix,
-                   std::shared_ptr<boost::property_tree::ptree> params);
+  DealIISmootherOperator(matrix_type const &matrix,
+                         std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual size_t m() const override final { return _matrix.m(); }
 
   virtual size_t n() const override final { return _matrix.n(); }
 
   virtual void apply(vector_type const &b, vector_type &x) const override final;
-
-  virtual std::shared_ptr<operator_type> transpose() const override final;
-
-  virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override final;
 
   virtual std::shared_ptr<VectorType>
   build_domain_vector() const override final;
@@ -145,12 +137,17 @@ public:
 private:
   void initialize(std::string const &prec_type);
 
+  // Currently, dealii preconditioners do not support a mode to update a given
+  // vector, instead replacing it. For smoothers, this mode is necessary to
+  // operator. We workaround this issue by doing extra computations in "apply",
+  // however this requires residual computation. Therefore, we need to store a
+  // reference to matrix.
   matrix_type const &_matrix;
   std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
 };
 
 template <typename VectorType>
-class DirectOperator : public Operator<VectorType>
+class DealIIDirectOperator : public Operator<VectorType>
 {
 public:
   using vector_type = VectorType;
@@ -158,7 +155,7 @@ public:
   using solver_type = dealii::TrilinosWrappers::SolverDirect;
   using operator_type = Operator<vector_type>;
 
-  DirectOperator(matrix_type const &matrix);
+  DealIIDirectOperator(matrix_type const &matrix);
 
   virtual size_t m() const override final { return _m; }
 
@@ -168,11 +165,6 @@ public:
   {
     _solver->solve(x, b);
   }
-
-  virtual std::shared_ptr<operator_type> transpose() const override final;
-
-  virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override final;
 
   virtual std::shared_ptr<VectorType>
   build_domain_vector() const override final;
@@ -185,7 +177,6 @@ private:
   size_t _m;
   size_t _n;
 };
-}
 }
 
 #endif

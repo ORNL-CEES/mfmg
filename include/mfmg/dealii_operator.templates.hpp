@@ -16,9 +16,6 @@
 
 namespace mfmg
 {
-namespace dealii_adapter
-{
-
 template <typename VectorType>
 DealIIMatrixOperator<VectorType>::DealIIMatrixOperator(
     std::shared_ptr<typename DealIIMatrixOperator<VectorType>::matrix_type>
@@ -40,7 +37,7 @@ void DealIIMatrixOperator<VectorType>::apply(VectorType const &x,
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
+std::shared_ptr<MatrixOperator<VectorType>>
 DealIIMatrixOperator<VectorType>::transpose() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
@@ -49,9 +46,9 @@ DealIIMatrixOperator<VectorType>::transpose() const
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
+std::shared_ptr<MatrixOperator<VectorType>>
 DealIIMatrixOperator<VectorType>::multiply(
-    Operator<VectorType> const &operator_b) const
+    MatrixOperator<VectorType> const &operator_b) const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
@@ -79,7 +76,7 @@ DealIIMatrixOperator<VectorType>::build_range_vector() const
 //-------------------------------------------------------------------------//
 
 template <typename VectorType>
-TrilinosMatrixOperator<VectorType>::TrilinosMatrixOperator(
+DealIITrilinosMatrixOperator<VectorType>::DealIITrilinosMatrixOperator(
     std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> matrix,
     std::shared_ptr<dealii::TrilinosWrappers::SparsityPattern>)
     : _matrix(matrix)
@@ -87,15 +84,15 @@ TrilinosMatrixOperator<VectorType>::TrilinosMatrixOperator(
 }
 
 template <typename VectorType>
-void TrilinosMatrixOperator<VectorType>::apply(VectorType const &x,
-                                               vector_type &y) const
+void DealIITrilinosMatrixOperator<VectorType>::apply(VectorType const &x,
+                                                     vector_type &y) const
 {
   _matrix->vmult(y, x);
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-TrilinosMatrixOperator<VectorType>::transpose() const
+std::shared_ptr<MatrixOperator<VectorType>>
+DealIITrilinosMatrixOperator<VectorType>::transpose() const
 {
   auto epetra_matrix = _matrix->trilinos_matrix();
 
@@ -106,18 +103,18 @@ TrilinosMatrixOperator<VectorType>::transpose() const
   auto transposed_matrix = std::make_shared<matrix_type>();
   transposed_matrix->reinit(transposed_epetra_matrix);
 
-  return std::make_shared<TrilinosMatrixOperator<VectorType>>(
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(
       transposed_matrix);
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-TrilinosMatrixOperator<VectorType>::multiply(
-    Operator<VectorType> const &operator_b) const
+std::shared_ptr<MatrixOperator<VectorType>>
+DealIITrilinosMatrixOperator<VectorType>::multiply(
+    MatrixOperator<VectorType> const &operator_b) const
 {
   // Downcast to TrilinosMatrixOperator
   auto downcast_operator_b =
-      static_cast<TrilinosMatrixOperator<VectorType> const &>(operator_b);
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
 
   auto a = this->get_matrix();
   auto b = downcast_operator_b.get_matrix();
@@ -125,12 +122,12 @@ TrilinosMatrixOperator<VectorType>::multiply(
   auto c = std::make_shared<matrix_type>();
   a->mmult(*c, *b);
 
-  return std::make_shared<TrilinosMatrixOperator<VectorType>>(c);
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c);
 }
 
 template <typename VectorType>
 std::shared_ptr<VectorType>
-TrilinosMatrixOperator<VectorType>::build_domain_vector() const
+DealIITrilinosMatrixOperator<VectorType>::build_domain_vector() const
 {
   return std::make_shared<vector_type>(_matrix->locally_owned_domain_indices(),
                                        _matrix->get_mpi_communicator());
@@ -138,7 +135,7 @@ TrilinosMatrixOperator<VectorType>::build_domain_vector() const
 
 template <typename VectorType>
 std::shared_ptr<VectorType>
-TrilinosMatrixOperator<VectorType>::build_range_vector() const
+DealIITrilinosMatrixOperator<VectorType>::build_range_vector() const
 {
   return std::make_shared<vector_type>(_matrix->locally_owned_range_indices(),
                                        _matrix->get_mpi_communicator());
@@ -147,7 +144,7 @@ TrilinosMatrixOperator<VectorType>::build_range_vector() const
 //-------------------------------------------------------------------------//
 
 template <typename VectorType>
-SmootherOperator<VectorType>::SmootherOperator(
+DealIISmootherOperator<VectorType>::DealIISmootherOperator(
     dealii::TrilinosWrappers::SparseMatrix const &matrix,
     std::shared_ptr<boost::property_tree::ptree> params)
     : _matrix(matrix)
@@ -158,8 +155,8 @@ SmootherOperator<VectorType>::SmootherOperator(
 }
 
 template <typename VectorType>
-void SmootherOperator<VectorType>::apply(VectorType const &b,
-                                         VectorType &x) const
+void DealIISmootherOperator<VectorType>::apply(VectorType const &b,
+                                               VectorType &x) const
 {
   // r = -(b - Ax)
   vector_type r(b);
@@ -173,17 +170,8 @@ void SmootherOperator<VectorType>::apply(VectorType const &b,
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-SmootherOperator<VectorType>::transpose() const
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
-
-template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-SmootherOperator<VectorType>::multiply(Operator<VectorType> const &) const
+std::shared_ptr<VectorType>
+DealIISmootherOperator<VectorType>::build_domain_vector() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
@@ -192,7 +180,7 @@ SmootherOperator<VectorType>::multiply(Operator<VectorType> const &) const
 
 template <typename VectorType>
 std::shared_ptr<VectorType>
-SmootherOperator<VectorType>::build_domain_vector() const
+DealIISmootherOperator<VectorType>::build_range_vector() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
@@ -200,16 +188,8 @@ SmootherOperator<VectorType>::build_domain_vector() const
 }
 
 template <typename VectorType>
-std::shared_ptr<VectorType>
-SmootherOperator<VectorType>::build_range_vector() const
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
-
-template <typename VectorType>
-void SmootherOperator<VectorType>::initialize(std::string const &prec_name)
+void DealIISmootherOperator<VectorType>::initialize(
+    std::string const &prec_name)
 {
   // Make parameters case-insensitive
   std::string prec_name_lower = prec_name;
@@ -246,7 +226,7 @@ void SmootherOperator<VectorType>::initialize(std::string const &prec_name)
 //-------------------------------------------------------------------------//
 
 template <typename VectorType>
-DirectOperator<VectorType>::DirectOperator(
+DealIIDirectOperator<VectorType>::DealIIDirectOperator(
     dealii::TrilinosWrappers::SparseMatrix const &matrix)
 {
   _solver.reset(new solver_type(_solver_control));
@@ -256,17 +236,8 @@ DirectOperator<VectorType>::DirectOperator(
 }
 
 template <typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-DirectOperator<VectorType>::transpose() const
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
-
-template <typename VectorType>
-std::shared_ptr<Operator<VectorType>> DirectOperator<VectorType>::multiply(
-    Operator<VectorType> const &operator_b) const
+std::shared_ptr<VectorType>
+DealIIDirectOperator<VectorType>::build_domain_vector() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
@@ -275,21 +246,11 @@ std::shared_ptr<Operator<VectorType>> DirectOperator<VectorType>::multiply(
 
 template <typename VectorType>
 std::shared_ptr<VectorType>
-DirectOperator<VectorType>::build_domain_vector() const
+DealIIDirectOperator<VectorType>::build_range_vector() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
   return nullptr;
-}
-
-template <typename VectorType>
-std::shared_ptr<VectorType>
-DirectOperator<VectorType>::build_range_vector() const
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
 }
 }
 
