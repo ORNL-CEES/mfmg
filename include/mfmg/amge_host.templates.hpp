@@ -176,7 +176,6 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
 
   // Build the restriction sparse matrix
   restriction_sparse_matrix.reinit(restriction_sp);
-  unsigned int const n_local_rows(eigenvectors.size());
   std::pair<dealii::types::global_dof_index,
             dealii::types::global_dof_index> const local_range =
       restriction_sp.local_range();
@@ -216,7 +215,6 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
   pos = 0;
   for (unsigned int i = 0; i < n_agglomerates; ++i)
   {
-    unsigned int const n_local_eig = n_local_eigenvectors[i];
     unsigned int const n_elem = eigenvectors[pos].size();
     for (unsigned int j = 0; j < n_elem; ++j)
     {

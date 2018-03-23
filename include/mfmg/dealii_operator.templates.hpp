@@ -48,7 +48,7 @@ DealIIMatrixOperator<VectorType>::transpose() const
 template <typename VectorType>
 std::shared_ptr<MatrixOperator<VectorType>>
 DealIIMatrixOperator<VectorType>::multiply(
-    MatrixOperator<VectorType> const &operator_b) const
+    MatrixOperator<VectorType> const &) const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
