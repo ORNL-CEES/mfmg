@@ -204,12 +204,12 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
   // algorithm
   dealii::ConstraintMatrix agglomerate_constraints;
 
-  std::shared_ptr<SparseMatrixDevice<ScalarType>> system_matrix_dev;
-  std::shared_ptr<SparseMatrixDevice<ScalarType>> mass_matrix_dev;
+  std::shared_ptr<SparseMatrixDevice<ScalarType>> agglomerate_system_matrix_dev;
+  std::shared_ptr<SparseMatrixDevice<ScalarType>> agglomerate_mass_matrix_dev;
 
   // Call user function
-  evaluate(agglomerate_dof_handler, agglomerate_constraints, system_matrix_dev,
-           mass_matrix_dev);
+  evaluate(agglomerate_dof_handler, agglomerate_constraints,
+           agglomerate_system_matrix_dev, agglomerate_mass_matrix_dev);
 
   // Convert the matrix from CRS to dense. First, create and setup matrix
   // descriptor
@@ -226,19 +226,21 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
 
   // Convert the system matrix to dense
   ScalarType *dense_system_matrix_dev = nullptr;
-  internal::convert_csr_to_dense(_cusparse_handle, descr, system_matrix_dev,
+  internal::convert_csr_to_dense(_cusparse_handle, descr,
+                                 agglomerate_system_matrix_dev,
                                  dense_system_matrix_dev);
   // Free the memory of the system sparse matrix
-  system_matrix_dev.reset();
+  agglomerate_system_matrix_dev.reset();
 
   // Convert the mass matrix to dense
   ScalarType *dense_mass_matrix_dev = nullptr;
-  internal::convert_csr_to_dense(_cusparse_handle, descr, mass_matrix_dev,
+  internal::convert_csr_to_dense(_cusparse_handle, descr,
+                                 agglomerate_mass_matrix_dev,
                                  dense_mass_matrix_dev);
   // Free the memory of the mass sparse matrix
   cusparse_error_code = cusparseDestroyMatDescr(descr);
   ASSERT_CUSPARSE(cusparse_error_code);
-  mass_matrix_dev.reset();
+  agglomerate_mass_matrix_dev.reset();
 
   // Compute the eigenvalues and the eigenvectors. The values in
   // dense_system_matrix_dev are overwritten and replaced by the eigenvectors
