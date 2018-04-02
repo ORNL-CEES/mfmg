@@ -111,7 +111,50 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
   }
 
   return SparseMatrixDevice<double>(
-      sparse_matrix.get_mpi_communicator(),
+      sparse_matrix.get_mpi_communicator(), internal::copy_to_gpu(val),
+      internal::copy_to_gpu(column_index), internal::copy_to_gpu(row_ptr),
+      local_nnz, sparse_matrix.locally_owned_range_indices(),
+      sparse_matrix.locally_owned_domain_indices());
+}
+
+SparseMatrixDevice<double> convert_matrix(Epetra_CrsMatrix const &sparse_matrix)
+{
+  auto range_map = sparse_matrix.RangeMap();
+  unsigned int const n_local_rows = range_map.NumMyPoints();
+  std::vector<int> row_gid(n_local_rows);
+  range_map.MyGlobalElements(row_gid.data());
+  dealii::IndexSet range_indexset(range_map.NumGlobalElements());
+  range_indexset.add_indices(row_gid.begin(), row_gid.end());
+  range_indexset.compress();
+
+  auto domain_map = sparse_matrix.DomainMap();
+  std::vector<int> column_gid(domain_map.NumMyPoints());
+  domain_map.MyGlobalElements(column_gid.data());
+  dealii::IndexSet domain_indexset(domain_map.NumGlobalElements());
+  domain_indexset.add_indices(column_gid.begin(), column_gid.end());
+  domain_indexset.compress();
+
+  std::vector<double> val;
+  std::vector<int> column_index;
+  std::vector<int> row_ptr(n_local_rows + 1);
+  unsigned int local_nnz = 0;
+  for (unsigned int row = 0; row < n_local_rows; ++row)
+  {
+    int n_entries;
+    double *values;
+    int *indices;
+    sparse_matrix.ExtractMyRowView(row, n_entries, values, indices);
+
+    val.insert(val.end(), values, values + n_entries);
+    row_ptr[row + 1] = row_ptr[row] + n_entries;
+    // Trilinos does not store the column indices directly
+    for (int i = 0; i < n_entries; ++i)
+      column_index.push_back(sparse_matrix.GCID(indices[i]));
+    local_nnz += n_entries;
+  }
+
+  return SparseMatrixDevice<double>(
+      dynamic_cast<Epetra_MpiComm const &>(sparse_matrix.Comm()).Comm(),
       internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
       internal::copy_to_gpu(row_ptr), local_nnz, range_indexset,
       domain_indexset);

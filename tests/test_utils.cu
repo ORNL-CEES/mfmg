@@ -106,6 +106,9 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
       BOOST_CHECK_EQUAL(val_host[pos], sparse_matrix(i, column_index_host[j]));
 }
 
+// Check that we can convert a TrilinosWrappers::SparseMatrix and an
+// Epetra_CrsMatrix. We cannot use BOOST_DATA_TEST_CASE here because nvcc does
+// not support variadic macros
 BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
 {
   // We need serialize the access to the GPU so that we don't have any problem
@@ -145,18 +148,24 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
     sparse_matrix.compress(dealii::VectorOperation::insert);
 
     // Move the sparse matrix to the device.
+    for (auto matrix_type : {"trilinos_wrapper", "epetra"})
     {
-      // Move the sparse matrix to the device and change the format to a regular
-      // CSR
-      mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
-          mfmg::convert_matrix(sparse_matrix);
+      // Move the sparse matrix to the device and change the format to a
+      // regular CSR
+      std::shared_ptr<mfmg::SparseMatrixDevice<double>> sparse_matrix_dev;
+      if (matrix_type == "trilinos_wrapper")
+        sparse_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+            mfmg::convert_matrix(sparse_matrix));
+      else
+        sparse_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+            mfmg::convert_matrix(sparse_matrix.trilinos_matrix()));
 
       // Copy the matrix from the gpu
       std::vector<double> val_host;
       std::vector<int> column_index_host;
       std::vector<int> row_ptr_host;
       std::tie(val_host, column_index_host, row_ptr_host) =
-          copy_sparse_matrix_to_host(sparse_matrix_dev);
+          copy_sparse_matrix_to_host(*sparse_matrix_dev);
 
       unsigned int pos = 0;
       for (unsigned int i = 0; i < n_local_rows; ++i)

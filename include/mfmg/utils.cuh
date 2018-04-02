@@ -40,6 +40,12 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix);
 SparseMatrixDevice<double>
 convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix);
 
+/**
+ * Move an Epetra_CrsMatrix to the GPU.
+ */
+SparseMatrixDevice<double>
+convert_matrix(Epetra_CrsMatrix const &sparse_matrix);
+
 template <typename T>
 inline void cuda_free(T *&pointer)
 {
