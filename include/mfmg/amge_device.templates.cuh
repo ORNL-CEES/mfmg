@@ -38,7 +38,7 @@ void convert_csr_to_dense<float>(
     std::shared_ptr<SparseMatrixDevice<float>> const sparse_matrix_dev,
     float *&dense_matrix_dev)
 {
-  int n_rows = sparse_matrix_dev->n_rows;
+  int n_rows = sparse_matrix_dev->m();
 
   cudaError_t cuda_error_code;
   cuda_error_code =
@@ -59,7 +59,7 @@ void convert_csr_to_dense<double>(
     std::shared_ptr<SparseMatrixDevice<double>> const sparse_matrix_dev,
     double *&dense_matrix_dev)
 {
-  int n_rows = sparse_matrix_dev->n_rows;
+  int n_rows = sparse_matrix_dev->m();
 
   cudaError_t cuda_error_code;
   cuda_error_code =
@@ -222,7 +222,7 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
   cusparse_error_code =
       cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
   ASSERT_CUSPARSE(cusparse_error_code);
-  int const n_rows = system_matrix_dev->n_rows;
+  int const n_rows = agglomerate_system_matrix_dev->m();
 
   // Convert the system matrix to dense
   ScalarType *dense_system_matrix_dev = nullptr;
@@ -299,7 +299,6 @@ AMGe_device<dim, VectorType>::compute_restriction_sparse_matrix(
   // The value in the sparse matrix are the same as the ones in the eigenvectors
   // so we just to compute the sparsity pattern.
 
-  // TODO for now it doesn't work with MPI
   // dof_indices_maps contains all column indices, we just need to move them to
   // the GPU
   unsigned int const n_rows = dof_indices_maps.size();
@@ -326,9 +325,11 @@ AMGe_device<dim, VectorType>::compute_restriction_sparse_matrix(
                  row_ptr[n_rows] * sizeof(int), cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error);
 
-  return SparseMatrixDevice<ScalarType>(eigenvectors_dev, column_index_dev,
-                                        row_ptr_dev, _cusparse_handle,
-                                        row_ptr[n_rows], n_rows);
+  // TODO for now it doesn't work with MPI. IndexSets are wrong in //
+  return SparseMatrixDevice<ScalarType>(
+      this->_comm, eigenvectors_dev, column_index_dev, row_ptr_dev,
+      row_ptr[n_rows], dealii::complete_index_set(n_rows), dealii::IndexSet(),
+      _cusparse_handle);
 }
 }
 

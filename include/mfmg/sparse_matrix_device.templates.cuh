@@ -16,6 +16,8 @@
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
+#include <deal.II/base/mpi.h>
+
 #define BLOCK_SIZE 512
 
 namespace mfmg
@@ -32,9 +34,9 @@ __global__ void reorder_vector(int const size, ScalarType *src,
 }
 
 void csrmv(cusparseHandle_t handle, bool transpose, int m, int n, int nnz,
-           const cusparseMatDescr_t descr, const float *A_val_dev,
-           const int *A_row_ptr_dev, const int *A_column_index_dev,
-           const float *x, bool add, float *y)
+           cusparseMatDescr_t const descr, float const *A_val_dev,
+           int const *A_row_ptr_dev, int const *A_column_index_dev,
+           float const *x, bool add, float *y)
 {
   float alpha = 1.;
   float beta = add ? 1. : 0.;
@@ -51,9 +53,9 @@ void csrmv(cusparseHandle_t handle, bool transpose, int m, int n, int nnz,
 }
 
 void csrmv(cusparseHandle_t handle, bool transpose, int m, int n, int nnz,
-           const cusparseMatDescr_t descr, const double *A_val_dev,
-           const int *A_row_ptr_dev, const int *A_column_index_dev,
-           const double *x, bool add, double *y)
+           cusparseMatDescr_t const descr, double const *A_val_dev,
+           int const *A_row_ptr_dev, int const *A_column_index_dev,
+           double const *x, bool add, double *y)
 {
   double alpha = 1.;
   double beta = add ? 1. : 0.;
@@ -106,17 +108,20 @@ void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice()
-    : val_dev(nullptr), column_index_dev(nullptr), row_ptr_dev(nullptr),
-      cusparse_handle(nullptr), descr(nullptr), nnz(0), n_rows(0)
+    : _comm(MPI_COMM_SELF), val_dev(nullptr), column_index_dev(nullptr),
+      row_ptr_dev(nullptr), cusparse_handle(nullptr), descr(nullptr)
 {
 }
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
     SparseMatrixDevice<ScalarType> &&other)
-    : val_dev(other.val_dev), column_index_dev(other.column_index_dev),
-      row_ptr_dev(other.row_ptr_dev), cusparse_handle(other.cusparse_handle),
-      descr(other.descr), nnz(other.nnz), n_rows(other.n_rows)
+    : _comm(other._comm), val_dev(other.val_dev),
+      column_index_dev(other.column_index_dev), row_ptr_dev(other.row_ptr_dev),
+      cusparse_handle(other.cusparse_handle), descr(other.descr),
+      _local_nnz(other._local_nnz), _nnz(other._nnz),
+      _range_indexset(other._range_indexset),
+      _domain_indexset(other._domain_indexset)
 {
   other.val_dev = nullptr;
   other.column_index_dev = nullptr;
@@ -124,28 +129,36 @@ SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
   other.cusparse_handle = nullptr;
   other.descr = nullptr;
 
-  other.nnz = 0;
-  other.n_rows = 0;
-}
-
-template <typename ScalarType>
-SparseMatrixDevice<ScalarType>::SparseMatrixDevice(ScalarType *val_dev_,
-                                                   int *column_index_dev_,
-                                                   int *row_ptr_dev_,
-                                                   unsigned int nnz_,
-                                                   unsigned int n_rows_)
-    : val_dev(val_dev_), column_index_dev(column_index_dev_),
-      row_ptr_dev(row_ptr_dev_), cusparse_handle(nullptr), descr(nullptr),
-      nnz(nnz_), n_rows(n_rows_)
-{
+  other._local_nnz = 0;
+  other._nnz = 0;
+  other._range_indexset.clear();
+  other._domain_indexset.clear();
 }
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
-    ScalarType *val_dev_, int *column_index_dev_, int *row_ptr_dev_,
-    cusparseHandle_t handle, unsigned int nnz_, unsigned int n_rows_)
-    : SparseMatrixDevice<ScalarType>(val_dev_, column_index_dev_, row_ptr_dev_,
-                                     nnz_, n_rows_)
+    MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
+    int *row_ptr_dev_, unsigned int local_nnz,
+    dealii::IndexSet const &domain_indexset,
+    dealii::IndexSet const &range_indexset)
+    : _comm(comm), val_dev(val_dev_), column_index_dev(column_index_dev_),
+      row_ptr_dev(row_ptr_dev_), cusparse_handle(nullptr), descr(nullptr),
+      _local_nnz(local_nnz), _range_indexset(range_indexset),
+      _domain_indexset(domain_indexset)
+{
+  _nnz = _local_nnz;
+  dealii::Utilities::MPI::sum(_nnz, _comm);
+}
+
+template <typename ScalarType>
+SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
+    MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
+    int *row_ptr_dev_, unsigned int local_nnz,
+    dealii::IndexSet const &range_indexset,
+    dealii::IndexSet const &domain_indexset, cusparseHandle_t handle)
+    : SparseMatrixDevice<ScalarType>(comm, val_dev_, column_index_dev_,
+                                     row_ptr_dev_, local_nnz, range_indexset,
+                                     domain_indexset)
 {
   cusparse_handle = handle;
 
@@ -180,6 +193,20 @@ SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
 }
 
 template <typename ScalarType>
+dealii::IndexSet
+SparseMatrixDevice<ScalarType>::locally_owned_domain_indices() const
+{
+  return _domain_indexset;
+}
+
+template <typename ScalarType>
+dealii::IndexSet
+SparseMatrixDevice<ScalarType>::locally_owned_range_indices() const
+{
+  return _range_indexset;
+}
+
+template <typename ScalarType>
 void SparseMatrixDevice<ScalarType>::vmult(VectorDevice<ScalarType> &dst,
                                            VectorDevice<ScalarType> const &src)
 {
@@ -193,9 +220,9 @@ void SparseMatrixDevice<ScalarType>::vmult(VectorDevice<ScalarType> &dst,
 
   // Perform the matrix-vector multiplication on the row that are locally
   // owned
-  internal::csrmv(cusparse_handle, false, n_rows, size, nnz, descr, val_dev,
-                  row_ptr_dev, column_index_dev, src_val_dev, false,
-                  dst.val_dev);
+  internal::csrmv(cusparse_handle, false, _range_indexset.n_elements(), size,
+                  _local_nnz, descr, val_dev, row_ptr_dev, column_index_dev,
+                  src_val_dev, false, dst.val_dev);
 }
 }
 

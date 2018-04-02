@@ -79,8 +79,10 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
   }
 
   return SparseMatrixDevice<ScalarType>(
-      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
-      internal::copy_to_gpu(row_ptr), nnz, n_rows);
+      MPI_COMM_SELF, internal::copy_to_gpu(val),
+      internal::copy_to_gpu(column_index), internal::copy_to_gpu(row_ptr), nnz,
+      dealii::complete_index_set(n_rows),
+      dealii::complete_index_set(sparse_matrix.n()));
 }
 
 SparseMatrixDevice<double>
@@ -109,8 +111,10 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
   }
 
   return SparseMatrixDevice<double>(
+      sparse_matrix.get_mpi_communicator(),
       internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
-      internal::copy_to_gpu(row_ptr), local_nnz, n_local_rows);
+      internal::copy_to_gpu(row_ptr), local_nnz, range_indexset,
+      domain_indexset);
 }
 
 void all_gather(MPI_Comm communicator, unsigned int send_count,
