@@ -63,6 +63,14 @@ public:
   void vmult(VectorDevice<ScalarType> &dst,
              VectorDevice<ScalarType> const &src);
 
+  /**
+   * Perform the matrix-matrix multiplication C=A*B. This function assumes that
+   * the calling matrix A and B have compatible sizes. The size of C will be set
+   * within this function.
+   */
+  void mmult(SparseMatrixDevice<ScalarType> &C,
+             SparseMatrixDevice<ScalarType> const &B) const;
+
   ScalarType *val_dev;
   int *column_index_dev;
   int *row_ptr_dev;

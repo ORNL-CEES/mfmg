@@ -71,6 +71,38 @@ void csrmv(cusparseHandle_t handle, bool transpose, int m, int n, int nnz,
   ASSERT_CUSPARSE(error_code);
 }
 
+void csrgemm(SparseMatrixDevice<float> const &A,
+             SparseMatrixDevice<float> const &B, SparseMatrixDevice<float> &C)
+{
+  cusparseStatus_t error_code;
+  cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
+
+  // This function performs C = op(A)*op(B)
+  error_code = cusparseScsrgemm(
+      A.cusparse_handle, cusparse_operation, cusparse_operation,
+      A.n_local_rows(), B.n(), A.n(), A.descr, A.local_nnz(), A.val_dev,
+      A.row_ptr_dev, A.column_index_dev, B.descr, B.local_nnz(), B.val_dev,
+      B.row_ptr_dev, B.column_index_dev, C.descr, C.val_dev, C.row_ptr_dev,
+      C.column_index_dev);
+  ASSERT_CUSPARSE(error_code);
+}
+
+void csrgemm(SparseMatrixDevice<double> const &A,
+             SparseMatrixDevice<double> const &B, SparseMatrixDevice<double> &C)
+{
+  cusparseStatus_t error_code;
+  cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
+
+  // This function performs C = op(A)*op(B)
+  error_code = cusparseDcsrgemm(
+      A.cusparse_handle, cusparse_operation, cusparse_operation,
+      A.n_local_rows(), B.n(), A.n(), A.descr, A.local_nnz(), A.val_dev,
+      A.row_ptr_dev, A.column_index_dev, B.descr, B.local_nnz(), B.val_dev,
+      B.row_ptr_dev, B.column_index_dev, C.descr, C.val_dev, C.row_ptr_dev,
+      C.column_index_dev);
+  ASSERT_CUSPARSE(error_code);
+}
+
 template <typename ScalarType>
 void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
 {
@@ -189,6 +221,7 @@ SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
     cusparseStatus_t cusparse_error_code;
     cusparse_error_code = cusparseDestroyMatDescr(descr);
     ASSERT_CUSPARSE(cusparse_error_code);
+    descr = nullptr;
   }
 }
 
@@ -223,6 +256,44 @@ void SparseMatrixDevice<ScalarType>::vmult(VectorDevice<ScalarType> &dst,
   internal::csrmv(cusparse_handle, false, _range_indexset.n_elements(), size,
                   _local_nnz, descr, val_dev, row_ptr_dev, column_index_dev,
                   src_val_dev, false, dst.val_dev);
+}
+
+template <typename ScalarType>
+void SparseMatrixDevice<ScalarType>::mmult(
+    SparseMatrixDevice<ScalarType> &C,
+    SparseMatrixDevice<ScalarType> const &B) const
+{
+  // TODO Communicate the values
+
+  // Compute the number of non-zero elements in C
+  int C_local_nnz = 0;
+  cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseXcsrgemmNnz(
+      cusparse_handle, cusparse_operation, cusparse_operation, n_local_rows(),
+      B.n(), n(), descr, local_nnz(), row_ptr_dev, column_index_dev, B.descr,
+      B.local_nnz(), B.row_ptr_dev, B.column_index_dev, C.descr, C.row_ptr_dev,
+      &C_local_nnz);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  // Reinitialize part of C
+  cuda_free(C.val_dev);
+  cuda_free(C.column_index_dev);
+  cuda_free(C.row_ptr_dev);
+  cudaError_t cuda_error_code;
+  cuda_error_code = cudaMalloc(&C.val_dev, C_local_nnz * sizeof(ScalarType));
+  ASSERT_CUDA(cuda_error_code);
+  cuda_error_code =
+      cudaMalloc(&C.column_index_dev, C_local_nnz * sizeof(ScalarType));
+  ASSERT_CUDA(cuda_error_code);
+  cuda_error_code =
+      cudaMalloc(&C.row_ptr_dev, C_local_nnz * sizeof(ScalarType));
+  ASSERT_CUDA(cuda_error_code);
+  C._local_nnz = C_local_nnz;
+  C._range_indexset = _range_indexset;
+  C._domain_indexset = B._domain_indexset;
+
+  internal::csrgemm(*this, B, C);
 }
 }
 
