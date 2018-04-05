@@ -187,7 +187,7 @@ RUN export ARPACK_VERSION=3.5.0 && \
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
 # Install deal.II
-RUN export DEAL_II_HASH=7ac7850030de7a2027679099073f00f59a076ac4 && \
+RUN export DEAL_II_HASH=5f9d86ac1a5ca36df642e8a6d079b77219796a07 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
@@ -205,6 +205,8 @@ RUN export DEAL_II_HASH=7ac7850030de7a2027679099073f00f59a076ac4 && \
         -DTRILINOS_DIR=${TRILINOS_DIR} \
         -DDEAL_II_WITH_ARPACK=ON \
         -DARPACK_DIR=${ARPACK_DIR} \
+        -DDEAL_II_WITH_CUDA=ON \
+        -DDEAL_II_WITH_CXX14=OFF \
         -DCMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
         ${DEAL_II_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
