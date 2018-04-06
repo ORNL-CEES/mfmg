@@ -149,8 +149,8 @@ DealIISmootherOperator<VectorType>::DealIISmootherOperator(
     std::shared_ptr<boost::property_tree::ptree> params)
     : _matrix(matrix)
 {
-  std::string prec_type = params->get<std::string>("preconditioner: type",
-                                                   "Symmetric Gauss-Seidel");
+  std::string prec_type =
+      params->get("smoother.type", "Symmetric Gauss-Seidel");
   initialize(prec_type);
 }
 

@@ -1,9 +1,21 @@
-"eigensolver: number of eigenvectors" 2
-"eigensolver: tolerance" 1e-14
-"preconditioner: type" "Gauss-Seidel"
+eigensolver
+{
+  "number of eigenvectors" 2
+  tolerance 1e-14
+}
+
+smoother
+{
+  type  "Gauss-Seidel"
+}
+
 "is preconditioner" false
-"agglomeration: nx" 2
-"agglomeration: ny" 2
+
+agglomeration
+{
+  nx 2
+  ny 2
+}
 
 material_property
 {
