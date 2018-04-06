@@ -21,8 +21,6 @@
 #include <deal.II/lac/trilinos_solver.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 
-#include <EpetraExt_Transpose_RowMatrix.h>
-
 #include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
