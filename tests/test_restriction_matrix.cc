@@ -254,13 +254,13 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-14))
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  params->put("eigensolver: number of eigenvectors", 1);
+  params->put("eigensolver.number of eigenvectors", 1);
   std::array<unsigned int, dim> agglomerate_dim;
-  agglomerate_dim[0] = params->get<unsigned int>("agglomeration: nx");
-  agglomerate_dim[1] = params->get<unsigned int>("agglomeration: ny");
+  agglomerate_dim[0] = params->get<unsigned int>("agglomeration.nx");
+  agglomerate_dim[1] = params->get<unsigned int>("agglomeration.ny");
   int n_eigenvectors =
-      params->get<int>("eigensolver: number of eigenvectors", 1);
-  double tolerance = params->get<double>("eigensolver: tolerance", 1e-14);
+      params->get<int>("eigensolver.number of eigenvectors", 1);
+  double tolerance = params->get<double>("eigensolver.tolerance", 1e-14);
 
   params->put("laplace.n_refinements", 4);
   std::shared_ptr<dealii::Function<dim>> material_property =

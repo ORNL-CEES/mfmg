@@ -166,17 +166,18 @@ public:
                    mesh_type &mesh,
                    std::shared_ptr<boost::property_tree::ptree> params)
   {
+    auto eigensolver_params = params->get_child("eigensolver");
     AMGe_host<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
-        comm, mesh._dof_handler, params->get("eigensolver: type", "arpack"));
+        comm, mesh._dof_handler, eigensolver_params.get("type", "arpack"));
 
     std::array<unsigned int, dim> agglomerate_dim;
-    agglomerate_dim[0] = params->get<unsigned int>("agglomeration: nx");
-    agglomerate_dim[1] = params->get<unsigned int>("agglomeration: ny");
+    auto agglomerate_params = params->get_child("agglomeration");
+    agglomerate_dim[0] = agglomerate_params.get<unsigned int>("nx");
+    agglomerate_dim[1] = agglomerate_params.get<unsigned int>("ny");
     if (dim == 3)
-      agglomerate_dim[2] = params->get<unsigned int>("agglomeration: nz");
-    int n_eigenvectors =
-        params->get<int>("eigensolver: number of eigenvectors", 1);
-    double tolerance = params->get<double>("eigensolver: tolerance", 1e-14);
+      agglomerate_dim[2] = agglomerate_params.get<unsigned int>("nz");
+    int n_eigenvectors = eigensolver_params.get("number of eigenvectors", 1);
+    double tolerance = eigensolver_params.get("tolerance", 1e-14);
 
     auto restrictor_matrix =
         std::make_shared<typename global_operator_type::matrix_type>();

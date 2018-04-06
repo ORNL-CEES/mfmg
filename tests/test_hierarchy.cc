@@ -322,8 +322,8 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
 
-    params->put("eigensolver: type", "lapack");
-    params->put("agglomeration: nz", 2);
+    params->put("eigensolver.type", "lapack");
+    params->put("agglomeration.nz", 2);
     params->put("laplace.n_refinements", 2);
     params->put("laplace.mesh", mesh);
     params->put("laplace.distort_random", distort_random);
