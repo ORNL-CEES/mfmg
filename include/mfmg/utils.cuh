@@ -61,6 +61,26 @@ inline void cuda_malloc(T *&pointer, unsigned int n_elements)
   ASSERT_CUDA(cuda_error_code);
 }
 
+template <typename T>
+inline void cuda_mem_copy_to_host(T const *pointer_dev,
+                                  std::vector<T> &vector_host)
+{
+  cudaError_t cuda_error_code =
+      cudaMemcpy(vector_host.data(), pointer_dev,
+                 vector_host.size() * sizeof(T), cudaMemcpyDeviceToHost);
+  ASSERT_CUDA(cuda_error_code);
+}
+
+template <typename T>
+inline void cuda_mem_copy_to_dev(std::vector<T> const &vector_host,
+                                 T *pointer_dev)
+{
+  cudaError_t cuda_error_code =
+      cudaMemcpy(pointer_dev, vector_host.data(),
+                 vector_host.size() * sizeof(T), cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error_code);
+}
+
 void all_gather(MPI_Comm communicator, unsigned int send_count,
                 unsigned int *send_buffer, unsigned int recv_count,
                 unsigned int *recv_buffer);
