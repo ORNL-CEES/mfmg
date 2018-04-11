@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
   // when multiple MPI ranks want to access the GPU. In practice, we would need
   // to use MPS but we don't have any control on this (it is the user
   // responsability to set up her GPU correctly). We cannot use MPI_Barrier to
-  // serialize the access because the constructor of SparseMatrixDevice kalls
+  // serialize the access because the constructor of SparseMatrixDevice calls
   // MPI_AllReduce. So we run the test in serial
 
   // Build the sparse matrix

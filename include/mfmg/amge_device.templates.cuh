@@ -325,7 +325,7 @@ AMGe_device<dim, VectorType>::compute_restriction_sparse_matrix(
                  row_ptr[n_rows] * sizeof(int), cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error);
 
-  // TODO for now it doesn't work with MPI. IndexSets are wrong in //
+  // TODO for now it doesn't work with MPI. IndexSets are wrong in parallel
   return SparseMatrixDevice<ScalarType>(
       this->_comm, eigenvectors_dev, column_index_dev, row_ptr_dev,
       row_ptr[n_rows], dealii::complete_index_set(n_rows), dealii::IndexSet(),
