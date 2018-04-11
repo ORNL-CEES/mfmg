@@ -40,6 +40,12 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix);
 SparseMatrixDevice<double>
 convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix);
 
+/**
+ * Move an Epetra_CrsMatrix to the GPU.
+ */
+SparseMatrixDevice<double>
+convert_matrix(Epetra_CrsMatrix const &sparse_matrix);
+
 template <typename T>
 inline void cuda_free(T *&pointer)
 {
@@ -52,6 +58,26 @@ template <typename T>
 inline void cuda_malloc(T *&pointer, unsigned int n_elements)
 {
   cudaError_t cuda_error_code = cudaMalloc(&pointer, n_elements * sizeof(T));
+  ASSERT_CUDA(cuda_error_code);
+}
+
+template <typename T>
+inline void cuda_mem_copy_to_host(T const *pointer_dev,
+                                  std::vector<T> &vector_host)
+{
+  cudaError_t cuda_error_code =
+      cudaMemcpy(vector_host.data(), pointer_dev,
+                 vector_host.size() * sizeof(T), cudaMemcpyDeviceToHost);
+  ASSERT_CUDA(cuda_error_code);
+}
+
+template <typename T>
+inline void cuda_mem_copy_to_dev(std::vector<T> const &vector_host,
+                                 T *pointer_dev)
+{
+  cudaError_t cuda_error_code =
+      cudaMemcpy(pointer_dev, vector_host.data(),
+                 vector_host.size() * sizeof(T), cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error_code);
 }
 

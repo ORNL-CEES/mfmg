@@ -79,8 +79,10 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
   }
 
   return SparseMatrixDevice<ScalarType>(
-      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
-      internal::copy_to_gpu(row_ptr), nnz, n_rows);
+      MPI_COMM_SELF, internal::copy_to_gpu(val),
+      internal::copy_to_gpu(column_index), internal::copy_to_gpu(row_ptr), nnz,
+      dealii::complete_index_set(n_rows),
+      dealii::complete_index_set(sparse_matrix.n()));
 }
 
 SparseMatrixDevice<double>
@@ -109,8 +111,56 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix)
   }
 
   return SparseMatrixDevice<double>(
-      internal::copy_to_gpu(val), internal::copy_to_gpu(column_index),
-      internal::copy_to_gpu(row_ptr), local_nnz, n_local_rows);
+      sparse_matrix.get_mpi_communicator(), internal::copy_to_gpu(val),
+      internal::copy_to_gpu(column_index), internal::copy_to_gpu(row_ptr),
+      local_nnz, sparse_matrix.locally_owned_range_indices(),
+      sparse_matrix.locally_owned_domain_indices());
+}
+
+SparseMatrixDevice<double> convert_matrix(Epetra_CrsMatrix const &sparse_matrix)
+{
+  auto range_map = sparse_matrix.RangeMap();
+  unsigned int const n_local_rows = range_map.NumMyElements();
+  std::vector<int> row_gid(n_local_rows);
+  range_map.MyGlobalElements(row_gid.data());
+  dealii::IndexSet range_indexset(range_map.NumGlobalElements());
+  range_indexset.add_indices(row_gid.begin(), row_gid.end());
+  range_indexset.compress();
+
+  auto domain_map = sparse_matrix.DomainMap();
+  std::vector<int> column_gid(domain_map.NumMyElements());
+  domain_map.MyGlobalElements(column_gid.data());
+  dealii::IndexSet domain_indexset(domain_map.NumGlobalElements());
+  domain_indexset.add_indices(column_gid.begin(), column_gid.end());
+  domain_indexset.compress();
+
+  unsigned int const local_nnz = sparse_matrix.NumMyNonzeros();
+  int *row_ptr_host = nullptr;
+  int *local_column_index_host = nullptr;
+  double *val_host = nullptr;
+  sparse_matrix.ExtractCrsDataPointers(row_ptr_host, local_column_index_host,
+                                       val_host);
+  std::vector<int> column_index(local_nnz);
+  for (unsigned int i = 0; i < local_nnz; ++i)
+    column_index[i] = sparse_matrix.GCID(local_column_index_host[i]);
+
+  double *val_dev;
+  cuda_malloc(val_dev, local_nnz);
+  cudaError_t cuda_error;
+  cuda_error = cudaMemcpy(val_dev, val_host, local_nnz * sizeof(double),
+                          cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error);
+
+  int *row_ptr_dev;
+  cuda_malloc(row_ptr_dev, local_nnz);
+  cuda_error = cudaMemcpy(row_ptr_dev, row_ptr_host, local_nnz * sizeof(int),
+                          cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error);
+
+  return SparseMatrixDevice<double>(
+      dynamic_cast<Epetra_MpiComm const &>(sparse_matrix.Comm()).Comm(),
+      val_dev, internal::copy_to_gpu(column_index), row_ptr_dev, local_nnz,
+      range_indexset, domain_indexset);
 }
 
 void all_gather(MPI_Comm communicator, unsigned int send_count,

@@ -46,13 +46,13 @@ copy_sparse_matrix_to_host(
     mfmg::SparseMatrixDevice<ScalarType> const &sparse_matrix_dev)
 {
   std::vector<ScalarType> val =
-      copy_to_host(sparse_matrix_dev.val_dev, sparse_matrix_dev.nnz);
+      copy_to_host(sparse_matrix_dev.val_dev, sparse_matrix_dev.local_nnz());
 
-  std::vector<int> column_index =
-      copy_to_host(sparse_matrix_dev.column_index_dev, sparse_matrix_dev.nnz);
+  std::vector<int> column_index = copy_to_host(
+      sparse_matrix_dev.column_index_dev, sparse_matrix_dev.local_nnz());
 
   std::vector<int> row_ptr =
-      copy_to_host(sparse_matrix_dev.row_ptr_dev, sparse_matrix_dev.n_rows + 1);
+      copy_to_host(sparse_matrix_dev.row_ptr_dev, sparse_matrix_dev.m() + 1);
 
   return std::make_tuple(val, column_index, row_ptr);
 }
@@ -99,74 +99,81 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
       copy_sparse_matrix_to_host(sparse_matrix_dev);
 
   // Check the result
-  unsigned int const n_rows = sparse_matrix_dev.n_rows;
+  unsigned int const n_rows = sparse_matrix_dev.m();
   unsigned int pos = 0;
   for (unsigned int i = 0; i < n_rows; ++i)
     for (unsigned int j = row_ptr_host[i]; j < row_ptr_host[i + 1]; ++j, ++pos)
       BOOST_CHECK_EQUAL(val_host[pos], sparse_matrix(i, column_index_host[j]));
 }
 
+// Check that we can convert a TrilinosWrappers::SparseMatrix and an
+// Epetra_CrsMatrix. We cannot use BOOST_DATA_TEST_CASE here because nvcc does
+// not support variadic macros
 BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
 {
+  // We need serialize the access to the GPU so that we don't have any problem
+  // when multiple MPI ranks want to access the GPU. In practice, we would need
+  // to use MPS but we don't have any control on this (it is the user
+  // responsability to set up her GPU correctly). We cannot use MPI_Barrier to
+  // serialize the access because the constructor of SparseMatrixDevice calls
+  // MPI_AllReduce. So we run the test in serial
+
   // Build the sparse matrix
   unsigned int const comm_size =
       dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
-  unsigned int const rank =
-      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
-  unsigned int const n_local_rows = 10;
-  unsigned int const row_offset = rank * n_local_rows;
-  unsigned int const size = comm_size * n_local_rows;
-  dealii::IndexSet parallel_partitioning(size);
-  for (unsigned int i = 0; i < n_local_rows; ++i)
-    parallel_partitioning.add_index(row_offset + i);
-  parallel_partitioning.compress();
-  dealii::TrilinosWrappers::SparseMatrix sparse_matrix(parallel_partitioning);
-
-  unsigned int nnz = 0;
-  for (unsigned int i = 0; i < n_local_rows; ++i)
+  if (comm_size == 1)
   {
-    std::default_random_engine generator(i);
-    std::uniform_int_distribution<int> distribution(0, size - 1);
-    std::set<int> column_indices;
-    for (unsigned int j = 0; j < 5; ++j)
+    unsigned int const n_local_rows = 10;
+    unsigned int const size = comm_size * n_local_rows;
+    dealii::IndexSet parallel_partitioning(size);
+    for (unsigned int i = 0; i < n_local_rows; ++i)
+      parallel_partitioning.add_index(i);
+    parallel_partitioning.compress();
+    dealii::TrilinosWrappers::SparseMatrix sparse_matrix(parallel_partitioning);
+
+    unsigned int nnz = 0;
+    for (unsigned int i = 0; i < n_local_rows; ++i)
     {
-      int column_index = distribution(generator);
-      sparse_matrix.set(row_offset + i, column_index,
-                        static_cast<double>(i + j));
-      column_indices.insert(column_index);
+      std::default_random_engine generator(i);
+      std::uniform_int_distribution<int> distribution(0, size - 1);
+      std::set<int> column_indices;
+      for (unsigned int j = 0; j < 5; ++j)
+      {
+        int column_index = distribution(generator);
+        sparse_matrix.set(i, column_index, static_cast<double>(i + j));
+        column_indices.insert(column_index);
+      }
+      nnz += column_indices.size();
     }
-    nnz += column_indices.size();
-  }
-  sparse_matrix.compress(dealii::VectorOperation::insert);
+    sparse_matrix.compress(dealii::VectorOperation::insert);
 
-  // Move the sparse matrix to the device. We serialize the access to the GPU so
-  // that we don't have any problem when multiple MPI ranks want to access the
-  // GPU. In practice, we would need to use MPS but we don't have any control on
-  // this (it is the user responsability to set up her GPU correctly).
-  for (unsigned int i = 0; i < comm_size; ++i)
-  {
-    if (i == rank)
+    // Move the sparse matrix to the device.
+    for (auto matrix_type : {"trilinos_wrapper", "epetra"})
     {
-      // Move the sparse matrix to the device and change the format to a regular
-      // CSR
-      mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
-          mfmg::convert_matrix(sparse_matrix);
+      // Move the sparse matrix to the device and change the format to a
+      // regular CSR
+      std::shared_ptr<mfmg::SparseMatrixDevice<double>> sparse_matrix_dev;
+      if (matrix_type == "trilinos_wrapper")
+        sparse_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+            mfmg::convert_matrix(sparse_matrix));
+      else
+        sparse_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+            mfmg::convert_matrix(sparse_matrix.trilinos_matrix()));
 
       // Copy the matrix from the gpu
       std::vector<double> val_host;
       std::vector<int> column_index_host;
       std::vector<int> row_ptr_host;
       std::tie(val_host, column_index_host, row_ptr_host) =
-          copy_sparse_matrix_to_host(sparse_matrix_dev);
+          copy_sparse_matrix_to_host(*sparse_matrix_dev);
 
       unsigned int pos = 0;
       for (unsigned int i = 0; i < n_local_rows; ++i)
         for (unsigned int j = row_ptr_host[i]; j < row_ptr_host[i + 1];
              ++j, ++pos)
-          BOOST_CHECK_EQUAL(val_host[pos], sparse_matrix(row_offset + i,
-                                                         column_index_host[j]));
+          BOOST_CHECK_EQUAL(val_host[pos],
+                            sparse_matrix(i, column_index_host[j]));
     }
-    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 

@@ -15,6 +15,8 @@
 #ifdef MFMG_WITH_CUDA
 #include <mfmg/vector_device.cuh>
 
+#include <deal.II/base/index_set.h>
+
 #include <cusparse.h>
 
 namespace mfmg
@@ -31,17 +33,43 @@ public:
 
   SparseMatrixDevice(SparseMatrixDevice<ScalarType> &&other);
 
-  SparseMatrixDevice(ScalarType *val_dev, int *column_index_dev,
-                     int *row_ptr_dev, unsigned int nnz, unsigned int n_rows);
+  SparseMatrixDevice(MPI_Comm comm, ScalarType *val_dev, int *column_index_dev,
+                     int *row_ptr_dev, unsigned int local_nnz,
+                     dealii::IndexSet const &range_indexset,
+                     dealii::IndexSet const &domain_indexset);
 
-  SparseMatrixDevice(ScalarType *val_dev, int *column_index_dev,
-                     int *row_ptr_dev, cusparseHandle_t cusparse_handle,
-                     unsigned int nnz, unsigned int n_rows);
+  SparseMatrixDevice(MPI_Comm comm, ScalarType *val_dev, int *column_index_dev,
+                     int *row_ptr_dev, unsigned int local_nnz,
+                     dealii::IndexSet const &range_indexset,
+                     dealii::IndexSet const &domain_indexset,
+                     cusparseHandle_t cusparse_handle);
 
   ~SparseMatrixDevice();
 
+  unsigned int m() const { return _range_indexset.size(); }
+
+  unsigned int n_local_rows() const { return _range_indexset.n_elements(); }
+
+  unsigned int n() const { return _domain_indexset.size(); }
+
+  unsigned int local_nnz() const { return _local_nnz; }
+
+  unsigned int n_nonzero_elements() const { return _nnz; };
+
+  dealii::IndexSet locally_owned_domain_indices() const;
+
+  dealii::IndexSet locally_owned_range_indices() const;
+
   void vmult(VectorDevice<ScalarType> &dst,
              VectorDevice<ScalarType> const &src);
+
+  /**
+   * Perform the matrix-matrix multiplication C=A*B. This function assumes that
+   * the calling matrix A and B have compatible sizes. The size of C will be set
+   * within this function.
+   */
+  void mmult(SparseMatrixDevice<ScalarType> &C,
+             SparseMatrixDevice<ScalarType> const &B) const;
 
   ScalarType *val_dev;
   int *column_index_dev;
@@ -49,8 +77,12 @@ public:
   cusparseHandle_t cusparse_handle;
   cusparseMatDescr_t descr;
 
-  unsigned int nnz;
-  unsigned int n_rows;
+private:
+  MPI_Comm _comm;
+  unsigned int _local_nnz;
+  unsigned int _nnz;
+  dealii::IndexSet _range_indexset;
+  dealii::IndexSet _domain_indexset;
 };
 }
 

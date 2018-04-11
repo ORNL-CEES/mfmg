@@ -14,6 +14,8 @@
 
 #include <mfmg/dealii_operator.hpp>
 
+#include <EpetraExt_Transpose_RowMatrix.h>
+
 namespace mfmg
 {
 template <typename VectorType>
