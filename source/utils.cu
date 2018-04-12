@@ -49,8 +49,6 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
   column_index.reserve(nnz);
   std::vector<int> row_ptr(row_ptr_size, 0);
 
-  // deal.II stores the diagonal first in each row so we need to do some
-  // reordering
   for (int row = 0; row < n_rows; ++row)
   {
     auto p_end = sparse_matrix.end(row);
@@ -63,19 +61,24 @@ convert_matrix(dealii::SparseMatrix<ScalarType> const &sparse_matrix)
     }
     row_ptr[row + 1] = row_ptr[row] + counter;
 
-    // Sort the elements in the row
-    unsigned int const offset = row_ptr[row];
-    int const diag_index = column_index[offset];
-    ScalarType diag_elem = sparse_matrix.diag_element(row);
-    unsigned int pos = 1;
-    while ((column_index[offset + pos] < row) && (pos < counter))
+    // If the matrix is square deal.II stores the diagonal first in each row so
+    // we need to do some reordering
+    if (sparse_matrix.m() == sparse_matrix.n())
     {
-      val[offset + pos - 1] = val[offset + pos];
-      column_index[offset + pos - 1] = column_index[offset + pos];
-      ++pos;
+      // Sort the elements in the row
+      unsigned int const offset = row_ptr[row];
+      int const diag_index = column_index[offset];
+      ScalarType diag_elem = sparse_matrix.diag_element(row);
+      unsigned int pos = 1;
+      while ((column_index[offset + pos] < row) && (pos < counter))
+      {
+        val[offset + pos - 1] = val[offset + pos];
+        column_index[offset + pos - 1] = column_index[offset + pos];
+        ++pos;
+      }
+      val[offset + pos - 1] = diag_elem;
+      column_index[offset + pos - 1] = diag_index;
     }
-    val[offset + pos - 1] = diag_elem;
-    column_index[offset + pos - 1] = diag_index;
   }
 
   return SparseMatrixDevice<ScalarType>(
