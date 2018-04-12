@@ -171,8 +171,8 @@ template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
     MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
     int *row_ptr_dev_, unsigned int local_nnz,
-    dealii::IndexSet const &domain_indexset,
-    dealii::IndexSet const &range_indexset)
+    dealii::IndexSet const &range_indexset,
+    dealii::IndexSet const &domain_indexset)
     : _comm(comm), val_dev(val_dev_), column_index_dev(column_index_dev_),
       row_ptr_dev(row_ptr_dev_), cusparse_handle(nullptr), descr(nullptr),
       _local_nnz(local_nnz), _range_indexset(range_indexset),

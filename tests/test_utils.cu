@@ -57,7 +57,7 @@ copy_sparse_matrix_to_host(
   return std::make_tuple(val, column_index, row_ptr);
 }
 
-BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
+BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_square)
 {
   // Build the sparsity pattern
   dealii::SparsityPattern sparsity_pattern;
@@ -100,6 +100,48 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix)
 
   // Check the result
   unsigned int const n_rows = sparse_matrix_dev.m();
+  unsigned int pos = 0;
+  for (unsigned int i = 0; i < n_rows; ++i)
+    for (unsigned int j = row_ptr_host[i]; j < row_ptr_host[i + 1]; ++j, ++pos)
+      BOOST_CHECK_EQUAL(val_host[pos], sparse_matrix(i, column_index_host[j]));
+}
+
+BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_rectangle)
+{
+  // Build the sparsity pattern
+  dealii::SparsityPattern sparsity_pattern;
+  unsigned int const n_rows = 30;
+  unsigned int const nnz_per_row = 10;
+  unsigned int const n_cols = n_rows + nnz_per_row;
+  std::vector<std::vector<unsigned int>> column_indices(
+      n_rows, std::vector<unsigned int>(nnz_per_row));
+  for (unsigned int i = 0; i < n_rows; ++i)
+    for (unsigned int j = 0; j < nnz_per_row; ++j)
+      column_indices[i][j] = i + j;
+  sparsity_pattern.copy_from(n_rows, n_cols, column_indices.begin(),
+                             column_indices.end());
+
+  // Build the sparse matrix
+  dealii::SparseMatrix<float> sparse_matrix(sparsity_pattern);
+  for (unsigned int i = 0; i < n_rows; ++i)
+    for (unsigned int j = 0; j < nnz_per_row; ++j)
+      sparse_matrix.set(i, i + j, static_cast<float>(i + j));
+
+  // Move the sparse matrix to the device and change the format to a regular CSR
+  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
+      mfmg::convert_matrix(sparse_matrix);
+
+  BOOST_CHECK_EQUAL(sparse_matrix_dev.m(), n_rows);
+  BOOST_CHECK_EQUAL(sparse_matrix_dev.n(), n_cols);
+
+  // Copy the matrix from the gpu
+  std::vector<float> val_host;
+  std::vector<int> column_index_host;
+  std::vector<int> row_ptr_host;
+  std::tie(val_host, column_index_host, row_ptr_host) =
+      copy_sparse_matrix_to_host(sparse_matrix_dev);
+
+  // Check the result
   unsigned int pos = 0;
   for (unsigned int i = 0; i < n_rows; ++i)
     for (unsigned int j = row_ptr_host[i]; j < row_ptr_host[i + 1]; ++j, ++pos)
