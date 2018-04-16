@@ -112,7 +112,7 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_rectangle)
   dealii::SparsityPattern sparsity_pattern;
   unsigned int const n_rows = 30;
   unsigned int const nnz_per_row = 10;
-  unsigned int const n_cols = n_rows + nnz_per_row;
+  unsigned int const n_cols = n_rows + nnz_per_row - 1;
   std::vector<std::vector<unsigned int>> column_indices(
       n_rows, std::vector<unsigned int>(nnz_per_row));
   for (unsigned int i = 0; i < n_rows; ++i)
