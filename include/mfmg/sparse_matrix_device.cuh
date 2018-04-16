@@ -33,6 +33,8 @@ public:
 
   SparseMatrixDevice(SparseMatrixDevice<ScalarType> &&other);
 
+  SparseMatrixDevice(SparseMatrixDevice<ScalarType> const &other);
+
   SparseMatrixDevice(MPI_Comm comm, ScalarType *val_dev, int *column_index_dev,
                      int *row_ptr_dev, unsigned int local_nnz,
                      dealii::IndexSet const &range_indexset,
@@ -70,6 +72,8 @@ public:
    */
   void mmult(SparseMatrixDevice<ScalarType> &C,
              SparseMatrixDevice<ScalarType> const &B) const;
+
+  MPI_Comm get_mpi_communicator() const { return _comm; }
 
   ScalarType *val_dev;
   int *column_index_dev;
