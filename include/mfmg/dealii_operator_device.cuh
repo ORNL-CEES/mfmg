@@ -24,6 +24,41 @@
 namespace mfmg
 {
 template <typename VectorType>
+class SparseMatrixDeviceOperator : public MatrixOperator<VectorType>
+{
+public:
+  using value_type = typename VectorType::value_type;
+  using matrix_type = SparseMatrixDevice<value_type>;
+  using vector_type = VectorType;
+  using operator_type = MatrixOperator<vector_type>;
+
+  SparseMatrixDeviceOperator(std::shared_ptr<matrix_type> matrix);
+
+  virtual size_t m() const override final { return _matrix->m(); }
+
+  virtual size_t n() const override final { return _matrix->n(); }
+
+  size_t nnz() const { return _matrix->n_nonzero_elements(); }
+
+  virtual void apply(vector_type const &x, vector_type &y) const override final;
+
+  virtual std::shared_ptr<operator_type> transpose() const override final;
+
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &operator_b) const override final;
+
+  std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
+
+  virtual std::shared_ptr<vector_type>
+  build_domain_vector() const override final;
+
+  std::shared_ptr<vector_type> build_range_vector() const override final;
+
+private:
+  std::shared_ptr<matrix_type> _matrix;
+};
+
+template <typename VectorType>
 class DirectDeviceOperator : public Operator<VectorType>
 {
 public:

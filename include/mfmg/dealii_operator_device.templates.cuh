@@ -23,6 +23,127 @@
 namespace mfmg
 {
 template <typename VectorType>
+SparseMatrixDeviceOperator<VectorType>::SparseMatrixDeviceOperator(
+    std::shared_ptr<SparseMatrixDevice<typename VectorType::value_type>> matrix)
+    : _matrix(matrix)
+{
+  ASSERT(matrix != nullptr, "The matrix must exist");
+}
+
+template <typename VectorType>
+void SparseMatrixDeviceOperator<VectorType>::apply(VectorType const &x,
+                                                   VectorType &y) const
+{
+  _matrix->vmult(y, x);
+}
+
+template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+SparseMatrixDeviceOperator<VectorType>::transpose() const
+{
+  // TODO: to do this on the GPU
+  // Copy the data to the cpu and then, use the trilinos to compute the
+  // transpose. This is not the most efficient way to do this but it is the
+  // easiest.
+  unsigned int const local_nnz = _matrix->local_nnz();
+  unsigned int const n_local_rows = _matrix->n_local_rows();
+  std::vector<value_type> values(local_nnz);
+  std::vector<int> column_index(local_nnz);
+  std::vector<int> row_ptr(n_local_rows + 1);
+
+  // Copy the data to the host
+  cuda_mem_copy_to_host(_matrix->val_dev, values);
+  cuda_mem_copy_to_host(_matrix->column_index_dev, column_index);
+  cuda_mem_copy_to_host(_matrix->row_ptr_dev, row_ptr);
+
+  // Create the sparse matrix on the host
+  dealii::IndexSet locally_owned_rows = _matrix->locally_owned_range_indices();
+  dealii::TrilinosWrappers::SparseMatrix sparse_matrix(
+      locally_owned_rows, _matrix->locally_owned_domain_indices(),
+      _matrix->get_mpi_communicator());
+
+  std::vector<unsigned int> rows;
+  locally_owned_rows.fill_index_vector(rows);
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    unsigned int const row = rows[i];
+    unsigned int const n_cols = row_ptr[i + 1] - row_ptr[i];
+    for (unsigned int j = row_ptr[i]; j < row_ptr[i + 1]; ++j)
+      sparse_matrix.set(row, column_index[j], values[j]);
+  }
+  sparse_matrix.compress(dealii::VectorOperation::insert);
+
+  // Transpose the sparse matrix
+  auto epetra_matrix = sparse_matrix.trilinos_matrix();
+
+  EpetraExt::RowMatrix_Transpose transposer;
+  auto transposed_epetra_matrix =
+      dynamic_cast<Epetra_CrsMatrix &>(transposer(epetra_matrix));
+
+  auto transposed_matrix =
+      std::make_shared<matrix_type>(convert_matrix(transposed_epetra_matrix));
+  transposed_matrix->cusparse_handle = _matrix->cusparse_handle;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseCreateMatDescr(&transposed_matrix->descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatType(transposed_matrix->descr,
+                                           CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatIndexBase(transposed_matrix->descr,
+                                                CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  return std::make_shared<SparseMatrixDeviceOperator<VectorType>>(
+      transposed_matrix);
+}
+
+template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+SparseMatrixDeviceOperator<VectorType>::multiply(
+    MatrixOperator<VectorType> const &operator_b) const
+{
+  // Downcast to SparseMatrixDeviceOperator
+  auto downcast_operator_b =
+      static_cast<SparseMatrixDeviceOperator<VectorType> const &>(operator_b);
+
+  auto a = this->get_matrix();
+  auto b = downcast_operator_b.get_matrix();
+
+  // Initialize c
+  auto c = std::make_shared<matrix_type>(*a);
+
+  a->mmult(*c, *b);
+
+  return std::make_shared<SparseMatrixDeviceOperator<VectorType>>(c);
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+SparseMatrixDeviceOperator<VectorType>::build_domain_vector() const
+{
+  auto partitioner =
+      std::make_shared<const dealii::Utilities::MPI::Partitioner>(
+          _matrix->locally_owned_domain_indices(),
+          _matrix->get_mpi_communicator());
+
+  return std::make_shared<vector_type>(partitioner);
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+SparseMatrixDeviceOperator<VectorType>::build_range_vector() const
+{
+  auto partitioner =
+      std::make_shared<const dealii::Utilities::MPI::Partitioner>(
+          _matrix->locally_owned_range_indices(),
+          _matrix->get_mpi_communicator());
+
+  return std::make_shared<vector_type>(partitioner);
+}
+
+//-------------------------------------------------------------------------//
+
+template <typename VectorType>
 DirectDeviceOperator<VectorType>::DirectDeviceOperator(
     cusolverDnHandle_t cusolver_dn_handle,
     cusolverSpHandle_t cusolver_sp_handle,
