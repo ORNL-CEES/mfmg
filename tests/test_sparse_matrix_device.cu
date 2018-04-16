@@ -20,20 +20,6 @@
 
 #include <set>
 
-template <typename ScalarType>
-std::vector<ScalarType> copy_to_host(ScalarType *val_dev,
-                                     unsigned int n_elements)
-{
-  mfmg::ASSERT(n_elements > 0, "Cannot copy an empty array to the host");
-  std::vector<ScalarType> val_host(n_elements);
-  cudaError_t error_code =
-      cudaMemcpy(&val_host[0], val_dev, n_elements * sizeof(ScalarType),
-                 cudaMemcpyDeviceToHost);
-  mfmg::ASSERT_CUDA(error_code);
-
-  return val_host;
-}
-
 BOOST_AUTO_TEST_CASE(serial_mv)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -93,12 +79,8 @@ BOOST_AUTO_TEST_CASE(serial_mv)
       vector[i] = i;
 
     // Move the vector to the device
-    double *vector_val_dev;
-    cudaError_t cuda_error_code =
-        cudaMalloc(&vector_val_dev, vector_local_size * sizeof(double));
-    mfmg::ASSERT_CUDA(cuda_error_code);
-    mfmg::VectorDevice<double> vector_dev(vector_val_dev,
-                                          vector.get_partitioner());
+    mfmg::VectorDevice<double> vector_dev(vector.get_partitioner());
+    cudaError_t cuda_error_code;
     cuda_error_code =
         cudaMemcpy(vector_dev.val_dev, vector.begin(),
                    vector_local_size * sizeof(double), cudaMemcpyHostToDevice);
@@ -109,18 +91,13 @@ BOOST_AUTO_TEST_CASE(serial_mv)
     sparse_matrix.vmult(result, vector);
 
     // Perform the matrix-vector multiplication on the host
-    double *result_val_dev;
-    cuda_error_code =
-        cudaMalloc(&result_val_dev, vector_local_size * sizeof(double));
-    mfmg::ASSERT_CUDA(cuda_error_code);
-    mfmg::VectorDevice<double> result_dev(result_val_dev,
-                                          vector.get_partitioner());
+    mfmg::VectorDevice<double> result_dev(vector.get_partitioner());
 
     sparse_matrix_dev.vmult(result_dev, vector_dev);
 
     // Check the result
-    std::vector<double> result_host =
-        copy_to_host(result_dev.val_dev, vector_local_size);
+    std::vector<double> result_host(vector_local_size);
+    mfmg::cuda_mem_copy_to_host(result_dev.val_dev, result_host);
     for (unsigned int i = 0; i < vector_local_size; ++i)
       BOOST_CHECK_CLOSE(result[i], result_host[i], 1e-14);
 
@@ -208,12 +185,7 @@ BOOST_AUTO_TEST_CASE(distributed_mv)
       vector.local_element(i) = i;
 
     // Move the vector to the device
-    double *vector_val_dev;
-    cuda_error_code =
-        cudaMalloc(&vector_val_dev, vector_local_size * sizeof(double));
-    mfmg::ASSERT_CUDA(cuda_error_code);
-    mfmg::VectorDevice<double> vector_dev(vector_val_dev,
-                                          vector.get_partitioner());
+    mfmg::VectorDevice<double> vector_dev(vector.get_partitioner());
     cuda_error_code =
         cudaMemcpy(vector_dev.val_dev, vector.begin(),
                    vector_local_size * sizeof(double), cudaMemcpyHostToDevice);
@@ -224,18 +196,13 @@ BOOST_AUTO_TEST_CASE(distributed_mv)
     sparse_matrix.vmult(result, vector);
 
     // Perform the matrix-vector multiplication on the host
-    double *result_val_dev;
-    cuda_error_code =
-        cudaMalloc(&result_val_dev, vector_local_size * sizeof(double));
-    mfmg::ASSERT_CUDA(cuda_error_code);
-    mfmg::VectorDevice<double> result_dev(result_val_dev,
-                                          vector.get_partitioner());
+    mfmg::VectorDevice<double> result_dev(vector.get_partitioner());
 
     sparse_matrix_dev.vmult(result_dev, vector_dev);
 
     // Check the result
-    std::vector<double> result_host =
-        copy_to_host(result_dev.val_dev, vector_local_size);
+    std::vector<double> result_host(vector_local_size);
+    mfmg::cuda_mem_copy_to_host(result_dev.val_dev, result_host);
     for (unsigned int i = 0; i < vector_local_size; ++i)
       BOOST_CHECK_CLOSE(result.local_element(i), result_host[i], 1e-14);
   }
@@ -251,14 +218,14 @@ std::tuple<std::vector<ScalarType>, std::vector<int>, std::vector<int>>
 copy_sparse_matrix_to_host(
     mfmg::SparseMatrixDevice<ScalarType> const &sparse_matrix_dev)
 {
-  std::vector<ScalarType> val =
-      copy_to_host(sparse_matrix_dev.val_dev, sparse_matrix_dev.local_nnz());
+  std::vector<ScalarType> val(sparse_matrix_dev.local_nnz());
+  mfmg::cuda_mem_copy_to_host(sparse_matrix_dev.val_dev, val);
 
-  std::vector<int> column_index = copy_to_host(
-      sparse_matrix_dev.column_index_dev, sparse_matrix_dev.local_nnz());
+  std::vector<int> column_index(sparse_matrix_dev.local_nnz());
+  mfmg::cuda_mem_copy_to_host(sparse_matrix_dev.column_index_dev, column_index);
 
-  std::vector<int> row_ptr =
-      copy_to_host(sparse_matrix_dev.row_ptr_dev, sparse_matrix_dev.m() + 1);
+  std::vector<int> row_ptr(sparse_matrix_dev.m() + 1);
+  mfmg::cuda_mem_copy_to_host(sparse_matrix_dev.row_ptr_dev, row_ptr);
 
   return std::make_tuple(val, column_index, row_ptr);
 }
