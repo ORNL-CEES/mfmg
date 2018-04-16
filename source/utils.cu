@@ -155,8 +155,9 @@ SparseMatrixDevice<double> convert_matrix(Epetra_CrsMatrix const &sparse_matrix)
   ASSERT_CUDA(cuda_error);
 
   int *row_ptr_dev;
-  cuda_malloc(row_ptr_dev, local_nnz);
-  cuda_error = cudaMemcpy(row_ptr_dev, row_ptr_host, local_nnz * sizeof(int),
+  unsigned int const row_ptr_size = n_local_rows + 1;
+  cuda_malloc(row_ptr_dev, row_ptr_size);
+  cuda_error = cudaMemcpy(row_ptr_dev, row_ptr_host, row_ptr_size * sizeof(int),
                           cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error);
 
