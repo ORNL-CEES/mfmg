@@ -15,6 +15,7 @@
 #ifdef MFMG_WITH_CUDA
 
 #include <mfmg/exceptions.hpp>
+#include <mfmg/utils.cuh>
 
 #include <deal.II/base/partitioner.h>
 #include <memory>
@@ -28,11 +29,19 @@ namespace mfmg
 template <typename ScalarType>
 struct VectorDevice
 {
-  VectorDevice(ScalarType *values_dev,
-               std::shared_ptr<const dealii::Utilities::MPI::Partitioner> part)
-      : val_dev(values_dev), partitioner(part)
+  typedef ScalarType value_type;
+
+  VectorDevice(std::shared_ptr<const dealii::Utilities::MPI::Partitioner> part)
+      : partitioner(part)
   {
+    cuda_malloc(val_dev, partitioner->local_size());
   }
+
+  ~VectorDevice() { cuda_free(val_dev); }
+
+  ScalarType const *get_values() const { return val_dev; }
+
+  ScalarType *get_values() { return val_dev; }
 
   ScalarType *val_dev;
   std::shared_ptr<const dealii::Utilities::MPI::Partitioner> partitioner;
