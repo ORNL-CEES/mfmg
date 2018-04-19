@@ -169,6 +169,43 @@ SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
+    SparseMatrixDevice<ScalarType> const &other)
+    : _comm(other._comm), cusparse_handle(other.cusparse_handle),
+      _local_nnz(other._local_nnz), _nnz(other._nnz),
+      _range_indexset(other._range_indexset),
+      _domain_indexset(other._domain_indexset)
+{
+  cuda_malloc(val_dev, _local_nnz);
+  cudaError_t cuda_error_code;
+  cuda_error_code =
+      cudaMemcpy(val_dev, other.val_dev, _local_nnz * sizeof(ScalarType),
+                 cudaMemcpyDeviceToDevice);
+  ASSERT_CUDA(cuda_error_code);
+
+  cuda_malloc(column_index_dev, _local_nnz);
+  cuda_error_code =
+      cudaMemcpy(column_index_dev, other.column_index_dev,
+                 _local_nnz * sizeof(int), cudaMemcpyDeviceToDevice);
+  ASSERT_CUDA(cuda_error_code);
+
+  unsigned int const size = _range_indexset.n_elements() + 1;
+  cuda_malloc(row_ptr_dev, size);
+  cuda_error_code = cudaMemcpy(row_ptr_dev, other.row_ptr_dev,
+                               size * sizeof(int), cudaMemcpyDeviceToDevice);
+  ASSERT_CUDA(cuda_error_code);
+
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseCreateMatDescr(&descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code =
+      cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+}
+
+template <typename ScalarType>
+SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
     MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
     int *row_ptr_dev_, unsigned int local_nnz,
     dealii::IndexSet const &range_indexset,
@@ -266,6 +303,11 @@ void SparseMatrixDevice<ScalarType>::mmult(
   // TODO Communicate the values
 
   // Compute the number of non-zero elements in C
+  ASSERT(B.m() == n(), "The matrices cannot be multiplied together. You are "
+                       "trying to mutiply a " +
+                           std::to_string(m()) + " by " + std::to_string(n()) +
+                           " matrix with a " + std::to_string(B.m()) + " by " +
+                           std::to_string(B.n()));
   int C_local_nnz = 0;
   cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
   cusparseStatus_t cusparse_error_code;
@@ -287,7 +329,7 @@ void SparseMatrixDevice<ScalarType>::mmult(
       cudaMalloc(&C.column_index_dev, C_local_nnz * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
   cuda_error_code =
-      cudaMalloc(&C.row_ptr_dev, C_local_nnz * sizeof(ScalarType));
+      cudaMalloc(&C.row_ptr_dev, n_local_rows() * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
   C._local_nnz = C_local_nnz;
   C._range_indexset = _range_indexset;

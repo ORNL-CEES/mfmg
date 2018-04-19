@@ -12,4 +12,6 @@
 #include <mfmg/dealii_operator_device.templates.cuh>
 #include <mfmg/vector_device.cuh>
 
+template class mfmg::SparseMatrixDeviceOperator<mfmg::VectorDevice<double>>;
+
 template class mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>>;
