@@ -67,7 +67,9 @@ SparseMatrixDeviceOperator<VectorType>::transpose() const
   for (unsigned int i = 0; i < n_local_rows; ++i)
   {
     unsigned int const row = rows[i];
-    unsigned int const n_cols = row_ptr[i + 1] - row_ptr[i];
+    // deal.II has functions that use pointers but the pointers need to be
+    // unsigned int instead of int. To avoid any problem, we set the elements
+    // one by one which makes sure that the cast is correct.
     for (unsigned int j = row_ptr[i]; j < row_ptr[i + 1]; ++j)
       sparse_matrix.set(row, column_index[j], values[j]);
   }

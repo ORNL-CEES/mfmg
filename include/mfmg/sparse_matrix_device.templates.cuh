@@ -329,7 +329,7 @@ void SparseMatrixDevice<ScalarType>::mmult(
       cudaMalloc(&C.column_index_dev, C_local_nnz * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
   cuda_error_code =
-      cudaMalloc(&C.row_ptr_dev, C_local_nnz * sizeof(ScalarType));
+      cudaMalloc(&C.row_ptr_dev, n_local_rows() * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
   C._local_nnz = C_local_nnz;
   C._range_indexset = _range_indexset;
