@@ -13,5 +13,5 @@
 #include <mfmg/vector_device.cuh>
 
 template class mfmg::SparseMatrixDeviceOperator<mfmg::VectorDevice<double>>;
-
+template class mfmg::SmootherDeviceOperator<mfmg::VectorDevice<double>>;
 template class mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>>;

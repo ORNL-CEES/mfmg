@@ -59,6 +59,37 @@ private:
 };
 
 template <typename VectorType>
+class SmootherDeviceOperator : public Operator<VectorType>
+{
+public:
+  using value_type = typename VectorType::value_type;
+  using vector_type = VectorType;
+  using matrix_type = SparseMatrixDevice<value_type>;
+  using operator_type = Operator<vector_type>;
+
+  SmootherDeviceOperator(matrix_type const &matrix,
+                         std::shared_ptr<boost::property_tree::ptree> params);
+
+  virtual size_t m() const override final { return _matrix.m(); }
+
+  virtual size_t n() const override final { return _matrix.n(); }
+
+  virtual void apply(vector_type const &b, vector_type &x) const override final;
+
+  virtual std::shared_ptr<VectorType>
+  build_domain_vector() const override final;
+
+  virtual std::shared_ptr<VectorType> build_range_vector() const override final;
+
+private:
+  void initialize(std::string &prec_type);
+
+  matrix_type const &_matrix;
+
+  matrix_type _smoother;
+};
+
+template <typename VectorType>
 class DirectDeviceOperator : public Operator<VectorType>
 {
 public:
