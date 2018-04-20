@@ -37,7 +37,16 @@ struct VectorDevice
     cuda_malloc(val_dev, partitioner->local_size());
   }
 
-  ~VectorDevice() { cuda_free(val_dev); }
+  /**
+   * Copy constructor. Note that the vectors share the same partitioner so
+   * changing the partitioner of one vector will change the partitioner in the
+   * other.
+   */
+  VectorDevice(VectorDevice const &other);
+
+  ~VectorDevice();
+
+  void add(ScalarType alpha, VectorDevice<ScalarType> const &x);
 
   ScalarType const *get_values() const { return val_dev; }
 
