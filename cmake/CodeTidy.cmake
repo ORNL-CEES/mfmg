@@ -8,12 +8,12 @@ IF (NOT CLANG_TIDY_EXECUTABLE)
   IF (CLANG_TIDY_EXECUTABLE)
     MESSAGE("-- Found clang-tidy " ${CLANG_TIDY_EXECUTABLE})
   ELSE()
-    MESSAGE(FATAL_ERROR "-- clang-tidy not found")
+    MESSAGE(SEND_ERROR "-- clang-tidy not found")
   ENDIF()
 ELSE()
   MESSAGE("-- Using clang-tidy: ${CLANG_TIDY_EXECUTABLE}")
   IF(NOT EXISTS ${CLANG_TIDY_EXECUTABLE})
-    MESSAGE(FATAL_ERROR "-- clang-tidy path is invalid")
+    MESSAGE(SEND_ERROR "-- clang-tidy path is invalid")
   ENDIF()
 ENDIF()
 
@@ -23,7 +23,7 @@ EXECUTE_PROCESS(
   OUTPUT_VARIABLE CLANG_TIDY_VERSION
   )
 IF(NOT CLANG_TIDY_VERSION MATCHES "5.0")
-    MESSAGE(FATAL_ERROR "You must use clang-tidy version 5.0")
+    MESSAGE(SEND_ERROR "You must use clang-tidy version 5.0")
 ENDIF()
 
 # Run clang-tidy on each of the C++ source file of the project
