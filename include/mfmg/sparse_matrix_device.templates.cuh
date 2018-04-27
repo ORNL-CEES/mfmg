@@ -18,8 +18,6 @@
 
 #include <deal.II/base/mpi.h>
 
-#define BLOCK_SIZE 512
-
 namespace mfmg
 {
 namespace internal
@@ -131,8 +129,8 @@ void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
                  cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error_code);
 
-  int n_blocks = 1 + (size - 1) / BLOCK_SIZE;
-  internal::reorder_vector<<<n_blocks, BLOCK_SIZE>>>(size, dst_buffer,
+  int n_blocks = 1 + (size - 1) / block_size;
+  internal::reorder_vector<<<n_blocks, block_size>>>(size, dst_buffer,
                                                      indices_dev, dst);
   cuda_free(dst_buffer);
 }

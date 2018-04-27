@@ -27,6 +27,11 @@ template <typename ScalarType>
 class SparseMatrixDevice;
 
 /**
+ * Define the size of a block when launching a CUDA kernel.
+ */
+unsigned int constexpr block_size = 512;
+
+/**
  * Convert a dealii::SparseMatrix to the regular CSR format and move the data to
  * the GPU.
  */

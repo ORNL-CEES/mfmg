@@ -16,8 +16,6 @@
 
 #include <mfmg/vector_device.cuh>
 
-#define BLOCK_SIZE 512
-
 namespace mfmg
 {
 namespace internal
@@ -62,8 +60,8 @@ void VectorDevice<ScalarType>::add(ScalarType alpha,
   ASSERT(local_size == x.partitioner->local_size(),
          "The vectors don't have the same local size.");
 
-  int n_blocks = 1 + (local_size - 1) / BLOCK_SIZE;
-  internal::add<<<n_blocks, BLOCK_SIZE>>>(local_size, alpha, x.val_dev,
+  int n_blocks = 1 + (local_size - 1) / block_size;
+  internal::add<<<n_blocks, block_size>>>(local_size, alpha, x.val_dev,
                                           val_dev);
 }
 }

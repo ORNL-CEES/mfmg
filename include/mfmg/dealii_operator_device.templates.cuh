@@ -20,8 +20,6 @@
 
 #include <algorithm>
 
-#define BLOCK_SIZE 512
-
 namespace mfmg
 {
 template <typename VectorType>
@@ -244,15 +242,15 @@ void SmootherDeviceOperator<VectorType>::initialize(std::string &prec_type)
                        size, row_index_coo_dev, CUSPARSE_INDEX_BASE_ZERO);
   ASSERT_CUSPARSE(cusparse_error_code);
 
-  int n_blocks = 1 + (local_nnz - 1) / BLOCK_SIZE;
-  internal::extract_inv_diag<<<n_blocks, BLOCK_SIZE>>>(
+  int n_blocks = 1 + (local_nnz - 1) / block_size;
+  internal::extract_inv_diag<<<n_blocks, block_size>>>(
       _matrix.val_dev, _matrix.column_index_dev, row_index_coo_dev, local_nnz,
       val_dev);
 
-  iota<<<n_blocks, BLOCK_SIZE>>>(size, column_index_dev);
+  iota<<<n_blocks, block_size>>>(size, column_index_dev);
 
-  n_blocks = 1 + size / BLOCK_SIZE;
-  iota<<<n_blocks, BLOCK_SIZE>>>(size + 1, row_ptr_dev);
+  n_blocks = 1 + size / block_size;
+  iota<<<n_blocks, block_size>>>(size + 1, row_ptr_dev);
 
   _smoother.reinit(_matrix.get_mpi_communicator(), val_dev, column_index_dev,
                    row_ptr_dev, size, _matrix.locally_owned_range_indices(),
