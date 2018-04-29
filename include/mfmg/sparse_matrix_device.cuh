@@ -48,6 +48,15 @@ public:
 
   ~SparseMatrixDevice();
 
+  /**
+   * Reinitialize the matrix. This can only be called if the object it empty.
+   */
+  void reinit(MPI_Comm comm, ScalarType *val_dev, int *column_index_dev,
+              int *row_ptr_dev, unsigned int local_nnz,
+              dealii::IndexSet const &range_indexset,
+              dealii::IndexSet const &domain_indexset,
+              cusparseHandle_t cusparse_handle);
+
   unsigned int m() const { return _range_indexset.size(); }
 
   unsigned int n_local_rows() const { return _range_indexset.n_elements(); }
@@ -63,7 +72,7 @@ public:
   dealii::IndexSet locally_owned_range_indices() const;
 
   void vmult(VectorDevice<ScalarType> &dst,
-             VectorDevice<ScalarType> const &src);
+             VectorDevice<ScalarType> const &src) const;
 
   /**
    * Perform the matrix-matrix multiplication C=A*B. This function assumes that

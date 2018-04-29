@@ -13,6 +13,7 @@ IF (${MFMG_ENABLE_CUDA})
     ${CMAKE_CURRENT_SOURCE_DIR}/dealii_operator_device_helpers.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/sparse_matrix_device.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/utils.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/vector_device.cu
     )
 ENDIF()
 

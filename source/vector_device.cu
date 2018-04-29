@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017-2018 by the mfmg authors                           *
+ * Copyright (c) 2018 by the mfmg authors                                *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -9,9 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_operator_device.templates.cuh>
-#include <mfmg/vector_device.cuh>
+#include <mfmg/vector_device.templates.cuh>
 
-template class mfmg::SparseMatrixDeviceOperator<mfmg::VectorDevice<double>>;
-template class mfmg::SmootherDeviceOperator<mfmg::VectorDevice<double>>;
-template class mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>>;
+// Cannot use the instantiation macro with nvcc
+template class mfmg::VectorDevice<float>;
+template class mfmg::VectorDevice<double>;

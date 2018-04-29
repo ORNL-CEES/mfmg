@@ -18,8 +18,6 @@
 
 #include <deal.II/base/mpi.h>
 
-#define BLOCK_SIZE 512
-
 namespace mfmg
 {
 namespace internal
@@ -131,8 +129,8 @@ void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
                  cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error_code);
 
-  int n_blocks = 1 + (size - 1) / BLOCK_SIZE;
-  internal::reorder_vector<<<n_blocks, BLOCK_SIZE>>>(size, dst_buffer,
+  int n_blocks = 1 + (size - 1) / block_size;
+  internal::reorder_vector<<<n_blocks, block_size>>>(size, dst_buffer,
                                                      indices_dev, dst);
   cuda_free(dst_buffer);
 }
@@ -242,6 +240,40 @@ SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
 }
 
 template <typename ScalarType>
+void SparseMatrixDevice<ScalarType>::reinit(
+    MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
+    int *row_ptr_dev_, unsigned int local_nnz,
+    dealii::IndexSet const &range_indexset,
+    dealii::IndexSet const &domain_indexset, cusparseHandle_t cusparse_handle_)
+{
+  // This function can only be called if the object is empty. Otherwise we need
+  // to deal with the ownership of the data
+  ASSERT((val_dev == nullptr) && (column_index_dev == nullptr) &&
+             (row_ptr_dev == nullptr),
+         "Cannot reinit a SparseMatrixDevice which is not empty.");
+  val_dev = val_dev_;
+  column_index_dev = column_index_dev_;
+  row_ptr_dev = row_ptr_dev_;
+
+  cusparse_handle = cusparse_handle_;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseCreateMatDescr(&descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatType(descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code =
+      cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  _comm = comm;
+  _local_nnz = local_nnz;
+  _nnz = _local_nnz;
+  dealii::Utilities::MPI::sum(_nnz, _comm);
+  _range_indexset = range_indexset;
+  _domain_indexset = domain_indexset;
+}
+
+template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
 {
   if (val_dev != nullptr)
@@ -277,8 +309,8 @@ SparseMatrixDevice<ScalarType>::locally_owned_range_indices() const
 }
 
 template <typename ScalarType>
-void SparseMatrixDevice<ScalarType>::vmult(VectorDevice<ScalarType> &dst,
-                                           VectorDevice<ScalarType> const &src)
+void SparseMatrixDevice<ScalarType>::vmult(
+    VectorDevice<ScalarType> &dst, VectorDevice<ScalarType> const &src) const
 {
   // Get the whole src vector
   unsigned int const size = src.partitioner->size();

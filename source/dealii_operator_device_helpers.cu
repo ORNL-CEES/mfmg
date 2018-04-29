@@ -256,6 +256,13 @@ void lu_factorization(cusolverSpHandle_t cusolver_sp_handle,
   cuda_mem_copy_to_dev(x_host, x_dev);
 }
 
+__global__ void iota(int const size, int *value)
+{
+  int idx = threadIdx.x + blockIdx.x * blockDim.x;
+  if (idx < size)
+    value[idx] = idx;
+}
+
 template void lu_factorization<float>(cusolverDnHandle_t cusolver_dn_handle,
                                       SparseMatrixDevice<float> const &matrix,
                                       float const *b, float *x);

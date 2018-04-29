@@ -18,8 +18,6 @@
 
 #include <deal.II/dofs/dof_accessor.h>
 
-#define BLOCK_SIZE 512
-
 namespace mfmg
 {
 namespace internal
@@ -258,8 +256,8 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
                                n_eigenvectors * sizeof(ScalarType));
 
   ASSERT_CUDA(cuda_error_code);
-  int n_blocks = 1 + (n_eigenvectors - 1) / BLOCK_SIZE;
-  internal::restrict_array<<<n_blocks, BLOCK_SIZE>>>(
+  int n_blocks = 1 + (n_eigenvectors - 1) / block_size;
+  internal::restrict_array<<<n_blocks, block_size>>>(
       n_rows, eigenvalues_dev, n_eigenvectors, smallest_eigenvalues_dev);
   // Check that the kernel was launched correctly
   ASSERT_CUDA(cudaGetLastError());
@@ -271,8 +269,8 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
   cuda_error_code = cudaMalloc(&eigenvectors_dev,
                                n_eigenvectors * n_rows * sizeof(ScalarType));
   ASSERT_CUDA(cuda_error_code);
-  n_blocks = 1 + (n_eigenvectors * n_rows - 1) / BLOCK_SIZE;
-  internal::restrict_array<<<n_blocks, BLOCK_SIZE>>>(
+  n_blocks = 1 + (n_eigenvectors * n_rows - 1) / block_size;
+  internal::restrict_array<<<n_blocks, block_size>>>(
       n_rows * n_rows, dense_system_matrix_dev, n_eigenvectors * n_rows,
       eigenvectors_dev);
   // Check that the kernel was launched correctly
