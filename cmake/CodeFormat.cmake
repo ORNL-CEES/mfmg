@@ -8,12 +8,12 @@ IF(NOT CLANG_FORMAT_EXECUTABLE)
   IF(CLANG_FORMAT_EXECUTABLE)
     MESSAGE("-- Found clang-format: ${CLANG_FORMAT_EXECUTABLE}")
   ELSE()
-    MESSAGE(FATAL_ERROR "-- clang-format not found")
+    MESSAGE(SEND_ERROR "-- clang-format not found")
   ENDIF()
 ELSE()
   MESSAGE("-- Using clang-format: ${CLANG_FORMAT_EXECUTABLE}")
   IF(NOT EXISTS ${CLANG_FORMAT_EXECUTABLE})
-    MESSAGE(FATAL_ERROR "-- clang-format path is invalid")
+    MESSAGE(SEND_ERROR "-- clang-format path is invalid")
   ENDIF()
 ENDIF()
 
@@ -23,7 +23,7 @@ EXECUTE_PROCESS(
   OUTPUT_VARIABLE CLANG_FORMAT_VERSION
   )
 IF(NOT CLANG_FORMAT_VERSION MATCHES "5.0")
-    MESSAGE(FATAL_ERROR "You must use clang-format version 5.0")
+    MESSAGE(SEND_ERROR "You must use clang-format version 5.0")
 ENDIF()
 
 # Download diff-clang-format.py from ORNL-CEES/Cap
