@@ -14,6 +14,8 @@
 
 #include <mfmg/amge.hpp>
 
+#include <mfmg/exceptions.hpp>
+
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -209,6 +211,136 @@ void AMGe<dim, VectorType>::output(std::string const &filename) const
     std::ofstream master_output(filename + ".pvtu");
     data_out.write_pvtu_record(master_output, full_filenames);
   }
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
+    std::vector<dealii::Vector<typename VectorType::value_type>> const
+        &eigenvectors,
+    std::vector<std::vector<typename VectorType::value_type>> const
+        &diag_elements,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors,
+    dealii::LinearAlgebra::distributed::Vector<
+        typename VectorType::value_type> const &locally_relevant_global_diag,
+    dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const
+{
+  // Compute the sparsity pattern (Epetra_FECrsGraph)
+  dealii::TrilinosWrappers::SparsityPattern restriction_sp =
+      compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps,
+                                           n_local_eigenvectors);
+
+  // Build the restriction sparse matrix
+  restriction_sparse_matrix.reinit(restriction_sp);
+  std::pair<dealii::types::global_dof_index,
+            dealii::types::global_dof_index> const local_range =
+      restriction_sp.local_range();
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int k = 0; k < n_local_eig; ++k)
+    {
+      unsigned int const n_elem = eigenvectors[pos].size();
+      for (unsigned int j = 0; j < n_elem; ++j)
+      {
+        dealii::types::global_dof_index const global_pos =
+            dof_indices_maps[i][j];
+        restriction_sparse_matrix.add(
+            local_range.first + pos, global_pos,
+            diag_elements[i][j] / locally_relevant_global_diag[global_pos] *
+                eigenvectors[pos][j]);
+      }
+      ++pos;
+    }
+  }
+
+  // Compress the matrix
+  restriction_sparse_matrix.compress(dealii::VectorOperation::add);
+
+#if MFMG_DEBUG
+  // Check that the sum of the weight matrices is the identity
+  auto locally_owned_dofs =
+      locally_relevant_global_diag.locally_owned_elements();
+  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
+                                               locally_owned_dofs, this->_comm);
+  for (auto local_index : locally_owned_dofs)
+    sp.add(local_index, local_index);
+  sp.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
+  pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_elem = eigenvectors[pos].size();
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      double const value =
+          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
+      weight_matrix.add(global_pos, global_pos, value);
+    }
+    ++pos;
+  }
+
+  // Compress the matrix
+  weight_matrix.compress(dealii::VectorOperation::add);
+
+  for (auto index : locally_owned_dofs)
+    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
+           "Sum of local weight matrices is not the identity");
+#endif
+}
+
+template <int dim, typename VectorType>
+dealii::TrilinosWrappers::SparsityPattern
+AMGe<dim, VectorType>::compute_restriction_sparsity_pattern(
+    std::vector<dealii::Vector<double>> const &eigenvectors,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors) const
+{
+  // Compute the row IndexSet
+  int const n_procs = dealii::Utilities::MPI::n_mpi_processes(this->_comm);
+  int const rank = dealii::Utilities::MPI::this_mpi_process(this->_comm);
+  unsigned int const n_local_rows(eigenvectors.size());
+  std::vector<unsigned int> n_rows_per_proc(n_procs);
+  n_rows_per_proc[rank] = n_local_rows;
+  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &n_rows_per_proc[0], 1,
+                MPI_UNSIGNED, this->_comm);
+
+  dealii::types::global_dof_index n_total_rows =
+      std::accumulate(n_rows_per_proc.begin(), n_rows_per_proc.end(),
+                      static_cast<dealii::types::global_dof_index>(0));
+  dealii::types::global_dof_index n_rows_before =
+      std::accumulate(n_rows_per_proc.begin(), n_rows_per_proc.begin() + rank,
+                      static_cast<dealii::types::global_dof_index>(0));
+  dealii::IndexSet row_indexset(n_total_rows);
+  row_indexset.add_range(n_rows_before, n_rows_before + n_local_rows);
+  row_indexset.compress();
+
+  // Build the sparsity pattern
+  dealii::TrilinosWrappers::SparsityPattern sp(
+      row_indexset, this->_dof_handler.locally_owned_dofs(), this->_comm);
+
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int row = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int j = 0; j < n_local_eig; ++j)
+    {
+      sp.add_entries(n_rows_before + row, dof_indices_maps[i].begin(),
+                     dof_indices_maps[i].end());
+      ++row;
+    }
+  }
+
+  sp.compress();
+
+  return sp;
 }
 }
 
