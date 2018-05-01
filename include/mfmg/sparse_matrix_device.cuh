@@ -65,7 +65,7 @@ public:
 
   unsigned int local_nnz() const { return _local_nnz; }
 
-  unsigned int n_nonzero_elements() const { return _nnz; };
+  unsigned int n_nonzero_elements() const { return _nnz; }
 
   dealii::IndexSet locally_owned_domain_indices() const;
 
