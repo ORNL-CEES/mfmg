@@ -11,13 +11,18 @@
 
 #include <mfmg/amge_device.templates.cuh>
 
+#include <mfmg/dealii_adapters_device.cuh>
+
 #include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/trilinos_solver.h>
 
 // Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<2, dealii::TrilinosWrappers::MPI::Vector>;
 template class mfmg::AMGe_device<
-    2, dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<3, dealii::TrilinosWrappers::MPI::Vector>;
+    2,
+    mfmg::DealIIMeshEvaluatorDevice<
+        2, dealii::LinearAlgebra::distributed::Vector<double>>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
 template class mfmg::AMGe_device<
-    3, dealii::LinearAlgebra::distributed::Vector<double>>;
+    3,
+    mfmg::DealIIMeshEvaluatorDevice<
+        3, dealii::LinearAlgebra::distributed::Vector<double>>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
