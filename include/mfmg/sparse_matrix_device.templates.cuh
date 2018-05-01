@@ -277,13 +277,22 @@ template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
 {
   if (val_dev != nullptr)
+  {
     cuda_free(val_dev);
+    val_dev = nullptr;
+  }
 
   if (column_index_dev != nullptr)
+  {
     cuda_free(column_index_dev);
+    column_index_dev = nullptr;
+  }
 
   if (row_ptr_dev != nullptr)
+  {
     cuda_free(row_ptr_dev);
+    row_ptr_dev = nullptr;
+  }
 
   if (descr != nullptr)
   {
@@ -354,16 +363,12 @@ void SparseMatrixDevice<ScalarType>::mmult(
   cuda_free(C.val_dev);
   cuda_free(C.column_index_dev);
   cuda_free(C.row_ptr_dev);
-  cudaError_t cuda_error_code;
-  cuda_error_code = cudaMalloc(&C.val_dev, C_local_nnz * sizeof(ScalarType));
-  ASSERT_CUDA(cuda_error_code);
-  cuda_error_code =
-      cudaMalloc(&C.column_index_dev, C_local_nnz * sizeof(ScalarType));
-  ASSERT_CUDA(cuda_error_code);
-  cuda_error_code =
-      cudaMalloc(&C.row_ptr_dev, n_local_rows() * sizeof(ScalarType));
-  ASSERT_CUDA(cuda_error_code);
+  cuda_malloc(C.val_dev, C_local_nnz);
+  cuda_malloc(C.column_index_dev, C_local_nnz);
+  cuda_malloc(C.row_ptr_dev, n_local_rows() + 1);
   C._local_nnz = C_local_nnz;
+  C._nnz = C._local_nnz;
+  dealii::Utilities::MPI::sum(C._nnz, C._comm);
   C._range_indexset = _range_indexset;
   C._domain_indexset = B._domain_indexset;
 
