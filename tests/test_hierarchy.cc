@@ -331,7 +331,7 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
 
     double const conv_rate = test<dim>(params);
 
-    // This is gold standard test. Not the greatest but it makes sure we don't
+    // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
     std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
     ref_solution[std::make_tuple("hyper_cube", false, "None")] = 0.0425111106;
@@ -353,8 +353,6 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
               ref_solution[std::make_tuple(mesh, distort_random, reordering)],
           tt::tolerance(1e-6));
     else
-      // TODO investigate why on the hyper_ball the error is larger on the
-      // testing machine
       BOOST_TEST(
           conv_rate ==
               ref_solution[std::make_tuple(mesh, distort_random, reordering)],

@@ -14,6 +14,7 @@
 #include "main.cc"
 
 #include <mfmg/amge_device.cuh>
+#include <mfmg/dealii_adapters_device.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
@@ -23,59 +24,88 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
-void diagonal_matrices(
-    dealii::DoFHandler<2> &dof_handler,
-    dealii::ConstraintMatrix &constraint_matrix,
-    std::shared_ptr<mfmg::SparseMatrixDevice<double>> &system_matrix_dev,
-    std::shared_ptr<mfmg::SparseMatrixDevice<double>> &mass_matrix_dev)
+template <int dim, typename VectorType>
+class DiagonalTestMeshEvaluator
+    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
 {
-  // Build the matrix on the host
-  dealii::FE_Q<2> fe(1);
-  dof_handler.distribute_dofs(fe);
-  constraint_matrix.clear();
-  dealii::SparsityPattern system_sparsity_pattern;
-  dealii::SparseMatrix<double> system_matrix;
-  dealii::SparsityPattern mass_sparsity_pattern;
-  dealii::SparseMatrix<double> mass_matrix;
+public:
+  using value_type = typename VectorType::value_type;
 
-  unsigned int const size = 30;
-  std::vector<std::vector<unsigned int>> column_indices(
-      size, std::vector<unsigned int>(1));
-  for (unsigned int i = 0; i < size; ++i)
-    column_indices[i][0] = i;
-  mass_sparsity_pattern.copy_from(size, size, column_indices.begin(),
-                                  column_indices.end());
-  system_sparsity_pattern.copy_from(mass_sparsity_pattern);
-  system_matrix.reinit(system_sparsity_pattern);
-  mass_matrix.reinit(mass_sparsity_pattern);
-  for (unsigned int i = 0; i < size; ++i)
+  DiagonalTestMeshEvaluator(cusolverDnHandle_t cusolver_dn_handle,
+                            cusolverSpHandle_t cusolver_sp_handle,
+                            cusparseHandle_t cusparse_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
+            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle)
   {
-    system_matrix.diag_element(i) = static_cast<double>(i + 1);
-    mass_matrix.diag_element(i) = 1.;
   }
 
-  // Move the matrices to the device
-  system_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
-      mfmg::convert_matrix(system_matrix));
-  mass_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
-      mfmg::convert_matrix(mass_matrix));
-  std::cout << system_matrix_dev.use_count() << std::endl;
-  std::cout << system_matrix_dev->val_dev << std::endl;
-}
+  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
+  get_locally_relevant_diag() const override final
+  {
+    return dealii::LinearAlgebra::distributed::Vector<value_type>();
+  }
+
+protected:
+  virtual void evaluate_local(dealii::DoFHandler<2> &dof_handler,
+                              dealii::ConstraintMatrix &constraint_matrix,
+                              std::shared_ptr<mfmg::SparseMatrixDevice<double>>
+                                  &system_matrix_dev) const override final
+  {
+    // Build the matrix on the host
+    dealii::FE_Q<2> fe(1);
+    dof_handler.distribute_dofs(fe);
+    constraint_matrix.clear();
+    dealii::SparsityPattern system_sparsity_pattern;
+    dealii::SparseMatrix<double> system_matrix;
+
+    unsigned int const size = 30;
+    std::vector<std::vector<unsigned int>> column_indices(
+        size, std::vector<unsigned int>(1));
+    for (unsigned int i = 0; i < size; ++i)
+      column_indices[i][0] = i;
+    system_sparsity_pattern.copy_from(size, size, column_indices.begin(),
+                                      column_indices.end());
+    system_matrix.reinit(system_sparsity_pattern);
+    for (unsigned int i = 0; i < size; ++i)
+    {
+      system_matrix.diag_element(i) = static_cast<double>(i + 1);
+    }
+
+    // Move the matrices to the device
+    system_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+        mfmg::convert_matrix(system_matrix));
+  }
+
+  virtual void evaluate_global(dealii::DoFHandler<2> &dof_handler,
+                               dealii::ConstraintMatrix &constraint_matrix,
+                               std::shared_ptr<mfmg::SparseMatrixDevice<double>>
+                                   &system_matrix_dev) const override final
+  {
+  }
+};
 
 BOOST_AUTO_TEST_CASE(diagonal)
 {
+  int constexpr dim = 2;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluatorDevice<dim, Vector>;
+
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(3);
-  dealii::FE_Q<2> fe(1);
-  dealii::DoFHandler<2> dof_handler(triangulation);
+  dealii::FE_Q<dim> fe(1);
+  dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
 
-  // Initialize cuSOLVER
+  // Initialize dense cuSOLVER
   cusolverDnHandle_t cusolver_dn_handle = nullptr;
   cusolverStatus_t cusolver_error_code;
   cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+
+  // Initialize sparse cuSOLVER
+  cusolverSpHandle_t cusolver_sp_handle = nullptr;
+  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
   mfmg::ASSERT_CUSOLVER(cusolver_error_code);
 
   // Initialize cuSPARSE
@@ -84,22 +114,26 @@ BOOST_AUTO_TEST_CASE(diagonal)
   cusparse_error_code = cusparseCreate(&cusparse_handle);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
-  mfmg::AMGe_device<2, dealii::LinearAlgebra::distributed::Vector<double>> amge(
+  mfmg::AMGe_device<dim, DummyMeshEvaluator, Vector> amge(
       MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
 
   unsigned int const n_eigenvectors = 5;
-  std::map<typename dealii::Triangulation<2>::active_cell_iterator,
-           typename dealii::DoFHandler<2>::active_cell_iterator>
+  std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+           typename dealii::DoFHandler<dim>::active_cell_iterator>
       patch_to_global_map;
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
+  DiagonalTestMeshEvaluator<dim, Vector> evaluator(
+      cusolver_dn_handle, cusolver_sp_handle, cusparse_handle);
   double *eigenvalues_dev;
   double *eigenvectors_dev;
+  double *diag_elements_dev;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
-  std::tie(eigenvalues_dev, eigenvectors_dev, dof_indices_map) =
+  std::tie(eigenvalues_dev, eigenvectors_dev, diag_elements_dev,
+           dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, triangulation,
-                                      patch_to_global_map, diagonal_matrices);
+                                      patch_to_global_map, evaluator);
 
   unsigned int const n_dofs = dof_handler.n_dofs();
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(n_dofs);
@@ -142,13 +176,17 @@ BOOST_AUTO_TEST_CASE(diagonal)
   }
 
   // Free memory allocated on device
-  cuda_error_code = cudaFree(eigenvalues_dev);
-  mfmg::ASSERT_CUDA(cuda_error_code);
-  cuda_error_code = cudaFree(eigenvectors_dev);
-  mfmg::ASSERT_CUDA(cuda_error_code);
+  mfmg::cuda_free(eigenvalues_dev);
+  mfmg::cuda_free(eigenvectors_dev);
+  mfmg::cuda_free(diag_elements_dev);
 
-  // Destroy cusolver_handle
+  // Destroy cusolver_dn_handle
   cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+  cusolver_dn_handle = nullptr;
+
+  // Destroy cusolver_sp_handle
+  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
   mfmg::ASSERT_CUSOLVER(cusolver_error_code);
   cusolver_dn_handle = nullptr;
 

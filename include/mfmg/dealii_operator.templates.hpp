@@ -229,7 +229,8 @@ void DealIISmootherOperator<VectorType>::initialize(
 
 template <typename VectorType>
 DealIIDirectOperator<VectorType>::DealIIDirectOperator(
-    dealii::TrilinosWrappers::SparseMatrix const &matrix)
+    dealii::TrilinosWrappers::SparseMatrix const &matrix,
+    std::shared_ptr<boost::property_tree::ptree>)
 {
   _solver.reset(new solver_type(_solver_control));
   _solver->initialize(matrix);

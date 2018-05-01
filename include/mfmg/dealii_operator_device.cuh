@@ -99,9 +99,10 @@ public:
   using operator_type = Operator<vector_type>;
 
   // Need to move the matrix to only one gpu -> need gather/scatter
-  DirectDeviceOperator(cusolverDnHandle_t cusolver_dn_handle,
-                       cusolverSpHandle_t cusolver_sp_handle,
-                       matrix_type const &matrix, std::string const &solver);
+  DirectDeviceOperator(cusolverDnHandle_t const cusolver_dn_handle,
+                       cusolverSpHandle_t const cusolver_sp_handle,
+                       matrix_type const &matrix,
+                       std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual size_t m() const override final { return _matrix.m(); }
 

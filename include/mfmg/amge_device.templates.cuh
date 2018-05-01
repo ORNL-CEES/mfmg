@@ -14,6 +14,8 @@
 
 #include <mfmg/amge_device.cuh>
 
+#include <mfmg/dealii_mesh.hpp>
+
 #include <mfmg/utils.cuh>
 
 #include <deal.II/dofs/dof_accessor.h>
@@ -163,6 +165,29 @@ void compute_local_eigenvectors<double>(cusolverDnHandle_t handle, int n,
 }
 
 template <typename ScalarType>
+__global__ void extract_diag(ScalarType const *matrix, int n_rows, int n_cols,
+                             ScalarType *diag_elements)
+{
+  int i = threadIdx.x + blockIdx.x * blockDim.x;
+  if (i < n_rows * n_cols)
+    if ((i / n_rows) == (i % n_cols))
+      diag_elements[i % n_cols] = matrix[i];
+}
+
+template <typename ScalarType>
+__global__ void fill_identity_matrix(int n_rows, int n_cols, ScalarType *matrix)
+{
+  int i = threadIdx.x + blockIdx.x * blockDim.x;
+  if (i < n_rows * n_cols)
+  {
+    if ((i / n_rows) == (i % n_cols))
+      matrix[i] = 1.;
+    else
+      matrix[i] = 0.;
+  }
+}
+
+template <typename ScalarType>
 __global__ void restrict_array(int full_array_size, ScalarType *full_array,
                                int restrict_array_size,
                                ScalarType *restricted_array)
@@ -173,8 +198,8 @@ __global__ void restrict_array(int full_array_size, ScalarType *full_array,
 }
 }
 
-template <int dim, typename VectorType>
-AMGe_device<dim, VectorType>::AMGe_device(
+template <int dim, typename MeshEvaluator, typename VectorType>
+AMGe_device<dim, MeshEvaluator, VectorType>::AMGe_device(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
     cusolverDnHandle_t cusolver_dn_handle, cusparseHandle_t cusparse_handle)
     : AMGe<dim, VectorType>(comm, dof_handler),
@@ -183,31 +208,27 @@ AMGe_device<dim, VectorType>::AMGe_device(
 }
 
 // Cannot be const because of the handles
-template <int dim, typename VectorType>
+template <int dim, typename MeshEvaluator, typename VectorType>
 std::tuple<typename VectorType::value_type *, typename VectorType::value_type *,
+           typename VectorType::value_type *,
            std::vector<dealii::types::global_dof_index>>
-AMGe_device<dim, VectorType>::compute_local_eigenvectors(
+AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvectors,
     dealii::Triangulation<dim> const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    std::function<void(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                       std::shared_ptr<SparseMatrixDevice<ScalarType>> &,
-                       std::shared_ptr<SparseMatrixDevice<ScalarType>> &)> const
-        &evaluate)
+    MeshEvaluator const &evaluator)
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
-  // Not used for now. It will be used once we have an implementation of lanczos
-  // algorithm
   dealii::ConstraintMatrix agglomerate_constraints;
 
-  std::shared_ptr<SparseMatrixDevice<ScalarType>> agglomerate_system_matrix_dev;
-  std::shared_ptr<SparseMatrixDevice<ScalarType>> agglomerate_mass_matrix_dev;
+  DealIIMesh<dim> agglomerate_mesh(agglomerate_dof_handler,
+                                   agglomerate_constraints);
 
-  // Call user function
-  evaluate(agglomerate_dof_handler, agglomerate_constraints,
-           agglomerate_system_matrix_dev, agglomerate_mass_matrix_dev);
+  // Call user function to build the system matrix
+  auto agglomerate_operator = evaluator.get_local_operator(agglomerate_mesh);
+  auto agglomerate_system_matrix_dev = agglomerate_operator->get_matrix();
 
   // Convert the matrix from CRS to dense. First, create and setup matrix
   // descriptor
@@ -221,6 +242,9 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
       cusparseSetMatIndexBase(descr, CUSPARSE_INDEX_BASE_ZERO);
   ASSERT_CUSPARSE(cusparse_error_code);
   int const n_rows = agglomerate_system_matrix_dev->m();
+  int const n_cols = agglomerate_system_matrix_dev->n();
+  ASSERT(n_cols == n_rows,
+         "The system matrix on the agglomerate is not square.");
 
   // Convert the system matrix to dense
   ScalarType *dense_system_matrix_dev = nullptr;
@@ -230,15 +254,19 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
   // Free the memory of the system sparse matrix
   agglomerate_system_matrix_dev.reset();
 
-  // Convert the mass matrix to dense
+  // Get the diagonal elements
+  ScalarType *diag_elements_dev = nullptr;
+  cuda_malloc(diag_elements_dev, n_rows);
+  int n_blocks = 1 + (n_rows * n_cols - 1) / block_size;
+  internal::extract_diag<<<n_blocks, block_size>>>(
+      dense_system_matrix_dev, n_rows, n_cols, diag_elements_dev);
+
+  // Create the dense mass matrix
   ScalarType *dense_mass_matrix_dev = nullptr;
-  internal::convert_csr_to_dense(_cusparse_handle, descr,
-                                 agglomerate_mass_matrix_dev,
-                                 dense_mass_matrix_dev);
-  // Free the memory of the mass sparse matrix
-  cusparse_error_code = cusparseDestroyMatDescr(descr);
-  ASSERT_CUSPARSE(cusparse_error_code);
-  agglomerate_mass_matrix_dev.reset();
+  cuda_malloc(dense_mass_matrix_dev, n_rows * n_cols);
+  n_blocks = 1 + (n_rows * n_cols - 1) / block_size;
+  internal::fill_identity_matrix<<<n_blocks, block_size>>>(
+      n_rows, n_cols, dense_mass_matrix_dev);
 
   // Compute the eigenvalues and the eigenvectors. The values in
   // dense_system_matrix_dev are overwritten and replaced by the eigenvectors
@@ -256,7 +284,7 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
                                n_eigenvectors * sizeof(ScalarType));
 
   ASSERT_CUDA(cuda_error_code);
-  int n_blocks = 1 + (n_eigenvectors - 1) / block_size;
+  n_blocks = 1 + (n_eigenvectors - 1) / block_size;
   internal::restrict_array<<<n_blocks, block_size>>>(
       n_rows, eigenvalues_dev, n_eigenvectors, smallest_eigenvalues_dev);
   // Check that the kernel was launched correctly
@@ -284,50 +312,114 @@ AMGe_device<dim, VectorType>::compute_local_eigenvectors(
       this->compute_dof_index_map(patch_to_global_map, agglomerate_dof_handler);
 
   return std::make_tuple(smallest_eigenvalues_dev, eigenvectors_dev,
-                         dof_indices_map);
+                         diag_elements_dev, dof_indices_map);
 }
 
-template <int dim, typename VectorType>
+template <int dim, typename MeshEvaluator, typename VectorType>
 SparseMatrixDevice<typename VectorType::value_type>
-AMGe_device<dim, VectorType>::compute_restriction_sparse_matrix(
-    ScalarType *eigenvectors_dev,
+AMGe_device<dim, MeshEvaluator, VectorType>::compute_restriction_sparse_matrix(
+    std::vector<dealii::Vector<typename VectorType::value_type>> const
+        &eigenvectors,
+    std::vector<std::vector<typename VectorType::value_type>> const
+        &diag_elements,
+    dealii::LinearAlgebra::distributed::Vector<
+        typename VectorType::value_type> const &locally_relevant_global_diag,
     std::vector<std::vector<dealii::types::global_dof_index>> const
-        &dof_indices_maps)
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors,
+    cusparseHandle_t cusparse_handle)
 {
-  // The value in the sparse matrix are the same as the ones in the eigenvectors
-  // so we just to compute the sparsity pattern.
+  dealii::TrilinosWrappers::SparseMatrix restriction_sparse_matrix;
+  AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
+      eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
+      locally_relevant_global_diag, restriction_sparse_matrix);
 
-  // dof_indices_maps contains all column indices, we just need to move them to
-  // the GPU
-  unsigned int const n_rows = dof_indices_maps.size();
-  std::vector<int> row_ptr(n_rows + 1, 0);
-  for (unsigned int i = 0; i < n_rows; ++i)
-    row_ptr[i + 1] = row_ptr[i] + dof_indices_maps[i].size();
-  int *row_ptr_dev;
-  cudaError_t cuda_error = cudaMalloc(&row_ptr_dev, (n_rows + 1) * sizeof(int));
-  ASSERT_CUDA(cuda_error);
-  cuda_error = cudaMemcpy(row_ptr_dev, &row_ptr[0], (n_rows + 1) * sizeof(int),
-                          cudaMemcpyHostToDevice);
-  ASSERT_CUDA(cuda_error);
+  SparseMatrixDevice<ScalarType> restriction_sparse_matrix_dev(
+      convert_matrix(restriction_sparse_matrix));
 
-  std::vector<int> column_index;
-  column_index.reserve(row_ptr[n_rows]);
-  for (unsigned int i = 0; i < n_rows; ++i)
-    column_index.insert(column_index.end(), dof_indices_maps[i].begin(),
-                        dof_indices_maps[i].end());
-  int *column_index_dev;
-  cuda_error = cudaMalloc(&column_index_dev, row_ptr[n_rows] * sizeof(int));
-  ASSERT_CUDA(cuda_error);
-  cuda_error =
-      cudaMemcpy(column_index_dev, &column_index[0],
-                 row_ptr[n_rows] * sizeof(int), cudaMemcpyHostToDevice);
-  ASSERT_CUDA(cuda_error);
+  restriction_sparse_matrix_dev.cusparse_handle = cusparse_handle;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code =
+      cusparseCreateMatDescr(&restriction_sparse_matrix_dev.descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatType(restriction_sparse_matrix_dev.descr,
+                                           CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code = cusparseSetMatIndexBase(
+      restriction_sparse_matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
 
-  // TODO for now it doesn't work with MPI. IndexSets are wrong in parallel
-  return SparseMatrixDevice<ScalarType>(
-      this->_comm, eigenvectors_dev, column_index_dev, row_ptr_dev,
-      row_ptr[n_rows], dealii::complete_index_set(n_rows), dealii::IndexSet(),
-      _cusparse_handle);
+  return std::move(restriction_sparse_matrix_dev);
+}
+
+template <int dim, typename MeshEvaluator, typename VectorType>
+mfmg::SparseMatrixDevice<typename VectorType::value_type>
+AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
+    std::array<unsigned int, dim> const &agglomerate_dim,
+    unsigned int const n_eigenvectors, double const tolerance,
+    MeshEvaluator const &evaluator,
+    std::shared_ptr<typename MeshEvaluator::global_operator_type const>
+        global_operator)
+{
+  // Flag the cells to build agglomerates.
+  unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
+
+  std::vector<unsigned int> agglomerate_ids(n_agglomerates);
+  std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
+  std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<std::vector<ScalarType>> diag_elements;
+  std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
+  std::vector<unsigned int> n_local_eigenvectors;
+  for (auto const &agg_id : agglomerate_ids)
+  {
+    dealii::Triangulation<dim> agglomerate_triangulation;
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        agglomerate_to_global_tria_map;
+
+    this->build_agglomerate_triangulation(agg_id, agglomerate_triangulation,
+                                          agglomerate_to_global_tria_map);
+
+    // TODO this should be batched because unless the agglomerate are very
+    // large, the matrices won't fill up the GPU We ignore the eigenvalues.
+    ScalarType *eigenvectors_dev = nullptr;
+    ScalarType *diag_elements_dev = nullptr;
+    std::vector<dealii::types::global_dof_index> local_dof_indices_map;
+    std::tie(std::ignore, eigenvectors_dev, diag_elements_dev,
+             local_dof_indices_map) =
+        compute_local_eigenvectors(n_eigenvectors, agglomerate_triangulation,
+                                   agglomerate_to_global_tria_map, evaluator);
+
+    // Move the data to the host and reformat it.
+    unsigned int const n_local_dof_indices = local_dof_indices_map.size();
+    std::vector<ScalarType> eigenvectors_host(n_eigenvectors *
+                                              n_local_dof_indices);
+    cuda_mem_copy_to_host(eigenvectors_dev, eigenvectors_host);
+    for (unsigned int i = 0; i < n_eigenvectors; ++i)
+    {
+      unsigned int const begin_offset = i * n_local_dof_indices;
+      unsigned int const end_offset = (i + 1) * n_local_dof_indices;
+      eigenvectors.emplace_back(eigenvectors_host.begin() + begin_offset,
+                                eigenvectors_host.begin() + end_offset);
+    }
+    cuda_free(eigenvectors_dev);
+
+    std::vector<ScalarType> diag_elements_host(n_local_dof_indices);
+    cuda_mem_copy_to_host(diag_elements_dev, diag_elements_host);
+    diag_elements.push_back(diag_elements_host);
+    cuda_free(diag_elements_dev);
+
+    dof_indices_maps.push_back(local_dof_indices_map);
+
+    n_local_eigenvectors.push_back(n_eigenvectors);
+  }
+
+  // Get the locally relevant global diag
+  auto locally_relevant_global_diag = evaluator.get_locally_relevant_diag();
+
+  return compute_restriction_sparse_matrix(
+      eigenvectors, diag_elements, locally_relevant_global_diag,
+      dof_indices_maps, n_local_eigenvectors, evaluator.cusparse_handle);
 }
 }
 

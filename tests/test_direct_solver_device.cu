@@ -87,12 +87,15 @@ BOOST_AUTO_TEST_CASE(direct_solver)
   std::vector<double> rhs_host(size);
   std::copy(rhs.begin(), rhs.end(), rhs_host.begin());
   mfmg::cuda_mem_copy_to_dev(rhs_host, rhs_dev.val_dev);
+  auto params = std::make_shared<boost::property_tree::ptree>();
 
   for (auto solver : {"cholesky", "lu_dense", "lu_sparse_host"})
   {
+    params->put("solver.type", solver);
+
     // Solve on the device
     mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-        cusolver_dn_handle, cusolver_sp_handle, matrix_dev, solver);
+        cusolver_dn_handle, cusolver_sp_handle, matrix_dev, params);
     BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
     BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
     mfmg::VectorDevice<double> x_dev(partitioner);

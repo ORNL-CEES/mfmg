@@ -264,14 +264,15 @@ void SmootherDeviceOperator<VectorType>::initialize(std::string &prec_type)
 
 template <typename VectorType>
 DirectDeviceOperator<VectorType>::DirectDeviceOperator(
-    cusolverDnHandle_t cusolver_dn_handle,
-    cusolverSpHandle_t cusolver_sp_handle,
+    cusolverDnHandle_t const cusolver_dn_handle,
+    cusolverSpHandle_t const cusolver_sp_handle,
     SparseMatrixDevice<typename VectorType::value_type> const &matrix,
-    std::string const &solver)
+    std::shared_ptr<boost::property_tree::ptree> params)
     : _cusolver_dn_handle(cusolver_dn_handle),
-      _cusolver_sp_handle(cusolver_sp_handle), _matrix(matrix), _solver(solver)
+      _cusolver_sp_handle(cusolver_sp_handle), _matrix(matrix)
 {
   // Transform to lower case
+  _solver = params->get("solver.type", "lu_dense");
   std::transform(_solver.begin(), _solver.end(), _solver.begin(), tolower);
 }
 

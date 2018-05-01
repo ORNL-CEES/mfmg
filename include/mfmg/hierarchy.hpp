@@ -104,7 +104,8 @@ public:
 
       if (level_index == num_levels - 1)
       {
-        auto direct_solver = HierarchyHelpers::build_direct_solver(*a);
+        auto direct_solver =
+            HierarchyHelpers::build_direct_solver(*a, evaluator, params);
         level_fine.set_smoother(direct_solver);
 
         break;
@@ -229,7 +230,7 @@ public:
 
     double complexity = level0_nnz;
     for (int i = 1; i < num_levels; i++)
-      complexity += std::dynamic_pointer_cast<const global_operator_type>(
+      complexity += std::dynamic_pointer_cast<global_operator_type const>(
                         _levels[i].get_operator())
                         ->nnz();
     return complexity / level0_nnz;

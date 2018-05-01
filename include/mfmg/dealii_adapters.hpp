@@ -12,35 +12,21 @@
 #ifndef MFMG_DEALII_ADAPTERS_HPP
 #define MFMG_DEALII_ADAPTERS_HPP
 
-#include <boost/property_tree/ptree.hpp>
+#include <mfmg/amge_host.hpp>
+#include <mfmg/concepts.hpp>
+#include <mfmg/dealii_mesh.hpp>
+#include <mfmg/dealii_operator.hpp>
+#include <mfmg/exceptions.hpp>
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/trilinos_solver.h>
 
-#include "amge_host.hpp"
-
-#include <mfmg/concepts.hpp>
-#include <mfmg/dealii_operator.hpp>
-#include <mfmg/exceptions.hpp>
+#include <boost/property_tree/ptree.hpp>
 
 #include <random>
 
 namespace mfmg
 {
-
-template <int dim>
-struct DealIIMesh
-{
-  DealIIMesh(dealii::DoFHandler<dim> &dof_handler,
-             dealii::ConstraintMatrix &constraints)
-      : _dof_handler(dof_handler), _constraints(constraints)
-  {
-  }
-
-  static constexpr int dimension() { return dim; }
-  dealii::DoFHandler<dim> &_dof_handler;
-  dealii::ConstraintMatrix &_constraints;
-};
 
 template <int dim, typename VectorType>
 class DealIIMeshEvaluator
@@ -77,17 +63,11 @@ public:
 protected:
   virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
                         dealii::TrilinosWrappers::SparsityPattern &,
-                        dealii::TrilinosWrappers::SparseMatrix &) const
-  {
-    ASSERT_THROW_NOT_IMPLEMENTED();
-  }
+                        dealii::TrilinosWrappers::SparseMatrix &) const = 0;
 
   virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
                         dealii::SparsityPattern &,
-                        dealii::SparseMatrix<value_type> &) const
-  {
-    ASSERT_THROW_NOT_IMPLEMENTED();
-  }
+                        dealii::SparseMatrix<value_type> &) const = 0;
 };
 
 template <int dim, typename VectorType>
@@ -102,7 +82,7 @@ DealIIMeshEvaluator<dim, VectorType>::get_global_operator(mesh_type &mesh) const
   auto system_sparsity_pattern = std::make_shared<sparsity_pattern_type>();
   auto system_matrix = std::make_shared<matrix_type>();
 
-  // Call user function to fill in the matrix and build the mass matrix
+  // Call user function to fill in the system matrix
   evaluate(mesh._dof_handler, mesh._constraints, *system_sparsity_pattern,
            *system_matrix);
 
@@ -122,7 +102,7 @@ DealIIMeshEvaluator<dim, VectorType>::get_local_operator(mesh_type &mesh) const
   auto system_sparsity_pattern = std::make_shared<sparsity_pattern_type>();
   auto system_matrix = std::make_shared<matrix_type>();
 
-  // Call user function to fill in the matrix and build the mass matrix
+  // Call user function to fill in the system matrix
   evaluate(mesh._dof_handler, mesh._constraints, *system_sparsity_pattern,
            *system_matrix);
 
@@ -147,10 +127,10 @@ void DealIIMeshEvaluator<dim, VectorType>::set_initial_guess(
 }
 
 // This is a specialization of Adapter in concepts.hpp
-template <int dim, class VectorType>
+template <int dim, typename VectorType>
 class Adapter<DealIIMeshEvaluator<dim, VectorType>>
 {
-protected:
+public:
   using mesh_evaluator_type = DealIIMeshEvaluator<dim, VectorType>;
   using mesh_type = typename mesh_evaluator_type::mesh_type;
   using operator_type = typename mesh_evaluator_type::operator_type;
@@ -160,7 +140,6 @@ protected:
   using direct_solver_type = DealIIDirectOperator<VectorType>;
   using vector_type = typename operator_type::vector_type;
 
-public:
   static std::shared_ptr<operator_type>
   build_restrictor(MPI_Comm comm, mesh_evaluator_type const &evaluator,
                    mesh_type &mesh,
@@ -197,7 +176,8 @@ public:
   }
 
   static std::shared_ptr<operator_type>
-  build_direct_solver(operator_type const &op)
+  build_direct_solver(operator_type const &op, mesh_evaluator_type const &,
+                      std::shared_ptr<boost::property_tree::ptree>)
   {
     auto global_op = dynamic_cast<global_operator_type const &>(op);
     return std::make_shared<direct_solver_type>(*global_op.get_matrix());
