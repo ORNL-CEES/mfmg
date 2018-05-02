@@ -103,7 +103,7 @@ public:
   }
 
   static std::shared_ptr<operator_type>
-  build_direct_solver(operator_type const &, mesh_evaluator_type const &,
+  build_coarse_solver(operator_type const &, mesh_evaluator_type const &,
                       std::shared_ptr<boost::property_tree::ptree>)
   {
     ASSERT_THROW_NOT_IMPLEMENTED();

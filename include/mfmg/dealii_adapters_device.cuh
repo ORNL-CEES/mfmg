@@ -147,7 +147,7 @@ public:
   }
 
   static std::shared_ptr<operator_type>
-  build_direct_solver(operator_type const &op,
+  build_coarse_solver(operator_type const &op,
                       mesh_evaluator_type const &evaluator,
                       std::shared_ptr<boost::property_tree::ptree> params)
   {

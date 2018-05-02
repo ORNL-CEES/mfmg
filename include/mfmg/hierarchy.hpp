@@ -104,9 +104,9 @@ public:
 
       if (level_index == num_levels - 1)
       {
-        auto direct_solver =
-            HierarchyHelpers::build_direct_solver(*a, evaluator, params);
-        level_fine.set_smoother(direct_solver);
+        auto coarse_solver =
+            HierarchyHelpers::build_coarse_solver(*a, evaluator, params);
+        level_fine.set_smoother(coarse_solver);
 
         break;
       }

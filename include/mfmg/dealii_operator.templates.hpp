@@ -15,6 +15,7 @@
 #include <mfmg/dealii_operator.hpp>
 
 #include <EpetraExt_Transpose_RowMatrix.h>
+#include <ml_MultiLevelPreconditioner.h>
 
 namespace mfmg
 {
@@ -147,7 +148,7 @@ DealIITrilinosMatrixOperator<VectorType>::build_range_vector() const
 
 template <typename VectorType>
 DealIISmootherOperator<VectorType>::DealIISmootherOperator(
-    dealii::TrilinosWrappers::SparseMatrix const &matrix,
+    matrix_type const &matrix,
     std::shared_ptr<boost::property_tree::ptree> params)
     : _matrix(matrix)
 {
@@ -229,13 +230,55 @@ void DealIISmootherOperator<VectorType>::initialize(
 
 template <typename VectorType>
 DealIIDirectOperator<VectorType>::DealIIDirectOperator(
-    dealii::TrilinosWrappers::SparseMatrix const &matrix,
-    std::shared_ptr<boost::property_tree::ptree>)
+    matrix_type const &matrix,
+    std::shared_ptr<boost::property_tree::ptree> params)
 {
-  _solver.reset(new solver_type(_solver_control));
-  _solver->initialize(matrix);
   _m = matrix.m();
   _n = matrix.n();
+
+  std::string coarse_type;
+  if (params != nullptr)
+    coarse_type = params->get("coarse.type", "");
+
+  // Make parameters case-insensitive
+  std::string coarse_type_lower = coarse_type;
+  std::transform(coarse_type_lower.begin(), coarse_type_lower.end(),
+                 coarse_type_lower.begin(), ::tolower);
+
+  if (coarse_type_lower == "" || coarse_type_lower == "direct")
+  {
+    _solver.reset(new solver_type(_solver_control));
+    _solver->initialize(matrix);
+  }
+  else
+  {
+    if (coarse_type_lower == "ml")
+    {
+      // auto coarse_params = params->get("coarse.params");
+      _smoother.reset(new dealii::TrilinosWrappers::PreconditionAMG());
+      // TODO: set parameters from the input list
+      Teuchos::ParameterList ml_list;
+      ML_Epetra::SetDefaults("SA", ml_list);
+      ml_list.set("ML output", 5);
+      static_cast<dealii::TrilinosWrappers::PreconditionAMG *>(_smoother.get())
+          ->initialize(matrix, ml_list);
+    }
+    else
+      ASSERT_THROW(false,
+                   "Unknown coarse solver name: \"" + coarse_type_lower + "\"");
+  }
+}
+
+template <typename VectorType>
+void DealIIDirectOperator<VectorType>::apply(vector_type const &b,
+                                             vector_type &x) const
+{
+  ASSERT_THROW((!_solver) != (!_smoother),
+               "Internal error: only one of two can be not null.");
+  if (_solver)
+    _solver->solve(x, b);
+  else
+    _smoother->vmult(x, b);
 }
 
 template <typename VectorType>

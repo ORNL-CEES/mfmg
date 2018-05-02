@@ -153,17 +153,15 @@ public:
   using solver_type = dealii::TrilinosWrappers::SolverDirect;
   using operator_type = Operator<vector_type>;
 
-  DealIIDirectOperator(matrix_type const &matrix,
-                       std::shared_ptr<boost::property_tree::ptree> = nullptr);
+  DealIIDirectOperator(
+      matrix_type const &matrix,
+      std::shared_ptr<boost::property_tree::ptree> params = nullptr);
 
   virtual size_t m() const override final { return _m; }
 
   virtual size_t n() const override final { return _n; }
 
-  virtual void apply(vector_type const &b, vector_type &x) const override final
-  {
-    _solver->solve(x, b);
-  }
+  virtual void apply(vector_type const &b, vector_type &x) const override final;
 
   virtual std::shared_ptr<VectorType>
   build_domain_vector() const override final;
@@ -173,6 +171,7 @@ public:
 private:
   dealii::SolverControl _solver_control;
   std::unique_ptr<dealii::TrilinosWrappers::SolverDirect> _solver;
+  std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
   size_t _m;
   size_t _n;
 };
