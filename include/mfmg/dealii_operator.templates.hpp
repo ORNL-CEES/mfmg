@@ -13,6 +13,7 @@
 #define MFMG_DEALII_OPERATOR_TEMPLATES_HPP
 
 #include <mfmg/dealii_operator.hpp>
+#include <mfmg/utils.hpp>
 
 #include <EpetraExt_Transpose_RowMatrix.h>
 #include <ml_MultiLevelPreconditioner.h>
@@ -254,14 +255,21 @@ DealIIDirectOperator<VectorType>::DealIIDirectOperator(
   {
     if (coarse_type_lower == "ml")
     {
-      // auto coarse_params = params->get("coarse.params");
+      auto ml_tree = params->get_child_optional("coarse.params");
+
+      // For now, always set defaults to SA
+      Teuchos::ParameterList ml_params;
+      ML_Epetra::SetDefaults("SA", ml_params);
+
+      if (ml_tree)
+      {
+        // Augment with user provided parameters
+        ptree2plist(*ml_tree, ml_params);
+      }
+
       _smoother.reset(new dealii::TrilinosWrappers::PreconditionAMG());
-      // TODO: set parameters from the input list
-      Teuchos::ParameterList ml_list;
-      ML_Epetra::SetDefaults("SA", ml_list);
-      ml_list.set("ML output", 5);
       static_cast<dealii::TrilinosWrappers::PreconditionAMG *>(_smoother.get())
-          ->initialize(matrix, ml_list);
+          ->initialize(matrix, ml_params);
     }
     else
       ASSERT_THROW(false,
