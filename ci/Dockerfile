@@ -215,6 +215,25 @@ RUN export DEAL_II_HASH=5f9d86ac1a5ca36df642e8a6d079b77219796a07 && \
     rm -rf ${DEAL_II_SOURCE_DIR}
 ENV DEAL_II_DIR=${INSTALL_DIR}/dealii    
 
+# Install AMGX
+RUN export AMGX_HASH=6cb23fed26602e4873d5c1deb694a2c8480feac3 && \
+    export AMGX_URL=https://github.com/nvidia/amgx/archive/${AMGX_HASH}.tar.gz && \
+    export AMGX_ARCHIVE=${ARCHIVE_DIR}/amgx.tar.gz && \
+    export AMGX_SOURCE_DIR=${SOURCE_DIR}/amgx && \
+    export AMGX_BUILD_DIR=${BUILD_DIR}/amgx && \
+    export AMGX_INSTALL_DIR=${INSTALL_DIR}/amgx && \
+    wget --quiet ${AMGX_URL} --output-document=${AMGX_ARCHIVE} && \
+    mkdir -p ${AMGX_SOURCE_DIR} && \
+    tar -xf ${AMGX_ARCHIVE} -C ${AMGX_SOURCE_DIR} --strip-components=1 && \
+    mkdir -p ${AMGX_BUILD_DIR} && cd ${AMGX_BUILD_DIR} && \
+    cmake -DCMAKE_INSTALL_PREFIX=${AMGX_INSTALL_DIR} \
+        ${AMGX_SOURCE_DIR} && \
+    make -j${N_PROCS} install && \
+    rm -rf ${AMGX_ARCHIVE} && \
+    rm -rf ${AMGX_BUILD_DIR} && \
+    rm -rf ${AMGX_SOURCE_DIR}
+ENV AMGX_DIR=${INSTALL_DIR}/amgx
+
 # Append the option flag --allow-run-as-root to mpiexec
 RUN echo '#!/usr/bin/env bash' > /usr/local/bin/mpiexec && \
     echo '${INSTALL_DIR}/openmpi/bin/mpiexec --allow-run-as-root "$@"' >> /usr/local/bin/mpiexec && \
