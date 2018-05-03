@@ -11,6 +11,8 @@ ARGS=(
   -D MFMG_ENABLE_COVERAGE=ON
   -D MFMG_ENABLE_DOCUMENTATION=OFF
   -D DEAL_II_DIR=${DEAL_II_DIR}
+  -D MFMG_ENABLE_AMGX=ON
+  -D AMGX_DIR=${AMGX_DIR}
   -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow"
   )
 cmake "${ARGS[@]}" ../
