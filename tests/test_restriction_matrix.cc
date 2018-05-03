@@ -30,11 +30,29 @@
 
 namespace utf = boost::unit_test;
 
+template <int dim, typename VectorType>
+class DummyMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+{
+protected:
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+           dealii::TrilinosWrappers::SparsityPattern &,
+           dealii::TrilinosWrappers::SparseMatrix &) const override final
+  {
+  }
+
+  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                        dealii::SparsityPattern &,
+                        dealii::SparseMatrix<typename VectorType::value_type> &)
+      const override final
+  {
+  }
+};
+
 BOOST_AUTO_TEST_CASE(restriction_matrix)
 {
   unsigned int constexpr dim = 2;
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
   dealii::parallel::distributed::Triangulation<dim> triangulation(comm);
@@ -43,8 +61,8 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<dim> fe(1);
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  DummyMeshEvaluator evaluator;
-  mfmg::AMGe_host<dim, DummyMeshEvaluator,
+  DummyMeshEvaluator<dim, Vector> evaluator;
+  mfmg::AMGe_host<dim, mfmg::DealIIMeshEvaluator<dim, Vector>,
                   dealii::LinearAlgebra::distributed::Vector<double>>
       amge(comm, dof_handler);
 

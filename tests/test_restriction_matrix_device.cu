@@ -14,20 +14,70 @@
 #include "main.cc"
 
 #include <mfmg/amge_device.cuh>
+#include <mfmg/dealii_adapters_device.cuh>
+#include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
+#include <deal.II/base/index_set.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
-BOOST_AUTO_TEST_CASE(restriction_matrix_device)
+template <int dim, typename VectorType>
+class DummyMeshEvaluator
+    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
 {
-  // Initialize cuSOLVER
+public:
+  using value_type = typename VectorType::value_type;
+
+  DummyMeshEvaluator(cusolverDnHandle_t cusolver_dn_handle,
+                     cusolverSpHandle_t cusolver_sp_handle,
+                     cusparseHandle_t cusparse_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
+            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle)
+  {
+  }
+
+  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
+  get_locally_relevant_diag() const override final
+  {
+    return dealii::LinearAlgebra::distributed::Vector<value_type>();
+  }
+
+protected:
+  virtual void
+  evaluate_local(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                 std::shared_ptr<mfmg::SparseMatrixDevice<value_type>> &)
+      const override final
+  {
+  }
+
+  virtual void
+  evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                  std::shared_ptr<mfmg::SparseMatrixDevice<value_type>> &)
+      const override final
+  {
+  }
+};
+
+BOOST_AUTO_TEST_CASE(restriction_matrix)
+{
+  unsigned int constexpr dim = 2;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
+  using value_type = typename Vector::value_type;
+
+  // Initialize dense cuSOLVER
   cusolverDnHandle_t cusolver_dn_handle = nullptr;
   cusolverStatus_t cusolver_error_code;
   cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+
+  // Initialize sparse cuSOLVER
+  cusolverSpHandle_t cusolver_sp_handle = nullptr;
+  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
   mfmg::ASSERT_CUSOLVER(cusolver_error_code);
 
   // Initialize cuSPARSE
@@ -36,76 +86,119 @@ BOOST_AUTO_TEST_CASE(restriction_matrix_device)
   cusparse_error_code = cusparseCreate(&cusparse_handle);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
-  dealii::parallel::distributed::Triangulation<3> triangulation(MPI_COMM_WORLD);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  dealii::parallel::distributed::Triangulation<dim> triangulation(comm);
   dealii::GridGenerator::hyper_cube(triangulation);
   triangulation.refine_global(2);
-  dealii::FE_Q<3> fe(4);
-  dealii::DoFHandler<3> dof_handler(triangulation);
+  dealii::FE_Q<dim> fe(1);
+  dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  mfmg::AMGe_device<3, dealii::LinearAlgebra::distributed::Vector<double>> amge(
-      MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
+  DummyMeshEvaluator<dim, Vector> evaluator(
+      cusolver_dn_handle, cusolver_sp_handle, cusparse_handle);
+  mfmg::AMGe_device<dim, mfmg::DealIIMeshEvaluatorDevice<dim, Vector>, Vector>
+      amge(comm, dof_handler, cusolver_dn_handle, cusparse_handle);
 
-  unsigned int const n_local_rows = 3;
-  unsigned int const eigenvectors_size = 10;
-  std::vector<double> eigenvectors(n_local_rows * eigenvectors_size);
+  auto const locally_owned_dofs = dof_handler.locally_owned_dofs();
+  unsigned int const n_local_rows = locally_owned_dofs.n_elements();
+
+  // Fill the eigenvectors
+  unsigned int const eigenvectors_size = 3;
+  std::vector<dealii::Vector<double>> eigenvectors(
+      n_local_rows, dealii::Vector<double>(eigenvectors_size));
   for (unsigned int i = 0; i < n_local_rows; ++i)
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
-      eigenvectors[i * eigenvectors_size + j] =
+      eigenvectors[i][j] =
           n_local_rows * eigenvectors_size + i * eigenvectors_size + j;
 
+  // Fill dof_indices_maps
   std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps(
       n_local_rows,
       std::vector<dealii::types::global_dof_index>(eigenvectors_size));
   std::default_random_engine generator;
   std::uniform_int_distribution<int> distribution(0, dof_handler.n_dofs() - 1);
   for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    // We don't want dof_indices to have repeated values in a row
+    std::set<int> dofs_set;
+    unsigned int j = 0;
+    while (dofs_set.size() < eigenvectors_size)
+    {
+      int dof_index = distribution(generator);
+      if ((dofs_set.count(dof_index) == 0) &&
+          (locally_owned_dofs.is_element(dof_index)))
+      {
+        dof_indices_maps[i][j] = dof_index;
+        dofs_set.insert(dof_index);
+        ++j;
+      }
+    }
+  }
+
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    std::sort(dof_indices_maps[i].begin(), dof_indices_maps[i].end());
+
+  // Fill diag_elements
+  std::vector<std::vector<double>> diag_elements(
+      n_local_rows, std::vector<double>(eigenvectors_size));
+  std::map<unsigned int, double> count_elem;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
-      dof_indices_maps[i][j] = distribution(generator);
+      count_elem[dof_indices_maps[i][j]] += 1.0;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    for (unsigned int j = 0; j < eigenvectors_size; ++j)
+      diag_elements[i][j] = 1. / count_elem[dof_indices_maps[i][j]];
 
-  double *eigenvectors_dev = nullptr;
-  cudaError_t cuda_error_code =
-      cudaMalloc(&eigenvectors_dev, eigenvectors.size() * sizeof(double));
-  mfmg::ASSERT_CUDA(cuda_error_code);
-  cuda_error_code =
-      cudaMemcpy(eigenvectors_dev, &eigenvectors[0],
-                 eigenvectors.size() * sizeof(double), cudaMemcpyHostToDevice);
-  mfmg::ASSERT_CUDA(cuda_error_code);
+  // Fill n_local_eigenvectors
+  std::vector<unsigned int> n_local_eigenvectors(n_local_rows, 1);
 
-  mfmg::SparseMatrixDevice<double> restriction_matrix_dev =
-      amge.compute_restriction_sparse_matrix(eigenvectors_dev,
-                                             dof_indices_maps);
+  // Fill system_sparse_matrix
+  dealii::TrilinosWrappers::SparseMatrix system_sparse_matrix(
+      locally_owned_dofs, comm);
+  for (auto const index : locally_owned_dofs)
+    system_sparse_matrix.set(index, index, 1.0);
+  system_sparse_matrix.compress(dealii::VectorOperation::insert);
 
-  // Check that the values in the restriction matrix are the same as the
-  // eigenvectors
-  BOOST_CHECK_EQUAL(restriction_matrix_dev.val_dev, eigenvectors_dev);
+  // Fill locally_relevant_global_diag
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                  locally_relevant_dofs);
+  Vector locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                      MPI_COMM_WORLD);
+  for (auto &val : locally_relevant_global_diag)
+    val = 1.;
+  locally_relevant_global_diag.compress(dealii::VectorOperation::insert);
 
-  std::vector<int> column_index(n_local_rows * eigenvectors_size);
-  cuda_error_code =
-      cudaMemcpy(&column_index[0], restriction_matrix_dev.column_index_dev,
-                 column_index.size() * sizeof(int), cudaMemcpyDeviceToHost);
-  mfmg::ASSERT_CUDA(cuda_error_code);
+  mfmg::SparseMatrixDevice<value_type> restriction_matrix_dev =
+      amge.compute_restriction_sparse_matrix(
+          eigenvectors, diag_elements, locally_relevant_global_diag,
+          dof_indices_maps, n_local_eigenvectors, cusparse_handle);
 
-  std::vector<int> row_ptr(n_local_rows + 1);
-  cuda_error_code =
-      cudaMemcpy(&row_ptr[0], restriction_matrix_dev.row_ptr_dev,
-                 (n_local_rows + 1) * sizeof(int), cudaMemcpyDeviceToHost);
-  mfmg::ASSERT_CUDA(cuda_error_code);
+  // Move the values to the host
+  std::vector<value_type> restriction_matrix_host(
+      restriction_matrix_dev.local_nnz());
+  mfmg::cuda_mem_copy_to_host(restriction_matrix_dev.val_dev,
+                              restriction_matrix_host);
 
-  for (unsigned int i = 0; i < n_local_rows + 1; ++i)
-    BOOST_CHECK_EQUAL(row_ptr[i], i * eigenvectors_size);
+  std::vector<int> column_index_host(restriction_matrix_dev.local_nnz());
+  mfmg::cuda_mem_copy_to_host(restriction_matrix_dev.column_index_dev,
+                              column_index_host);
 
-  for (unsigned int row = 0; row < n_local_rows; ++row)
-    for (unsigned int col = 0; col < eigenvectors_size; ++col)
-      BOOST_CHECK_EQUAL(column_index[row * eigenvectors_size + col],
-                        dof_indices_maps[row][col]);
+  // Check that the matrix was built correctly
+  unsigned int pos = 0;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    for (unsigned int j = 0; j < eigenvectors_size; ++j)
+    {
+      BOOST_CHECK_EQUAL(restriction_matrix_host[pos],
+                        diag_elements[i][j] * eigenvectors[i][j]);
+      ++pos;
+    }
+  }
 
-  // Destroy cusolver_handle
   cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
   mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_dn_handle = nullptr;
-
-  // Destroy cusparse_handle
+  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
   cusparse_error_code = cusparseDestroy(cusparse_handle);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_handle = nullptr;
 }

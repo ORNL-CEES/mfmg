@@ -121,17 +121,6 @@ private:
                            &dof_indices_maps,
                        std::vector<unsigned int> &n_local_eigenvectors);
 
-  /**
-   * Build the sparsity pattern of the restriction matrix, i.e., the
-   * Epetra_FECrsGraph in Trilinos nomenclature.
-   */
-  dealii::TrilinosWrappers::SparsityPattern
-  compute_restriction_sparsity_pattern(
-      std::vector<dealii::Vector<double>> const &eigenvectors,
-      std::vector<std::vector<dealii::types::global_dof_index>> const
-          &dof_indices_maps,
-      std::vector<unsigned int> const &n_local_eigenvectors) const;
-
   std::string const _eigensolver_type;
 };
 }

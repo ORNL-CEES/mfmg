@@ -18,6 +18,8 @@
 #include <mfmg/utils.cuh>
 
 #include <deal.II/base/partitioner.h>
+#include <deal.II/lac/la_parallel_vector.h>
+
 #include <memory>
 
 namespace mfmg
@@ -36,6 +38,9 @@ struct VectorDevice
   {
     cuda_malloc(val_dev, partitioner->local_size());
   }
+
+  VectorDevice(dealii::LinearAlgebra::distributed::Vector<ScalarType> const
+                   &distributed_vector);
 
   /**
    * Copy constructor. Note that the vectors share the same partitioner so

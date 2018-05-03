@@ -1,5 +1,5 @@
 /*************************************************************************
- * Copyright (c) 2017-2018 by the mfmg authors                           *
+ * Copyright (c) 2018 by the mfmg authors                                *
  * All rights reserved.                                                  *
  *                                                                       *
  * This file is part of the mfmg libary. mfmg is distributed under a BSD *
@@ -9,32 +9,18 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#define BOOST_TEST_MODULE hierarchy
+#define BOOST_TEST_MODULE hierarchy_boost
 
 #include "main.cc"
 
 #include "laplace.hpp"
 
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_adapters_device.cuh>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/lac/la_parallel_vector.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/trilinos_linear_operator.h>
-#include <deal.II/lac/trilinos_vector.h>
 
 #include <boost/property_tree/info_parser.hpp>
-#include <boost/test/data/monomorphic.hpp>
-#include <boost/test/data/test_case.hpp>
-
-#include <random>
-
-namespace bdata = boost::unit_test::data;
-namespace tt = boost::test_tools;
 
 template <int dim>
 class Source : public dealii::Function<dim>
@@ -136,27 +122,72 @@ public:
 };
 
 template <int dim, typename VectorType>
-class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+class TestMeshEvaluator
+    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
 {
-private:
-  using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
+public:
+  using value_type = typename VectorType::value_type;
+
+  TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
+                    dealii::TrilinosWrappers::SparseMatrix const &matrix,
+                    std::shared_ptr<dealii::Function<dim>> material_property,
+                    cusolverDnHandle_t cusolver_dn_handle,
+                    cusolverSpHandle_t cusolver_sp_handle,
+                    cusparseHandle_t cusparse_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
+            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle),
+        _comm(comm), _dof_handler(dof_handler), _matrix(matrix),
+        _material_property(material_property), _cusparse_handle(cusparse_handle)
+  {
+  }
+
+  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
+  get_locally_relevant_diag() const override final
+  {
+    dealii::IndexSet locally_owned_dofs =
+        _matrix.locally_owned_domain_indices();
+    dealii::IndexSet locally_relevant_dofs;
+    dealii::DoFTools::extract_locally_relevant_dofs(_dof_handler,
+                                                    locally_relevant_dofs);
+    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+        locally_owned_global_diag(locally_owned_dofs, _comm);
+    for (auto const val : locally_owned_dofs)
+      locally_owned_global_diag[val] = _matrix.diag_element(val);
+    locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+        locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                     _comm);
+    locally_relevant_global_diag = locally_owned_global_diag;
+
+    return locally_relevant_global_diag;
+  }
 
 protected:
-  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                        dealii::TrilinosWrappers::SparsityPattern &,
-                        dealii::TrilinosWrappers::SparseMatrix &system_matrix)
-      const override final
+  virtual void
+  evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                  std::shared_ptr<mfmg::SparseMatrixDevice<value_type>>
+                      &system_matrix) const override final
   {
-    // TODO this is pretty expansive, we should use a shared pointer
-    system_matrix.copy_from(_matrix);
+    system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
+        mfmg::convert_matrix(_matrix)));
+    system_matrix->cusparse_handle = _cusparse_handle;
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatType(system_matrix->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatIndexBase(system_matrix->descr, CUSPARSE_INDEX_BASE_ZERO);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   }
 
   virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override final
+  evaluate_local(dealii::DoFHandler<dim> &dof_handler,
+                 dealii::ConstraintMatrix &constraints,
+                 std::shared_ptr<mfmg::SparseMatrixDevice<value_type>>
+                     &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -176,8 +207,10 @@ protected:
     // matrix
     dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs());
     dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
-    system_sparsity_pattern.copy_from(dsp);
-    system_matrix.reinit(system_sparsity_pattern);
+    dealii::SparsityPattern agg_system_sparsity_pattern;
+    agg_system_sparsity_pattern.copy_from(dsp);
+    dealii::SparseMatrix<value_type> agg_system_matrix(
+        agg_system_sparsity_pattern);
 
     // Fill the system matrix
     dealii::QGauss<dim> const quadrature(fe_degree + 1);
@@ -206,28 +239,52 @@ protected:
 
       cell->get_dof_indices(local_dof_indices);
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
-                                             system_matrix);
+                                             agg_system_matrix);
     }
-  }
 
-public:
-  TestMeshEvaluator(dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property)
-      : _matrix(matrix), _material_property(material_property)
-  {
+    system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
+        mfmg::convert_matrix(agg_system_matrix)));
+    system_matrix->cusparse_handle = _cusparse_handle;
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatType(system_matrix->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatIndexBase(system_matrix->descr, CUSPARSE_INDEX_BASE_ZERO);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   }
 
 private:
-  const dealii::TrilinosWrappers::SparseMatrix &_matrix;
+  MPI_Comm _comm;
+  dealii::DoFHandler<dim> const &_dof_handler;
+  dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
+  cusparseHandle_t _cusparse_handle;
 };
 
 template <int dim>
 double test(std::shared_ptr<boost::property_tree::ptree> params)
 {
-  using DVector = dealii::TrilinosWrappers::MPI::Vector;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
+  using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluatorDevice<dim, DVector>;
   using Mesh = mfmg::DealIIMesh<dim>;
+
+  // Create the cusolver_dn_handle
+  cusolverDnHandle_t cusolver_dn_handle = nullptr;
+  cusolverStatus_t cusolver_error_code;
+  cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+  // Create the cusolver_sp_handle
+  cusolverSpHandle_t cusolver_sp_handle = nullptr;
+  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+  // Create the cusparse_handle
+  cusparseHandle_t cusparse_handle = nullptr;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseCreate(&cusparse_handle);
+  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -250,7 +307,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto const &a = laplace._system_matrix;
   auto const locally_owned_dofs = laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
-  DVector rhs(laplace._system_rhs);
+  DVector rhs(locally_owned_dofs, comm);
+  rhs = laplace._system_rhs;
 
   std::default_random_engine generator;
   std::uniform_real_distribution<typename DVector::value_type> distribution(0.,
@@ -258,7 +316,9 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  TestMeshEvaluator<dim, DVector> evaluator(a, material_property);
+  TestMeshEvaluator<dim, DVector> evaluator(
+      comm, laplace._dof_handler, a, material_property, cusolver_dn_handle,
+      cusolver_sp_handle, cusparse_handle);
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
                                                     params);
 
@@ -294,68 +354,82 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
         << conv_rate << std::endl;
 
+  cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
+  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
+  cusparse_error_code = cusparseDestroy(cusparse_handle);
+  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+
   return conv_rate;
 }
 
-BOOST_AUTO_TEST_CASE(benchmark)
+BOOST_AUTO_TEST_CASE(hierarchy_2d)
 {
   unsigned int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  // We only supports Jacobi smoother on the device
+  params->put("smoother.type", "Jacobi");
 
   test<dim>(params);
 }
 
-BOOST_DATA_TEST_CASE(hierarchy_3d,
-                     bdata::make({"hyper_cube", "hyper_ball"}) *
-                         bdata::make({false, true}) *
-                         bdata::make({"None", "Reverse Cuthill_McKee"}),
-                     mesh, distort_random, reordering)
+BOOST_AUTO_TEST_CASE(hierarchy_3d)
 {
-  // TODO investigate why there is large difference in convergence rate when
-  // running in parallel.
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
-    unsigned int constexpr dim = 3;
-    auto params = std::make_shared<boost::property_tree::ptree>();
-    boost::property_tree::info_parser::read_info("hierarchy_input.info",
-                                                 *params);
-
-    params->put("eigensolver.type", "lapack");
-    params->put("agglomeration.nz", 2);
-    params->put("laplace.n_refinements", 2);
-    params->put("laplace.mesh", mesh);
-    params->put("laplace.distort_random", distort_random);
-    params->put("laplace.reordering", reordering);
-
-    double const conv_rate = test<dim>(params);
-
-    // This is a gold standard test. Not the greatest but it makes sure we don't
-    // break the code
+    // This is gold standard test. Not the greatest but it makes sure we
+    // don't break the code
     std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
-    ref_solution[std::make_tuple("hyper_cube", false, "None")] = 0.0425111106;
-    ref_solution[std::make_tuple("hyper_cube", false,
-                                 "Reverse Cuthill_McKee")] = 0.0425111106;
-    ref_solution[std::make_tuple("hyper_cube", true, "None")] = 0.0398672044;
+    ref_solution[std::make_tuple("hyper_cube", false, "None")] =
+        0.16193365416298541;
+    ref_solution[std::make_tuple(
+        "hyper_cube", false, "Reverse Cuthill_McKee")] = 0.16193365416298544;
+    ref_solution[std::make_tuple("hyper_cube", true, "None")] =
+        0.1486537142879813;
     ref_solution[std::make_tuple("hyper_cube", true, "Reverse Cuthill_McKee")] =
-        0.0398672044;
-    ref_solution[std::make_tuple("hyper_ball", false, "None")] = 0.1303442282;
-    ref_solution[std::make_tuple("hyper_ball", false,
-                                 "Reverse Cuthill_McKee")] = 0.1303442282;
-    ref_solution[std::make_tuple("hyper_ball", true, "None")] = 0.1431096468;
+        0.14865371428798133;
+    ref_solution[std::make_tuple("hyper_ball", false, "None")] =
+        0.5708404747197412;
+    ref_solution[std::make_tuple(
+        "hyper_ball", false, "Reverse Cuthill_McKee")] = 0.57084047471973909;
+    ref_solution[std::make_tuple("hyper_ball", true, "None")] =
+        0.6601100828832337;
     ref_solution[std::make_tuple("hyper_ball", true, "Reverse Cuthill_McKee")] =
-        0.1431096468;
+        0.6601100828832337;
 
-    if (mesh == std::string("hyper_cube"))
-      BOOST_TEST(
-          conv_rate ==
-              ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-          tt::tolerance(1e-6));
-    else
-      BOOST_TEST(
-          conv_rate ==
-              ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-          tt::tolerance(1e-6));
+    for (auto mesh : {"hyper_cube", "hyper_ball"})
+      for (auto distort_random : {false, true})
+        for (auto reordering : {"None", "Reverse Cuthill_McKee"})
+        {
+          unsigned int constexpr dim = 3;
+          auto params = std::make_shared<boost::property_tree::ptree>();
+          boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                       *params);
+
+          params->put("eigensolver.type", "lapack");
+          params->put("agglomeration.nz", 2);
+          params->put("laplace.n_refinements", 2);
+          params->put("laplace.mesh", mesh);
+          params->put("laplace.distort_random", distort_random);
+          params->put("laplace.reordering", reordering);
+          // We only supports Jacobi smoother on the device
+          params->put("smoother.type", "Jacobi");
+
+          double const conv_rate = test<dim>(params);
+
+          if (mesh == std::string("hyper_cube"))
+            BOOST_CHECK_CLOSE(
+                conv_rate,
+                ref_solution[std::make_tuple(mesh, distort_random, reordering)],
+                1e-6);
+          else
+            BOOST_CHECK_CLOSE(
+                conv_rate,
+                ref_solution[std::make_tuple(mesh, distort_random, reordering)],
+                1e-6);
+        }
   }
 }

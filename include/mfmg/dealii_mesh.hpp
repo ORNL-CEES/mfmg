@@ -9,20 +9,27 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/amge_device.templates.cuh>
+#ifndef MFMG_DEALII_MESH_HPP
+#define MFMG_DEALII_MESH_HPP
 
-#include <mfmg/dealii_adapters_device.cuh>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/lac/constraint_matrix.h>
 
-#include <deal.II/lac/la_parallel_vector.h>
+namespace mfmg
+{
+template <int dim>
+struct DealIIMesh
+{
+  DealIIMesh(dealii::DoFHandler<dim> &dof_handler,
+             dealii::ConstraintMatrix &constraints)
+      : _dof_handler(dof_handler), _constraints(constraints)
+  {
+  }
 
-// Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2,
-    mfmg::DealIIMeshEvaluatorDevice<
-        2, dealii::LinearAlgebra::distributed::Vector<double>>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<
-    3,
-    mfmg::DealIIMeshEvaluatorDevice<
-        3, dealii::LinearAlgebra::distributed::Vector<double>>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+  static constexpr int dimension() { return dim; }
+  dealii::DoFHandler<dim> &_dof_handler;
+  dealii::ConstraintMatrix &_constraints;
+};
+}
+
+#endif

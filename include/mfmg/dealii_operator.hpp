@@ -153,7 +153,8 @@ public:
   using solver_type = dealii::TrilinosWrappers::SolverDirect;
   using operator_type = Operator<vector_type>;
 
-  DealIIDirectOperator(matrix_type const &matrix);
+  DealIIDirectOperator(matrix_type const &matrix,
+                       std::shared_ptr<boost::property_tree::ptree> = nullptr);
 
   virtual size_t m() const override final { return _m; }
 

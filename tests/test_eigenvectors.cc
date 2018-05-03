@@ -27,11 +27,11 @@
 namespace tt = boost::test_tools;
 namespace ut = boost::unit_test;
 
-template <int dim, class VectorType>
+template <int dim, typename VectorType>
 class DiagonalTestMeshEvaluator
     : public mfmg::DealIIMeshEvaluator<dim, VectorType>
 {
-private:
+public:
   using value_type =
       typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
 
@@ -41,7 +41,7 @@ protected:
   evaluate(dealii::DoFHandler<dim> &dof_handler,
            dealii::ConstraintMatrix &constraints,
            dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override
+           dealii::SparseMatrix<value_type> &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -58,6 +58,13 @@ protected:
     system_matrix.reinit(system_sparsity_pattern);
     for (unsigned int i = 0; i < size; ++i)
       system_matrix.diag_element(i) = static_cast<double>(i + 1);
+  }
+
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+           dealii::TrilinosWrappers::SparsityPattern &,
+           dealii::TrilinosWrappers::SparseMatrix &) const override final
+  {
   }
 };
 
@@ -129,7 +136,7 @@ protected:
   evaluate(dealii::DoFHandler<dim> &dof_handler,
            dealii::ConstraintMatrix &constraints,
            dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override
+           dealii::SparseMatrix<value_type> &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -148,6 +155,13 @@ protected:
     system_matrix.reinit(system_sparsity_pattern);
     for (unsigned int i = 0; i < size; ++i)
       system_matrix.diag_element(i) = static_cast<double>(i + 1);
+  }
+
+  virtual void
+  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+           dealii::TrilinosWrappers::SparsityPattern &,
+           dealii::TrilinosWrappers::SparseMatrix &) const override final
+  {
   }
 };
 

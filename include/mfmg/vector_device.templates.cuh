@@ -31,14 +31,31 @@ __global__ void add(int const size, ScalarType alpha,
 }
 
 template <typename ScalarType>
+VectorDevice<ScalarType>::VectorDevice(
+    dealii::LinearAlgebra::distributed::Vector<ScalarType> const
+        &distributed_vector)
+{
+  partitioner = distributed_vector.get_partitioner();
+  unsigned int const size = partitioner->local_size();
+  cuda_malloc(val_dev, size);
+
+  // We need to cast away the const because of cudaMemcpy
+  std::vector<ScalarType> val_host(distributed_vector.begin(),
+                                   distributed_vector.end());
+  cuda_mem_copy_to_dev(val_host, val_dev);
+}
+
+template <typename ScalarType>
 VectorDevice<ScalarType>::VectorDevice(VectorDevice const &other)
 {
   partitioner = other.partitioner;
-  cuda_malloc(val_dev, partitioner->local_size());
+  unsigned int const size = partitioner->local_size();
+  cuda_malloc(val_dev, size);
+
   cudaError_t cuda_error_code;
-  cuda_error_code = cudaMemcpy(val_dev, other.val_dev,
-                               partitioner->local_size() * sizeof(ScalarType),
-                               cudaMemcpyDeviceToDevice);
+  cuda_error_code =
+      cudaMemcpy(val_dev, other.val_dev, size * sizeof(ScalarType),
+                 cudaMemcpyDeviceToDevice);
   ASSERT_CUDA(cuda_error_code);
 }
 

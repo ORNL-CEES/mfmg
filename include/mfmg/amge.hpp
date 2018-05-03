@@ -15,6 +15,7 @@
 #include <deal.II/base/mpi.h>
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 #include <deal.II/lac/trilinos_sparsity_pattern.h>
@@ -67,8 +68,29 @@ public:
   void output(std::string const &filename) const;
 
 protected:
+  void compute_restriction_sparse_matrix(
+      std::vector<dealii::Vector<typename VectorType::value_type>> const
+          &eigenvectors,
+      std::vector<std::vector<typename VectorType::value_type>> const
+          &diag_elements,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_maps,
+      std::vector<unsigned int> const &n_local_eigenvectors,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const
+          &locally_relevant_global_diag_dev,
+      dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
+
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;
+
+private:
+  dealii::TrilinosWrappers::SparsityPattern
+  compute_restriction_sparsity_pattern(
+      std::vector<dealii::Vector<double>> const &eigenvectors,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_maps,
+      std::vector<unsigned int> const &n_local_eigenvectors) const;
 };
 }
 
