@@ -31,6 +31,10 @@ public:
 
   virtual size_t m() const = 0;
   virtual size_t n() const = 0;
+
+  virtual size_t grid_complexity() const = 0;
+  virtual size_t operator_complexity() const = 0;
+
   virtual void apply(vector_type const &x, vector_type &y) const = 0;
 
   virtual std::shared_ptr<vector_type> build_domain_vector() const = 0;

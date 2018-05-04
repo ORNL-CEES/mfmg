@@ -35,10 +35,12 @@ public:
   SparseMatrixDeviceOperator(std::shared_ptr<matrix_type> matrix);
 
   virtual size_t m() const override final { return _matrix->m(); }
-
   virtual size_t n() const override final { return _matrix->n(); }
 
   size_t nnz() const { return _matrix->n_nonzero_elements(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final { return nnz(); }
 
   virtual void apply(vector_type const &x, vector_type &y) const override final;
 
@@ -71,8 +73,15 @@ public:
                          std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual size_t m() const override final { return _matrix.m(); }
-
   virtual size_t n() const override final { return _matrix.n(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return 0;
+  }
 
   virtual void apply(vector_type const &b, vector_type &x) const override final;
 
@@ -105,8 +114,13 @@ public:
                        std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual size_t m() const override final { return _matrix.m(); }
-
   virtual size_t n() const override final { return _matrix.n(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final
+  {
+    return _matrix.n_nonzero_elements();
+  }
 
   virtual void apply(vector_type const &b, vector_type &x) const override final;
 

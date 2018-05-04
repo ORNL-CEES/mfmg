@@ -17,6 +17,7 @@
 
 #include <EpetraExt_Transpose_RowMatrix.h>
 #include <ml_MultiLevelPreconditioner.h>
+#include <ml_Preconditioner.h>
 
 namespace mfmg
 {
@@ -236,6 +237,7 @@ DealIIDirectOperator<VectorType>::DealIIDirectOperator(
 {
   _m = matrix.m();
   _n = matrix.n();
+  _nnz = matrix.n_nonzero_elements();
 
   std::string coarse_type;
   if (params != nullptr)
@@ -278,11 +280,53 @@ DealIIDirectOperator<VectorType>::DealIIDirectOperator(
 }
 
 template <typename VectorType>
+size_t DealIIDirectOperator<VectorType>::grid_complexity() const
+{
+  check_state();
+  if (_solver)
+    return m();
+  else
+  {
+    auto const &epetra_operator = _smoother->trilinos_operator();
+    auto const &ml_operator =
+        dynamic_cast<ML_Epetra::MultiLevelPreconditioner const &>(
+            epetra_operator);
+    auto ml = ml_operator.GetML();
+
+    size_t complexity = 0;
+    for (int i = 0; i < ml->ML_num_actual_levels; i++)
+    {
+      long long local = ml->Amat[ml->LevelID[i]].invec_leng, global;
+      ml_operator.Comm().SumAll(&local, &global, 1);
+      complexity += global;
+    }
+
+    return complexity;
+  }
+}
+
+template <typename VectorType>
+size_t DealIIDirectOperator<VectorType>::operator_complexity() const
+{
+  check_state();
+  if (_solver)
+    return _nnz;
+  else
+  {
+    auto &epetra_operator = _smoother->trilinos_operator();
+    auto &ml_operator =
+        dynamic_cast<ML_Epetra::MultiLevelPreconditioner &>(epetra_operator);
+    double oc, nnz;
+    ml_operator.Complexities(oc, nnz);
+    return oc * nnz;
+  }
+}
+
+template <typename VectorType>
 void DealIIDirectOperator<VectorType>::apply(vector_type const &b,
                                              vector_type &x) const
 {
-  ASSERT_THROW((!_solver) != (!_smoother),
-               "Internal error: only one of two can be not null.");
+  check_state();
   if (_solver)
     _solver->solve(x, b);
   else
