@@ -277,7 +277,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto const residual0_norm = residual.l2_norm();
 
   std::cout << std::scientific;
-  pcout << "#0: " << 1.0 << std::endl;
+  // pcout << "#0: " << 1.0 << std::endl;
   res[0] = 1.0;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
@@ -286,7 +286,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
     a.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);
     double rel_residual = residual.l2_norm() / residual0_norm;
-    pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
+    // pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
     res[i + 1] = rel_residual;
   }
 
