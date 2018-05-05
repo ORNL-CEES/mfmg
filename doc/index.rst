@@ -13,6 +13,7 @@ Welcome to mfmg's documentation!
 
    overview
    install
+   developer_tools
 
 Indices and tables
 ==================
