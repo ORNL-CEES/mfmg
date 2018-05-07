@@ -307,6 +307,31 @@ BOOST_AUTO_TEST_CASE(benchmark)
   test<dim>(params);
 }
 
+BOOST_AUTO_TEST_CASE(ml)
+{
+  unsigned int constexpr dim = 2;
+
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+
+  double gold_rate = test<dim>(params);
+
+  params->put("coarse.type", "ml");
+  params->put("coarse.params.smoother: type", "symmetric Gauss-Seidel");
+  params->put("coarse.params.max levels", 1);
+  params->put("coarse.params.coarse: type", "Amesos-KLU");
+
+  double ml_rate = test<dim>(params);
+
+  BOOST_TEST(ml_rate == gold_rate, tt::tolerance(1e-9));
+
+  params->put("coarse.params.max levels", 2);
+
+  ml_rate = test<dim>(params);
+
+  BOOST_TEST(ml_rate > gold_rate + 0.1);
+}
+
 BOOST_DATA_TEST_CASE(hierarchy_3d,
                      bdata::make({"hyper_cube", "hyper_ball"}) *
                          bdata::make({false, true}) *
