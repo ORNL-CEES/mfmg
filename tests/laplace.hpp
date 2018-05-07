@@ -9,6 +9,9 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#ifndef MFMG_LAPLACE_HPP
+#define MFMG_LAPLACE_HPP
+
 #include <deal.II/base/function.h>
 #include <deal.II/base/index_set.h>
 #include <deal.II/base/quadrature.h>
@@ -275,3 +278,5 @@ void Laplace<dim, VectorType>::run(
   solve(preconditioner);
   output_results();
 }
+
+#endif // #ifdef MFMG_LAPLACE_HPP

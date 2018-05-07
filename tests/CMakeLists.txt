@@ -1,5 +1,7 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetupTests.cmake)
 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
 # Link against the Unit Test Framework of Boost
 ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 
