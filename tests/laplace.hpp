@@ -251,17 +251,20 @@ void Laplace<dim, VectorType>::output_results() const
 
   data_out.build_patches();
 
+  unsigned int comm_size = dealii::Utilities::MPI::n_mpi_processes(_comm);
+
   std::string filename =
-      "solution-" + std::to_string(_triangulation.locally_owned_subdomain());
+      "solution-" + std::to_string(_triangulation.locally_owned_subdomain()) +
+      "-" + std::to_string(comm_size);
   std::ofstream output((filename + ".vtu").c_str());
   data_out.write_vtu(output);
 
   if (dealii::Utilities::MPI::this_mpi_process(_comm) == 0)
   {
     std::vector<std::string> filenames;
-    unsigned int comm_size = dealii::Utilities::MPI::n_mpi_processes(_comm);
     for (unsigned int i = 0; i < comm_size; ++i)
-      filenames.push_back("solution-" + std::to_string(i) + ".vtu");
+      filenames.push_back("solution-" + std::to_string(i) + "-" +
+                          std::to_string(comm_size) + ".vtu");
     std::ofstream master_output("solution.pvtu");
     data_out.write_pvtu_record(master_output, filenames);
   }
