@@ -31,6 +31,10 @@ public:
 
   virtual size_t m() const = 0;
   virtual size_t n() const = 0;
+
+  virtual size_t grid_complexity() const = 0;
+  virtual size_t operator_complexity() const = 0;
+
   virtual void apply(vector_type const &x, vector_type &y) const = 0;
 
   virtual std::shared_ptr<vector_type> build_domain_vector() const = 0;
@@ -103,7 +107,7 @@ public:
   }
 
   static std::shared_ptr<operator_type>
-  build_direct_solver(operator_type const &, mesh_evaluator_type const &,
+  build_coarse_solver(operator_type const &, mesh_evaluator_type const &,
                       std::shared_ptr<boost::property_tree::ptree>)
   {
     ASSERT_THROW_NOT_IMPLEMENTED();

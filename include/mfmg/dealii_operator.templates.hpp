@@ -13,8 +13,11 @@
 #define MFMG_DEALII_OPERATOR_TEMPLATES_HPP
 
 #include <mfmg/dealii_operator.hpp>
+#include <mfmg/utils.hpp>
 
 #include <EpetraExt_Transpose_RowMatrix.h>
+#include <ml_MultiLevelPreconditioner.h>
+#include <ml_Preconditioner.h>
 
 namespace mfmg
 {
@@ -147,7 +150,7 @@ DealIITrilinosMatrixOperator<VectorType>::build_range_vector() const
 
 template <typename VectorType>
 DealIISmootherOperator<VectorType>::DealIISmootherOperator(
-    dealii::TrilinosWrappers::SparseMatrix const &matrix,
+    matrix_type const &matrix,
     std::shared_ptr<boost::property_tree::ptree> params)
     : _matrix(matrix)
 {
@@ -229,13 +232,105 @@ void DealIISmootherOperator<VectorType>::initialize(
 
 template <typename VectorType>
 DealIIDirectOperator<VectorType>::DealIIDirectOperator(
-    dealii::TrilinosWrappers::SparseMatrix const &matrix,
-    std::shared_ptr<boost::property_tree::ptree>)
+    matrix_type const &matrix,
+    std::shared_ptr<boost::property_tree::ptree> params)
 {
-  _solver.reset(new solver_type(_solver_control));
-  _solver->initialize(matrix);
   _m = matrix.m();
   _n = matrix.n();
+  _nnz = matrix.n_nonzero_elements();
+
+  std::string coarse_type;
+  if (params != nullptr)
+    coarse_type = params->get("coarse.type", "");
+
+  // Make parameters case-insensitive
+  std::string coarse_type_lower = coarse_type;
+  std::transform(coarse_type_lower.begin(), coarse_type_lower.end(),
+                 coarse_type_lower.begin(), ::tolower);
+
+  if (coarse_type_lower == "" || coarse_type_lower == "direct")
+  {
+    _solver.reset(new solver_type(_solver_control));
+    _solver->initialize(matrix);
+  }
+  else
+  {
+    if (coarse_type_lower == "ml")
+    {
+      auto ml_tree = params->get_child_optional("coarse.params");
+
+      // For now, always set defaults to SA
+      Teuchos::ParameterList ml_params;
+      ML_Epetra::SetDefaults("SA", ml_params);
+
+      if (ml_tree)
+      {
+        // Augment with user provided parameters
+        ptree2plist(*ml_tree, ml_params);
+      }
+
+      _smoother.reset(new dealii::TrilinosWrappers::PreconditionAMG());
+      static_cast<dealii::TrilinosWrappers::PreconditionAMG *>(_smoother.get())
+          ->initialize(matrix, ml_params);
+    }
+    else
+      ASSERT_THROW(false,
+                   "Unknown coarse solver name: \"" + coarse_type_lower + "\"");
+  }
+}
+
+template <typename VectorType>
+size_t DealIIDirectOperator<VectorType>::grid_complexity() const
+{
+  check_state();
+  if (_solver)
+    return m();
+  else
+  {
+    auto const &epetra_operator = _smoother->trilinos_operator();
+    auto const &ml_operator =
+        dynamic_cast<ML_Epetra::MultiLevelPreconditioner const &>(
+            epetra_operator);
+    auto ml = ml_operator.GetML();
+
+    size_t complexity = 0;
+    for (int i = 0; i < ml->ML_num_actual_levels; i++)
+    {
+      long long local = ml->Amat[ml->LevelID[i]].invec_leng, global;
+      ml_operator.Comm().SumAll(&local, &global, 1);
+      complexity += global;
+    }
+
+    return complexity;
+  }
+}
+
+template <typename VectorType>
+size_t DealIIDirectOperator<VectorType>::operator_complexity() const
+{
+  check_state();
+  if (_solver)
+    return _nnz;
+  else
+  {
+    auto &epetra_operator = _smoother->trilinos_operator();
+    auto &ml_operator =
+        dynamic_cast<ML_Epetra::MultiLevelPreconditioner &>(epetra_operator);
+    double oc, nnz;
+    ml_operator.Complexities(oc, nnz);
+    return oc * nnz;
+  }
+}
+
+template <typename VectorType>
+void DealIIDirectOperator<VectorType>::apply(vector_type const &b,
+                                             vector_type &x) const
+{
+  check_state();
+  if (_solver)
+    _solver->solve(x, b);
+  else
+    _smoother->vmult(x, b);
 }
 
 template <typename VectorType>

@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#define BOOST_TEST_MODULE utils
+#define BOOST_TEST_MODULE utils_device
 
 #include "main.cc"
 

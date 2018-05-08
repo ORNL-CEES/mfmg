@@ -277,7 +277,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto const residual0_norm = residual.l2_norm();
 
   std::cout << std::scientific;
-  pcout << "#0: " << 1.0 << std::endl;
+  // pcout << "#0: " << 1.0 << std::endl;
   res[0] = 1.0;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
@@ -286,7 +286,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
     a.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);
     double rel_residual = residual.l2_norm() / residual0_norm;
-    pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
+    // pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
     res[i + 1] = rel_residual;
   }
 
@@ -305,6 +305,31 @@ BOOST_AUTO_TEST_CASE(benchmark)
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
 
   test<dim>(params);
+}
+
+BOOST_AUTO_TEST_CASE(ml)
+{
+  unsigned int constexpr dim = 2;
+
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+
+  double gold_rate = test<dim>(params);
+
+  params->put("coarse.type", "ml");
+  params->put("coarse.params.smoother: type", "symmetric Gauss-Seidel");
+  params->put("coarse.params.max levels", 1);
+  params->put("coarse.params.coarse: type", "Amesos-KLU");
+
+  double ml_rate = test<dim>(params);
+
+  BOOST_TEST(ml_rate == gold_rate, tt::tolerance(1e-9));
+
+  params->put("coarse.params.max levels", 2);
+
+  ml_rate = test<dim>(params);
+
+  BOOST_TEST(ml_rate > gold_rate + 0.1);
 }
 
 BOOST_DATA_TEST_CASE(hierarchy_3d,

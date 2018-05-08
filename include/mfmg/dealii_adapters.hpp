@@ -176,11 +176,12 @@ public:
   }
 
   static std::shared_ptr<operator_type>
-  build_direct_solver(operator_type const &op, mesh_evaluator_type const &,
-                      std::shared_ptr<boost::property_tree::ptree>)
+  build_coarse_solver(operator_type const &op, mesh_evaluator_type const &,
+                      std::shared_ptr<boost::property_tree::ptree> params)
   {
     auto global_op = dynamic_cast<global_operator_type const &>(op);
-    return std::make_shared<direct_solver_type>(*global_op.get_matrix());
+    return std::make_shared<direct_solver_type>(*global_op.get_matrix(),
+                                                params);
   }
 };
 

@@ -104,9 +104,9 @@ public:
 
       if (level_index == num_levels - 1)
       {
-        auto direct_solver =
-            HierarchyHelpers::build_direct_solver(*a, evaluator, params);
-        level_fine.set_smoother(direct_solver);
+        auto coarse_solver =
+            HierarchyHelpers::build_coarse_solver(*a, evaluator, params);
+        level_fine.set_smoother(coarse_solver);
 
         break;
       }
@@ -206,12 +206,23 @@ public:
     if (num_levels == 0)
       return -1.0;
 
-    auto level0_m = _levels[0].get_operator()->m();
+    auto level0_m = _levels[0].get_operator()->grid_complexity();
     ASSERT(level0_m, "The size of the finest level operator is 0.");
 
     double complexity = level0_m;
+
     for (int i = 1; i < num_levels; i++)
-      complexity += _levels[i].get_operator()->m();
+    {
+      if (i < num_levels - 1)
+        complexity += _levels[i].get_operator()->grid_complexity();
+      else
+      {
+        // Hierarchy may be continued using a different multigrid
+        // For direct solvers, this would be equivalent to using
+        //   _levels[i].get_operator()->grid_complexity()
+        complexity += _levels[i].get_smoother()->grid_complexity();
+      }
+    }
 
     return complexity / level0_m;
   }
@@ -223,16 +234,22 @@ public:
     if (num_levels == 0)
       return -1.0;
 
-    auto level0_nnz = std::dynamic_pointer_cast<global_operator_type const>(
-                          _levels[0].get_operator())
-                          ->nnz();
+    auto level0_nnz = _levels[0].get_operator()->operator_complexity();
     ASSERT(level0_nnz, "The nnz of the finest level operator is 0.");
 
     double complexity = level0_nnz;
     for (int i = 1; i < num_levels; i++)
-      complexity += std::dynamic_pointer_cast<global_operator_type const>(
-                        _levels[i].get_operator())
-                        ->nnz();
+    {
+      if (i < num_levels - 1)
+        complexity += _levels[i].get_operator()->operator_complexity();
+      else
+      {
+        // Hierarchy may be continued using a different multigrid
+        // For direct solvers, this would be equivalent to using
+        //   _levels[i].get_operator()->operator_complexity()
+        complexity += _levels[i].get_smoother()->operator_complexity();
+      }
+    }
     return complexity / level0_nnz;
   }
 

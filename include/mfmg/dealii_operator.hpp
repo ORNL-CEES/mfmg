@@ -43,10 +43,12 @@ public:
                        std::shared_ptr<sparsity_pattern_type> sparsity_pattern);
 
   virtual size_t m() const override final { return _matrix->m(); }
-
   virtual size_t n() const override final { return _matrix->n(); }
 
   size_t nnz() const { return _matrix->n_nonzero_elements(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final { return nnz(); }
 
   virtual void apply(vector_type const &x, vector_type &y) const override final;
 
@@ -87,10 +89,12 @@ public:
       std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
 
   virtual size_t m() const override final { return _matrix->m(); }
-
   virtual size_t n() const override final { return _matrix->n(); }
 
   size_t nnz() const { return _matrix->n_nonzero_elements(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final { return nnz(); }
 
   virtual void apply(vector_type const &x, vector_type &y) const override final;
 
@@ -122,8 +126,13 @@ public:
                          std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual size_t m() const override final { return _matrix.m(); }
-
   virtual size_t n() const override final { return _matrix.n(); }
+
+  virtual size_t grid_complexity() const override final { return m(); }
+  virtual size_t operator_complexity() const override final
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
 
   virtual void apply(vector_type const &b, vector_type &x) const override final;
 
@@ -153,17 +162,17 @@ public:
   using solver_type = dealii::TrilinosWrappers::SolverDirect;
   using operator_type = Operator<vector_type>;
 
-  DealIIDirectOperator(matrix_type const &matrix,
-                       std::shared_ptr<boost::property_tree::ptree> = nullptr);
+  DealIIDirectOperator(
+      matrix_type const &matrix,
+      std::shared_ptr<boost::property_tree::ptree> params = nullptr);
 
   virtual size_t m() const override final { return _m; }
-
   virtual size_t n() const override final { return _n; }
 
-  virtual void apply(vector_type const &b, vector_type &x) const override final
-  {
-    _solver->solve(x, b);
-  }
+  virtual size_t grid_complexity() const override final;
+  virtual size_t operator_complexity() const override final;
+
+  virtual void apply(vector_type const &b, vector_type &x) const override final;
 
   virtual std::shared_ptr<VectorType>
   build_domain_vector() const override final;
@@ -171,10 +180,17 @@ public:
   virtual std::shared_ptr<VectorType> build_range_vector() const override final;
 
 private:
+  void check_state() const
+  {
+    ASSERT_THROW((!_solver) != (!_smoother),
+                 "Internal error: only one of two can be not null.");
+  }
   dealii::SolverControl _solver_control;
   std::unique_ptr<dealii::TrilinosWrappers::SolverDirect> _solver;
+  std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
   size_t _m;
   size_t _n;
+  size_t _nnz;
 };
 }
 

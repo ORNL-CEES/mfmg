@@ -14,6 +14,7 @@
 
 #include <EpetraExt_MultiVectorOut.h>
 #include <EpetraExt_RowMatrixOut.h>
+#include <Teuchos_XMLParameterListCoreHelpers.hpp>
 
 #include <string>
 
@@ -40,5 +41,59 @@ void matrix_market_output_file(
                                                     vector.trilinos_vector());
   ASSERT(rv != 0, "EpetraExt::RowMatrixToMatrixMarketFile return value is " +
                       std::to_string(rv));
+}
+
+static std::ostream &
+ptree2plist_internal(boost::property_tree::ptree const &node, std::ostream &os)
+{
+  ASSERT(!node.empty(), "Internal error");
+
+  // Iterate on children
+  for (auto const &item : node)
+  {
+    bool child_is_sublist = !item.second.empty();
+    if (child_is_sublist)
+    {
+      os << "<ParameterList name=\"" << item.first << "\">" << std::endl;
+      ptree2plist_internal(item.second, os);
+      os << "</ParameterList>" << std::endl;
+    }
+    else
+    {
+      auto value = item.second.data();
+      std::string value_type;
+
+      if (item.second.get_value_optional<int>())
+        value_type = "int";
+      else if (item.second.get_value_optional<double>())
+        value_type = "double";
+      else if (item.second.get_value_optional<bool>())
+        value_type = "bool";
+      else
+        value_type = "string";
+
+      os << "<Parameter name=\"" << item.first << "\" type=\"" << value_type
+         << "\" value=\"" << value << "\"/>" << std::endl;
+    }
+  }
+  return os;
+}
+
+void ptree2plist(boost::property_tree::ptree const &node,
+                 Teuchos::ParameterList &plist)
+{
+  if (node.empty())
+  {
+    plist = Teuchos::ParameterList();
+    return;
+  }
+
+  std::ostringstream ss;
+
+  ss << "<ParameterList name=\"ANONYMOUS\">\n";
+  ptree2plist_internal(node, ss);
+  ss << "</ParameterList>";
+
+  plist = *Teuchos::getParametersFromXmlString(ss.str());
 }
 }
