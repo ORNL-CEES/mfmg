@@ -1,7 +1,5 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/SetupTests.cmake)
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
 # Link against the Unit Test Framework of Boost
 ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 
@@ -9,6 +7,7 @@ ADD_DEFINITIONS(-DBOOST_TEST_DYN_LINK)
 # MFMG_ADD_TEST(test x y z)
 MFMG_ADD_TEST(test_laplace 1 2 4)
 MFMG_ADD_TEST(test_hierarchy 1 2 4)
+MFMG_ADD_TEST(hierarchy_driver 1 2 4)
 MFMG_ADD_TEST(test_agglomerate 1 2 4)
 MFMG_ADD_TEST(test_eigenvectors 1)
 MFMG_ADD_TEST(test_restriction_matrix 1 2 4)

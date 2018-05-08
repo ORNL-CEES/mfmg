@@ -7,6 +7,7 @@ IF(DEFINED BOOST_DIR)
 ENDIF()
 SET(Boost_COMPONENTS
   unit_test_framework
+  program_options
   )
 FIND_PACKAGE(Boost 1.65.1 REQUIRED COMPONENTS ${Boost_COMPONENTS})
 

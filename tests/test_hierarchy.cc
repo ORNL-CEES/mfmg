@@ -14,11 +14,10 @@
 #include "main.cc"
 
 #include "laplace.hpp"
+#include "test_hierarchy_helpers.hpp"
 
 #include <mfmg/dealii_adapters.hpp>
 #include <mfmg/hierarchy.hpp>
-
-#include <test_hierarchy_helpers.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/dofs/dof_accessor.h>
