@@ -238,12 +238,20 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       restriction_sp.local_range();
   unsigned int const n_agglomerates = n_local_eigenvectors.size();
   unsigned int pos = 0;
+  ASSERT(n_agglomerates == dof_indices_maps.size(),
+         "dof_indices_maps has the wrong size: " +
+             std::to_string(dof_indices_maps.size()) + " instead of " +
+             std::to_string(n_agglomerates));
   for (unsigned int i = 0; i < n_agglomerates; ++i)
   {
     unsigned int const n_local_eig = n_local_eigenvectors[i];
     for (unsigned int k = 0; k < n_local_eig; ++k)
     {
       unsigned int const n_elem = eigenvectors[pos].size();
+      ASSERT(n_elem == dof_indices_maps[i].size(),
+             "dof_indices_maps[i] has the wrong size: " +
+                 std::to_string(dof_indices_maps[i].size()) + " instead of " +
+                 std::to_string(n_elem));
       for (unsigned int j = 0; j < n_elem; ++j)
       {
         dealii::types::global_dof_index const global_pos =
@@ -282,7 +290,7 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
           diag_elements[i][j] / locally_relevant_global_diag[global_pos];
       weight_matrix.add(global_pos, global_pos, value);
     }
-    ++pos;
+    pos += n_local_eigenvectors[i];
   }
 
   // Compress the matrix
