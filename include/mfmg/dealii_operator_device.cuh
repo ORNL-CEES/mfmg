@@ -21,6 +21,10 @@
 #include <cusolverDn.h>
 #include <cusolverSp.h>
 
+#if MFMG_WITH_AMGX
+#include <amgx_c.h>
+#endif
+
 namespace mfmg
 {
 template <typename VectorType>
@@ -107,11 +111,12 @@ public:
   using matrix_type = SparseMatrixDevice<value_type>;
   using operator_type = Operator<vector_type>;
 
-  // Need to move the matrix to only one gpu -> need gather/scatter
   DirectDeviceOperator(cusolverDnHandle_t const cusolver_dn_handle,
                        cusolverSpHandle_t const cusolver_sp_handle,
                        matrix_type const &matrix,
                        std::shared_ptr<boost::property_tree::ptree> params);
+
+  virtual ~DirectDeviceOperator();
 
   virtual size_t m() const override final { return _matrix.m(); }
   virtual size_t n() const override final { return _matrix.n(); }
@@ -133,10 +138,20 @@ public:
 private:
   cusolverDnHandle_t _cusolver_dn_handle;
   cusolverSpHandle_t _cusolver_sp_handle;
-
   matrix_type const &_matrix;
-
   std::string _solver;
+  std::string _amgx_config_file;
+#if MFMG_WITH_AMGX
+  // AMGX handles and data
+  AMGX_config_handle _amgx_config_handle;
+  AMGX_resources_handle _amgx_res_handle;
+  AMGX_matrix_handle _amgx_matrix_handle;
+  AMGX_vector_handle _amgx_rhs_handle;
+  AMGX_vector_handle _amgx_solution_handle;
+  AMGX_solver_handle _amgx_solver_handle;
+  int _device_id[1];
+  std::unordered_map<int, int> _row_map;
+#endif
 };
 }
 
