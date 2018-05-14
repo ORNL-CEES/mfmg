@@ -263,6 +263,83 @@ BOOST_AUTO_TEST_CASE(sparse_matrix_device)
   }
 }
 
+BOOST_AUTO_TEST_CASE(amgx_format)
+{
+  int comm_size = dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  if (comm_size == 1)
+  {
+    // Create the cusparse_handle
+    cusparseHandle_t cusparse_handle = nullptr;
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseCreate(&cusparse_handle);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+
+    // Create the matrix on the host.
+    unsigned int const n_rows = 10;
+    auto parallel_partitioning = dealii::complete_index_set(n_rows);
+    parallel_partitioning.compress();
+    dealii::TrilinosWrappers::SparseMatrix sparse_matrix(parallel_partitioning);
+
+    for (unsigned int i = 0; i < n_rows; ++i)
+    {
+      unsigned int j_max = std::min(n_rows - 1, i + 1);
+      unsigned int j_min = (i == 0) ? 0 : i - 1;
+      sparse_matrix.set(i, j_min, -1.);
+      sparse_matrix.set(i, j_max, -1.);
+      sparse_matrix.set(i, i, 4.);
+    }
+    sparse_matrix.compress(dealii::VectorOperation::insert);
+
+    // Move the matrix
+    mfmg::SparseMatrixDevice<double> matrix_dev(
+        mfmg::convert_matrix(sparse_matrix));
+    matrix_dev.cusparse_handle = cusparse_handle;
+    cusparse_error_code = cusparseCreateMatDescr(&matrix_dev.descr);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code =
+        cusparseSetMatIndexBase(matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+
+    // The first, the third, and the fifth rows will be send to another
+    // processors
+    std::unordered_set<int> rows_sent;
+    rows_sent.insert(0);
+    rows_sent.insert(2);
+    rows_sent.insert(4);
+
+    mfmg::csr_to_amgx(rows_sent, matrix_dev);
+
+    // Move the data to the host and compare the result
+    std::vector<double> value_ref = {
+        4.,  -1., -1., 4.,  -1., -1., 4.,  -1., -1., -1., 4., -1., -1., 4.,
+        -1., -1., 4.,  -1., -1., 3.,  -1., 3.,  -1., -1., 4., -1., -1., 4.};
+    std::vector<int> col_index_ref = {0, 7, 8, 1, 8, 9, 2, 3, 9, 2, 3, 4, 3, 4,
+                                      5, 4, 5, 6, 5, 6, 0, 7, 0, 1, 8, 1, 2, 9};
+    std::vector<int> row_ptr_ref = {0, 3, 6, 9, 12, 15, 18, 20, 22, 25, 28};
+
+    unsigned int const local_nnz = matrix_dev.local_nnz();
+    unsigned int const n_local_rows = matrix_dev.n_local_rows();
+    std::vector<double> value_host(local_nnz);
+    mfmg::cuda_mem_copy_to_host(matrix_dev.val_dev, value_host);
+    std::vector<int> col_index_host(local_nnz);
+    mfmg::cuda_mem_copy_to_host(matrix_dev.column_index_dev, col_index_host);
+    std::vector<int> row_ptr_host(n_local_rows + 1);
+    mfmg::cuda_mem_copy_to_host(matrix_dev.row_ptr_dev, row_ptr_host);
+
+    for (unsigned int i = 0; i < local_nnz; ++i)
+      BOOST_CHECK_EQUAL(value_host[i], value_ref[i]);
+
+    for (unsigned int i = 0; i < local_nnz; ++i)
+      BOOST_CHECK_EQUAL(col_index_host[i], col_index_ref[i]);
+
+    for (unsigned int i = 0; i < n_local_rows + 1; ++i)
+      BOOST_CHECK_EQUAL(row_ptr_host[i], row_ptr_ref[i]);
+  }
+}
+
 BOOST_AUTO_TEST_CASE(cuda_mpi)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
