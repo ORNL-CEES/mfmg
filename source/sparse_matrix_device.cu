@@ -12,5 +12,4 @@
 #include <mfmg/sparse_matrix_device.templates.cuh>
 
 // Cannot use the instantiation macro with nvcc
-template class mfmg::SparseMatrixDevice<float>;
 template class mfmg::SparseMatrixDevice<double>;

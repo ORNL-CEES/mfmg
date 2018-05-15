@@ -81,18 +81,18 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_square)
                              column_indices.end());
 
   // Build the sparse matrix
-  dealii::SparseMatrix<float> sparse_matrix(sparsity_pattern);
+  dealii::SparseMatrix<double> sparse_matrix(sparsity_pattern);
   for (unsigned int i = 0; i < size; ++i)
     for (unsigned int j = 0; j < size; ++j)
       if (sparsity_pattern.exists(i, j))
-        sparse_matrix.set(i, j, static_cast<float>(i + j));
+        sparse_matrix.set(i, j, static_cast<double>(i + j));
 
   // Move the sparse matrix to the device and change the format to a regular CSR
-  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
+  mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
       mfmg::convert_matrix(sparse_matrix);
 
   // Copy the matrix from the gpu
-  std::vector<float> val_host;
+  std::vector<double> val_host;
   std::vector<int> column_index_host;
   std::vector<int> row_ptr_host;
   std::tie(val_host, column_index_host, row_ptr_host) =
@@ -122,20 +122,20 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_rectangle)
                              column_indices.end());
 
   // Build the sparse matrix
-  dealii::SparseMatrix<float> sparse_matrix(sparsity_pattern);
+  dealii::SparseMatrix<double> sparse_matrix(sparsity_pattern);
   for (unsigned int i = 0; i < n_rows; ++i)
     for (unsigned int j = 0; j < nnz_per_row; ++j)
-      sparse_matrix.set(i, i + j, static_cast<float>(i + j));
+      sparse_matrix.set(i, i + j, static_cast<double>(i + j));
 
   // Move the sparse matrix to the device and change the format to a regular CSR
-  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
+  mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
       mfmg::convert_matrix(sparse_matrix);
 
   BOOST_CHECK_EQUAL(sparse_matrix_dev.m(), n_rows);
   BOOST_CHECK_EQUAL(sparse_matrix_dev.n(), n_cols);
 
   // Copy the matrix from the gpu
-  std::vector<float> val_host;
+  std::vector<double> val_host;
   std::vector<int> column_index_host;
   std::vector<int> row_ptr_host;
   std::tie(val_host, column_index_host, row_ptr_host) =

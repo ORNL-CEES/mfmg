@@ -346,8 +346,6 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 }
 #endif
 
-template SparseMatrixDevice<float>
-convert_matrix(dealii::SparseMatrix<float> const &sparse_matrix);
 template SparseMatrixDevice<double>
 convert_matrix(dealii::SparseMatrix<double> const &sparse_matrix);
 }
