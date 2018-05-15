@@ -132,6 +132,8 @@ public:
   virtual size_t operator_complexity() const override final
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return 0;
   }
 
   virtual void apply(vector_type const &b, vector_type &x) const override final;

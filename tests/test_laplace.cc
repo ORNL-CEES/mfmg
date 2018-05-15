@@ -109,8 +109,9 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
   {
     BOOST_TEST(std::remove("solution.pvtu") == 0);
     for (unsigned int i = 0; i < world_size; ++i)
-      BOOST_TEST(
-          std::remove(("solution-" + std::to_string(i) + ".vtu").c_str()) == 0);
+      BOOST_TEST(std::remove(("solution-" + std::to_string(i) + "-" +
+                              std::to_string(world_size) + ".vtu")
+                                 .c_str()) == 0);
   }
 }
 
