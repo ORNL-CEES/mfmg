@@ -167,6 +167,42 @@ SparseMatrixDevice<double> convert_matrix(Epetra_CrsMatrix const &sparse_matrix)
       range_indexset, domain_indexset);
 }
 
+dealii::TrilinosWrappers::SparseMatrix
+convert_to_trilinos_matrix(SparseMatrixDevice<double> const &matrix_dev)
+{
+  unsigned int const local_nnz = matrix_dev.local_nnz();
+  unsigned int const n_local_rows = matrix_dev.n_local_rows();
+  std::vector<double> values(local_nnz);
+  std::vector<int> column_index(local_nnz);
+  std::vector<int> row_ptr(n_local_rows + 1);
+
+  // Copy the data to the host
+  cuda_mem_copy_to_host(matrix_dev.val_dev, values);
+  cuda_mem_copy_to_host(matrix_dev.column_index_dev, column_index);
+  cuda_mem_copy_to_host(matrix_dev.row_ptr_dev, row_ptr);
+
+  // Create the sparse matrix on the host
+  dealii::IndexSet locally_owned_rows =
+      matrix_dev.locally_owned_range_indices();
+  dealii::TrilinosWrappers::SparseMatrix sparse_matrix(
+      locally_owned_rows, matrix_dev.locally_owned_domain_indices(),
+      matrix_dev.get_mpi_communicator());
+
+  unsigned int pos = 0;
+  for (auto row : locally_owned_rows)
+  {
+    unsigned int const n_cols = row_ptr[pos + 1] - row_ptr[pos];
+    sparse_matrix.set(
+        row, n_cols,
+        reinterpret_cast<unsigned int *>(column_index.data() + row_ptr[pos]),
+        values.data() + row_ptr[pos]);
+    ++pos;
+  }
+  sparse_matrix.compress(dealii::VectorOperation::insert);
+
+  return sparse_matrix;
+}
+
 void all_gather(MPI_Comm communicator, unsigned int send_count,
                 unsigned int *send_buffer, unsigned int recv_count,
                 unsigned int *recv_buffer)
