@@ -240,6 +240,65 @@ SparseMatrixDevice<ScalarType>::SparseMatrixDevice(
 }
 
 template <typename ScalarType>
+SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
+{
+  if (val_dev != nullptr)
+  {
+    cuda_free(val_dev);
+    val_dev = nullptr;
+  }
+
+  if (column_index_dev != nullptr)
+  {
+    cuda_free(column_index_dev);
+    column_index_dev = nullptr;
+  }
+
+  if (row_ptr_dev != nullptr)
+  {
+    cuda_free(row_ptr_dev);
+    row_ptr_dev = nullptr;
+  }
+
+  if (descr != nullptr)
+  {
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseDestroyMatDescr(descr);
+    ASSERT_CUSPARSE(cusparse_error_code);
+    descr = nullptr;
+  }
+}
+
+template <typename ScalarType>
+SparseMatrixDevice<ScalarType> &SparseMatrixDevice<ScalarType>::
+operator=(SparseMatrixDevice<ScalarType> &&other)
+{
+  _comm = other._comm;
+  val_dev = other.val_dev;
+  column_index_dev = other.column_index_dev;
+  row_ptr_dev = other.row_ptr_dev;
+  cusparse_handle = other.cusparse_handle;
+  descr = other.descr;
+  _local_nnz = other._local_nnz;
+  _nnz = other._nnz;
+  _range_indexset = other._range_indexset;
+  _domain_indexset = other._domain_indexset;
+
+  other.val_dev = nullptr;
+  other.column_index_dev = nullptr;
+  other.row_ptr_dev = nullptr;
+  other.cusparse_handle = nullptr;
+  other.descr = nullptr;
+
+  other._local_nnz = 0;
+  other._nnz = 0;
+  other._range_indexset.clear();
+  other._domain_indexset.clear();
+
+  return *this;
+}
+
+template <typename ScalarType>
 void SparseMatrixDevice<ScalarType>::reinit(
     MPI_Comm comm, ScalarType *val_dev_, int *column_index_dev_,
     int *row_ptr_dev_, unsigned int local_nnz,
@@ -271,36 +330,6 @@ void SparseMatrixDevice<ScalarType>::reinit(
   dealii::Utilities::MPI::sum(_nnz, _comm);
   _range_indexset = range_indexset;
   _domain_indexset = domain_indexset;
-}
-
-template <typename ScalarType>
-SparseMatrixDevice<ScalarType>::~SparseMatrixDevice()
-{
-  if (val_dev != nullptr)
-  {
-    cuda_free(val_dev);
-    val_dev = nullptr;
-  }
-
-  if (column_index_dev != nullptr)
-  {
-    cuda_free(column_index_dev);
-    column_index_dev = nullptr;
-  }
-
-  if (row_ptr_dev != nullptr)
-  {
-    cuda_free(row_ptr_dev);
-    row_ptr_dev = nullptr;
-  }
-
-  if (descr != nullptr)
-  {
-    cusparseStatus_t cusparse_error_code;
-    cusparse_error_code = cusparseDestroyMatDescr(descr);
-    ASSERT_CUSPARSE(cusparse_error_code);
-    descr = nullptr;
-  }
 }
 
 template <typename ScalarType>
