@@ -370,38 +370,55 @@ void SparseMatrixDevice<ScalarType>::mmult(
     SparseMatrixDevice<ScalarType> &C,
     SparseMatrixDevice<ScalarType> const &B) const
 {
-  // TODO Communicate the values
-
   // Compute the number of non-zero elements in C
   ASSERT(B.m() == n(), "The matrices cannot be multiplied together. You are "
                        "trying to mutiply a " +
                            std::to_string(m()) + " by " + std::to_string(n()) +
                            " matrix with a " + std::to_string(B.m()) + " by " +
                            std::to_string(B.n()));
-  int C_local_nnz = 0;
-  cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseXcsrgemmNnz(
-      cusparse_handle, cusparse_operation, cusparse_operation, n_local_rows(),
-      B.n(), n(), descr, local_nnz(), row_ptr_dev, column_index_dev, B.descr,
-      B.local_nnz(), B.row_ptr_dev, B.column_index_dev, C.descr, C.row_ptr_dev,
-      &C_local_nnz);
-  ASSERT_CUSPARSE(cusparse_error_code);
 
-  // Reinitialize part of C
-  cuda_free(C.val_dev);
-  cuda_free(C.column_index_dev);
-  cuda_free(C.row_ptr_dev);
-  cuda_malloc(C.val_dev, C_local_nnz);
-  cuda_malloc(C.column_index_dev, C_local_nnz);
-  cuda_malloc(C.row_ptr_dev, n_local_rows() + 1);
-  C._local_nnz = C_local_nnz;
-  C._nnz = C._local_nnz;
-  dealii::Utilities::MPI::sum(C._nnz, C._comm);
-  C._range_indexset = _range_indexset;
-  C._domain_indexset = B._domain_indexset;
+  unsigned int const comm_size = dealii::Utilities::MPI::n_mpi_processes(_comm);
 
-  internal::csrgemm(*this, B, C);
+  // If the code is serial then we can use cusparse directly. Otherwise, we need
+  // to use dealii.
+  if (comm_size == 1)
+  {
+    // Reinitialize part of C
+    cuda_free(C.row_ptr_dev);
+    cuda_malloc(C.row_ptr_dev, n_local_rows() + 1);
+
+    int C_local_nnz = 0;
+    cusparseOperation_t cusparse_operation = CUSPARSE_OPERATION_NON_TRANSPOSE;
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseXcsrgemmNnz(
+        cusparse_handle, cusparse_operation, cusparse_operation, n_local_rows(),
+        B.n(), n(), descr, local_nnz(), row_ptr_dev, column_index_dev, B.descr,
+        B.local_nnz(), B.row_ptr_dev, B.column_index_dev, C.descr,
+        C.row_ptr_dev, &C_local_nnz);
+    ASSERT_CUSPARSE(cusparse_error_code);
+
+    // Reinitialize part of C
+    cuda_free(C.val_dev);
+    cuda_free(C.column_index_dev);
+    cuda_malloc(C.val_dev, C_local_nnz);
+    cuda_malloc(C.column_index_dev, C_local_nnz);
+    C._local_nnz = C_local_nnz;
+    C._nnz = C._local_nnz;
+    C._range_indexset = _range_indexset;
+    C._domain_indexset = B._domain_indexset;
+
+    internal::csrgemm(*this, B, C);
+  }
+  else
+  {
+    dealii::TrilinosWrappers::SparseMatrix C_host;
+    auto A_host = convert_to_trilinos_matrix(*this);
+    auto B_host = convert_to_trilinos_matrix(B);
+
+    A_host.mmult(C_host, B_host);
+
+    C = convert_matrix(C_host);
+  }
 }
 }
 
