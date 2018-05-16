@@ -1,8 +1,8 @@
 IF(NOT CLANG_FORMAT_EXECUTABLE)
   FIND_PROGRAM(CLANG_FORMAT_EXECUTABLE
     NAMES
-    clang-format-5.0
-    clang-format-mp-5.0
+    clang-format-6.0
+    clang-format-mp-6.0
     clang-format
     )
   IF(CLANG_FORMAT_EXECUTABLE)
@@ -22,8 +22,8 @@ EXECUTE_PROCESS(
   COMMAND ${CLANG_FORMAT_EXECUTABLE} -version
   OUTPUT_VARIABLE CLANG_FORMAT_VERSION
   )
-IF(NOT CLANG_FORMAT_VERSION MATCHES "5.0")
-    MESSAGE(SEND_ERROR "You must use clang-format version 5.0")
+IF(NOT CLANG_FORMAT_VERSION MATCHES "6.0")
+    MESSAGE(SEND_ERROR "You must use clang-format version 6.0")
 ENDIF()
 
 # Download diff-clang-format.py from ORNL-CEES/Cap
