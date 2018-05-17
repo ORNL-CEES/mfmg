@@ -218,35 +218,7 @@ SparseMatrixDeviceOperator<VectorType>::transpose() const
   // Copy the data to the cpu and then, use trilinos to compute the
   // transpose. This is not the most efficient way to do this but it is the
   // easiest.
-  unsigned int const local_nnz = _matrix->local_nnz();
-  unsigned int const n_local_rows = _matrix->n_local_rows();
-  std::vector<value_type> values(local_nnz);
-  std::vector<int> column_index(local_nnz);
-  std::vector<int> row_ptr(n_local_rows + 1);
-
-  // Copy the data to the host
-  cuda_mem_copy_to_host(_matrix->val_dev, values);
-  cuda_mem_copy_to_host(_matrix->column_index_dev, column_index);
-  cuda_mem_copy_to_host(_matrix->row_ptr_dev, row_ptr);
-
-  // Create the sparse matrix on the host
-  dealii::IndexSet locally_owned_rows = _matrix->locally_owned_range_indices();
-  dealii::TrilinosWrappers::SparseMatrix sparse_matrix(
-      locally_owned_rows, _matrix->locally_owned_domain_indices(),
-      _matrix->get_mpi_communicator());
-
-  std::vector<unsigned int> rows;
-  locally_owned_rows.fill_index_vector(rows);
-  for (unsigned int i = 0; i < n_local_rows; ++i)
-  {
-    unsigned int const row = rows[i];
-    // deal.II has functions that use pointers but the pointers need to be
-    // unsigned int instead of int. To avoid any problem, we set the elements
-    // one by one which makes sure that the cast is correct.
-    for (unsigned int j = row_ptr[i]; j < row_ptr[i + 1]; ++j)
-      sparse_matrix.set(row, column_index[j], values[j]);
-  }
-  sparse_matrix.compress(dealii::VectorOperation::insert);
+  auto sparse_matrix = convert_to_trilinos_matrix(*_matrix);
 
   // Transpose the sparse matrix
   auto epetra_matrix = sparse_matrix.trilinos_matrix();

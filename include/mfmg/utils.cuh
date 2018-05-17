@@ -51,6 +51,9 @@ convert_matrix(dealii::TrilinosWrappers::SparseMatrix const &sparse_matrix);
 SparseMatrixDevice<double>
 convert_matrix(Epetra_CrsMatrix const &sparse_matrix);
 
+dealii::TrilinosWrappers::SparseMatrix
+convert_to_trilinos_matrix(SparseMatrixDevice<double> const &matrix_dev);
+
 template <typename T>
 inline void cuda_free(T *&pointer)
 {

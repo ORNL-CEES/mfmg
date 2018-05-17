@@ -81,18 +81,18 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_square)
                              column_indices.end());
 
   // Build the sparse matrix
-  dealii::SparseMatrix<float> sparse_matrix(sparsity_pattern);
+  dealii::SparseMatrix<double> sparse_matrix(sparsity_pattern);
   for (unsigned int i = 0; i < size; ++i)
     for (unsigned int j = 0; j < size; ++j)
       if (sparsity_pattern.exists(i, j))
-        sparse_matrix.set(i, j, static_cast<float>(i + j));
+        sparse_matrix.set(i, j, static_cast<double>(i + j));
 
   // Move the sparse matrix to the device and change the format to a regular CSR
-  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
+  mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
       mfmg::convert_matrix(sparse_matrix);
 
   // Copy the matrix from the gpu
-  std::vector<float> val_host;
+  std::vector<double> val_host;
   std::vector<int> column_index_host;
   std::vector<int> row_ptr_host;
   std::tie(val_host, column_index_host, row_ptr_host) =
@@ -122,20 +122,20 @@ BOOST_AUTO_TEST_CASE(dealii_sparse_matrix_rectangle)
                              column_indices.end());
 
   // Build the sparse matrix
-  dealii::SparseMatrix<float> sparse_matrix(sparsity_pattern);
+  dealii::SparseMatrix<double> sparse_matrix(sparsity_pattern);
   for (unsigned int i = 0; i < n_rows; ++i)
     for (unsigned int j = 0; j < nnz_per_row; ++j)
-      sparse_matrix.set(i, i + j, static_cast<float>(i + j));
+      sparse_matrix.set(i, i + j, static_cast<double>(i + j));
 
   // Move the sparse matrix to the device and change the format to a regular CSR
-  mfmg::SparseMatrixDevice<float> sparse_matrix_dev =
+  mfmg::SparseMatrixDevice<double> sparse_matrix_dev =
       mfmg::convert_matrix(sparse_matrix);
 
   BOOST_CHECK_EQUAL(sparse_matrix_dev.m(), n_rows);
   BOOST_CHECK_EQUAL(sparse_matrix_dev.n(), n_cols);
 
   // Copy the matrix from the gpu
-  std::vector<float> val_host;
+  std::vector<double> val_host;
   std::vector<int> column_index_host;
   std::vector<int> row_ptr_host;
   std::tie(val_host, column_index_host, row_ptr_host) =
@@ -216,6 +216,50 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
           BOOST_CHECK_EQUAL(val_host[pos],
                             sparse_matrix(i, column_index_host[j]));
     }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(sparse_matrix_device)
+{
+  // Build the sparse matrix
+  unsigned int const comm_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  if (comm_size == 1)
+  {
+    unsigned int const n_local_rows = 10;
+    unsigned int const size = comm_size * n_local_rows;
+    dealii::IndexSet parallel_partitioning(size);
+    for (unsigned int i = 0; i < n_local_rows; ++i)
+      parallel_partitioning.add_index(i);
+    parallel_partitioning.compress();
+    dealii::TrilinosWrappers::SparseMatrix sparse_matrix(parallel_partitioning);
+
+    unsigned int nnz = 0;
+    for (unsigned int i = 0; i < n_local_rows; ++i)
+    {
+      std::default_random_engine generator(i);
+      std::uniform_int_distribution<int> distribution(0, size - 1);
+      std::set<int> column_indices;
+      for (unsigned int j = 0; j < 5; ++j)
+      {
+        int column_index = distribution(generator);
+        sparse_matrix.set(i, column_index, static_cast<double>(i + j));
+        column_indices.insert(column_index);
+      }
+      nnz += column_indices.size();
+    }
+    sparse_matrix.compress(dealii::VectorOperation::insert);
+
+    // Move the sparse matrix to the device.
+    auto sparse_matrix_dev = mfmg::convert_matrix(sparse_matrix);
+
+    // Move the sparse matrix back to the host
+    auto sparse_matrix_host =
+        mfmg::convert_to_trilinos_matrix(sparse_matrix_dev);
+
+    for (unsigned int i = 0; i < size; ++i)
+      for (unsigned int j = 0; j < size; ++j)
+        BOOST_CHECK_EQUAL(sparse_matrix_host.el(i, j), sparse_matrix.el(i, j));
   }
 }
 

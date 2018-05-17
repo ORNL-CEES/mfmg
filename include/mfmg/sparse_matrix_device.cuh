@@ -48,6 +48,9 @@ public:
 
   ~SparseMatrixDevice();
 
+  SparseMatrixDevice<ScalarType> &
+  operator=(SparseMatrixDevice<ScalarType> &&other);
+
   /**
    * Reinitialize the matrix. This can only be called if the object it empty.
    */

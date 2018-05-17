@@ -234,8 +234,15 @@ BOOST_AUTO_TEST_CASE(mmult)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
   unsigned int const comm_size = dealii::Utilities::MPI::n_mpi_processes(comm);
-  if (comm_size == 1)
+  int n_devices = 0;
+  cudaError_t cuda_error_code = cudaGetDeviceCount(&n_devices);
+  mfmg::ASSERT_CUDA(cuda_error_code);
+  if ((comm_size == 1) || (comm_size == 2) && (n_devices == 2))
   {
+    int const rank = dealii::Utilities::MPI::this_mpi_process(comm);
+    cuda_error_code = cudaSetDevice(rank);
+    mfmg::ASSERT_CUDA(cuda_error_code);
+
     cusparseHandle_t cusparse_handle = nullptr;
     cusparseStatus_t cusparse_error_code;
     cusparse_error_code = cusparseCreate(&cusparse_handle);
