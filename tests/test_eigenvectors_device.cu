@@ -31,11 +31,8 @@ class DiagonalTestMeshEvaluator
 public:
   using value_type = typename VectorType::value_type;
 
-  DiagonalTestMeshEvaluator(cusolverDnHandle_t cusolver_dn_handle,
-                            cusolverSpHandle_t cusolver_sp_handle,
-                            cusparseHandle_t cusparse_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
-            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle)
+  DiagonalTestMeshEvaluator(mfmg::CudaHandle const &cuda_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle)
   {
   }
 
@@ -97,25 +94,11 @@ BOOST_AUTO_TEST_CASE(diagonal)
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
 
-  // Initialize dense cuSOLVER
-  cusolverDnHandle_t cusolver_dn_handle = nullptr;
-  cusolverStatus_t cusolver_error_code;
-  cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-
-  // Initialize sparse cuSOLVER
-  cusolverSpHandle_t cusolver_sp_handle = nullptr;
-  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-
-  // Initialize cuSPARSE
-  cusparseHandle_t cusparse_handle = nullptr;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseCreate(&cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+  // Initialize the CUDA libraries
+  mfmg::CudaHandle cuda_handle;
 
   mfmg::AMGe_device<dim, DummyMeshEvaluator, Vector> amge(
-      MPI_COMM_WORLD, dof_handler, cusolver_dn_handle, cusparse_handle);
+      MPI_COMM_WORLD, dof_handler, cuda_handle);
 
   unsigned int const n_eigenvectors = 5;
   std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -124,8 +107,7 @@ BOOST_AUTO_TEST_CASE(diagonal)
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
-  DiagonalTestMeshEvaluator<dim, Vector> evaluator(
-      cusolver_dn_handle, cusolver_sp_handle, cusparse_handle);
+  DiagonalTestMeshEvaluator<dim, Vector> evaluator(cuda_handle);
   double *eigenvalues_dev;
   double *eigenvectors_dev;
   double *diag_elements_dev;
@@ -179,19 +161,4 @@ BOOST_AUTO_TEST_CASE(diagonal)
   mfmg::cuda_free(eigenvalues_dev);
   mfmg::cuda_free(eigenvectors_dev);
   mfmg::cuda_free(diag_elements_dev);
-
-  // Destroy cusolver_dn_handle
-  cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_dn_handle = nullptr;
-
-  // Destroy cusolver_sp_handle
-  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_dn_handle = nullptr;
-
-  // Destroy cusparse_handle
-  cusparse_error_code = cusparseDestroy(cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_handle = nullptr;
 }

@@ -13,13 +13,11 @@
 #define AMGE_DEVICE_CUH
 
 #include <mfmg/amge.hpp>
+#include <mfmg/cuda_handle.cuh>
 #include <mfmg/exceptions.hpp>
 #include <mfmg/sparse_matrix_device.cuh>
 
 #include <deal.II/lac/cuda_vector.h>
-
-#include <cusolverDn.h>
-#include <cusparse.h>
 
 namespace mfmg
 {
@@ -30,8 +28,7 @@ public:
   using ScalarType = typename VectorType::value_type;
 
   AMGe_device(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-              cusolverDnHandle_t cusolver_dn_handle,
-              cusparseHandle_t cusparse_handle);
+              CudaHandle const &cuda_handle);
 
   /**
    * Compute the eigenvalues, the eigenvectors, the local diagonal elements, the
@@ -82,8 +79,7 @@ public:
           global_operator);
 
 private:
-  cusolverDnHandle_t _cusolver_dn_handle;
-  cusparseHandle_t _cusparse_handle;
+  CudaHandle const &_cuda_handle;
 };
 }
 

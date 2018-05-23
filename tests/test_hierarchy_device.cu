@@ -131,13 +131,10 @@ public:
   TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
                     std::shared_ptr<dealii::Function<dim>> material_property,
-                    cusolverDnHandle_t cusolver_dn_handle,
-                    cusolverSpHandle_t cusolver_sp_handle,
-                    cusparseHandle_t cusparse_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
-            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle),
+                    mfmg::CudaHandle &cuda_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle),
         _comm(comm), _dof_handler(dof_handler), _matrix(matrix),
-        _material_property(material_property), _cusparse_handle(cusparse_handle)
+        _material_property(material_property)
   {
   }
 
@@ -171,7 +168,7 @@ protected:
   {
     system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
         mfmg::convert_matrix(_matrix)));
-    system_matrix->cusparse_handle = _cusparse_handle;
+    system_matrix->cusparse_handle = this->cuda_handle.cusparse_handle;
     cusparseStatus_t cusparse_error_code;
     cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
@@ -244,7 +241,7 @@ protected:
 
     system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
         mfmg::convert_matrix(agg_system_matrix)));
-    system_matrix->cusparse_handle = _cusparse_handle;
+    system_matrix->cusparse_handle = this->cuda_handle.cusparse_handle;
     cusparseStatus_t cusparse_error_code;
     cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
@@ -261,7 +258,6 @@ private:
   dealii::DoFHandler<dim> const &_dof_handler;
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
-  cusparseHandle_t _cusparse_handle;
 };
 
 template <int dim>
@@ -271,20 +267,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   using MeshEvaluator = mfmg::DealIIMeshEvaluatorDevice<dim, DVector>;
   using Mesh = mfmg::DealIIMesh<dim>;
 
-  // Create the cusolver_dn_handle
-  cusolverDnHandle_t cusolver_dn_handle = nullptr;
-  cusolverStatus_t cusolver_error_code;
-  cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  // Create the cusolver_sp_handle
-  cusolverSpHandle_t cusolver_sp_handle = nullptr;
-  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  // Create the cusparse_handle
-  cusparseHandle_t cusparse_handle = nullptr;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseCreate(&cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+  mfmg::CudaHandle cuda_handle;
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -316,9 +299,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  TestMeshEvaluator<dim, DVector> evaluator(
-      comm, laplace._dof_handler, a, material_property, cusolver_dn_handle,
-      cusolver_sp_handle, cusparse_handle);
+  TestMeshEvaluator<dim, DVector> evaluator(comm, laplace._dof_handler, a,
+                                            material_property, cuda_handle);
   mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
                                                     params);
 
@@ -353,13 +335,6 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   double const conv_rate = res[n_cycles] / res[n_cycles - 1];
   pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
         << conv_rate << std::endl;
-
-  cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusparse_error_code = cusparseDestroy(cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
   return conv_rate;
 }

@@ -21,20 +21,7 @@
 
 BOOST_AUTO_TEST_CASE(direct_solver)
 {
-  // Create the cusolver_dn_handle
-  cusolverDnHandle_t cusolver_dn_handle = nullptr;
-  cusolverStatus_t cusolver_error_code;
-  cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  // Create the cusolver_sp_handle
-  cusolverSpHandle_t cusolver_sp_handle = nullptr;
-  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  // Create the cusparse_handle
-  cusparseHandle_t cusparse_handle = nullptr;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseCreate(&cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+  mfmg::CudaHandle cuda_handle;
 
   // Create the matrix on the host.
   dealii::SparsityPattern sparsity_pattern;
@@ -72,8 +59,9 @@ BOOST_AUTO_TEST_CASE(direct_solver)
 
   // Move the matrix and the rhs to the host
   mfmg::SparseMatrixDevice<double> matrix_dev(mfmg::convert_matrix(matrix));
-  matrix_dev.cusparse_handle = cusparse_handle;
-  cusparse_error_code = cusparseCreateMatDescr(&matrix_dev.descr);
+  matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+  cusparseStatus_t cusparse_error_code =
+      cusparseCreateMatDescr(&matrix_dev.descr);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   cusparse_error_code =
       cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
@@ -95,7 +83,7 @@ BOOST_AUTO_TEST_CASE(direct_solver)
 
     // Solve on the device
     mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-        cusolver_dn_handle, cusolver_sp_handle, matrix_dev, params);
+        cuda_handle, matrix_dev, params);
     BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
     BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
     mfmg::VectorDevice<double> x_dev(partitioner);
@@ -110,11 +98,4 @@ BOOST_AUTO_TEST_CASE(direct_solver)
     for (unsigned int i = 0; i < size; ++i)
       BOOST_CHECK_CLOSE(x_host[i], sol_ref[i], 1e-12);
   }
-
-  cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusparse_error_code = cusparseDestroy(cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 }

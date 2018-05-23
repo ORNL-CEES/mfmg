@@ -140,8 +140,7 @@ template <typename VectorType>
 struct DirectOperator
 {
   static void
-  apply(cusolverDnHandle_t cusolver_dn_handle,
-        cusolverSpHandle_t cusolver_sp_handle,
+  apply(CudaHandle const &cuda_handle,
         SparseMatrixDevice<typename VectorType::value_type> const &matrix,
         std::string const &solver, VectorType const &b, VectorType &x);
 
@@ -158,8 +157,7 @@ struct DirectOperator
 
 template <typename VectorType>
 void DirectOperator<VectorType>::apply(
-    cusolverDnHandle_t cusolver_dn_handle,
-    cusolverSpHandle_t cusolver_sp_handle,
+    CudaHandle const &cuda_handle,
     SparseMatrixDevice<typename VectorType::value_type> const &matrix,
     std::string const &solver, VectorType const &b, VectorType &x)
 {
@@ -168,19 +166,18 @@ void DirectOperator<VectorType>::apply(
 
 template <>
 void DirectOperator<VectorDevice<double>>::apply(
-    cusolverDnHandle_t cusolver_dn_handle,
-    cusolverSpHandle_t cusolver_sp_handle,
-    SparseMatrixDevice<double> const &matrix, std::string const &solver,
-    VectorDevice<double> const &b, VectorDevice<double> &x)
+    CudaHandle const &cuda_handle, SparseMatrixDevice<double> const &matrix,
+    std::string const &solver, VectorDevice<double> const &b,
+    VectorDevice<double> &x)
 {
   if (solver == "cholesky")
-    cholesky_factorization(cusolver_sp_handle, matrix, b.get_values(),
-                           x.get_values());
+    cholesky_factorization(cuda_handle.cusolver_sp_handle, matrix,
+                           b.get_values(), x.get_values());
   else if (solver == "lu_dense")
-    lu_factorization(cusolver_dn_handle, matrix, b.get_values(),
+    lu_factorization(cuda_handle.cusolver_dn_handle, matrix, b.get_values(),
                      x.get_values());
   else if (solver == "lu_sparse_host")
-    lu_factorization(cusolver_sp_handle, matrix, b.get_values(),
+    lu_factorization(cuda_handle.cusolver_sp_handle, matrix, b.get_values(),
                      x.get_values());
   else
     ASSERT_THROW(false, "The provided solver name " + solver + " is invalid.");
@@ -188,9 +185,8 @@ void DirectOperator<VectorDevice<double>>::apply(
 
 template <>
 void DirectOperator<dealii::LinearAlgebra::distributed::Vector<double>>::apply(
-    cusolverDnHandle_t cusolver_dn_handle,
-    cusolverSpHandle_t cusolver_sp_handle,
-    SparseMatrixDevice<double> const &matrix, std::string const &solver,
+    CudaHandle const &cuda_handle, SparseMatrixDevice<double> const &matrix,
+    std::string const &solver,
     dealii::LinearAlgebra::distributed::Vector<double> const &b,
     dealii::LinearAlgebra::distributed::Vector<double> &x)
 {
@@ -198,8 +194,8 @@ void DirectOperator<dealii::LinearAlgebra::distributed::Vector<double>>::apply(
   VectorDevice<double> x_dev(x);
   VectorDevice<double> b_dev(b);
 
-  DirectOperator<VectorDevice<double>>::apply(
-      cusolver_dn_handle, cusolver_sp_handle, matrix, solver, b_dev, x_dev);
+  DirectOperator<VectorDevice<double>>::apply(cuda_handle, matrix, solver,
+                                              b_dev, x_dev);
 
   // Move the data to the host
   std::vector<double> x_host(x.local_size());
@@ -496,15 +492,13 @@ void SmootherDeviceOperator<VectorType>::initialize(std::string &prec_type)
 
 template <typename VectorType>
 DirectDeviceOperator<VectorType>::DirectDeviceOperator(
-    cusolverDnHandle_t const cusolver_dn_handle,
-    cusolverSpHandle_t const cusolver_sp_handle,
+    CudaHandle const &cuda_handle,
     SparseMatrixDevice<typename VectorType::value_type> const &matrix,
     std::shared_ptr<boost::property_tree::ptree> params)
-    : _cusolver_dn_handle(cusolver_dn_handle),
-      _cusolver_sp_handle(cusolver_sp_handle), _matrix(matrix),
-      _amgx_config_handle(nullptr), _amgx_res_handle(nullptr),
-      _amgx_matrix_handle(nullptr), _amgx_rhs_handle(nullptr),
-      _amgx_solution_handle(nullptr), _amgx_solver_handle(nullptr)
+    : _cuda_handle(cuda_handle), _matrix(matrix), _amgx_config_handle(nullptr),
+      _amgx_res_handle(nullptr), _amgx_matrix_handle(nullptr),
+      _amgx_rhs_handle(nullptr), _amgx_solution_handle(nullptr),
+      _amgx_solver_handle(nullptr)
 {
   // Transform to lower case
   _solver = params->get("solver.type", "lu_dense");
@@ -801,8 +795,8 @@ void DirectDeviceOperator<VectorType>::apply(VectorType const &b,
   }
   else
 #endif
-    internal::DirectOperator<VectorType>::apply(
-        _cusolver_dn_handle, _cusolver_sp_handle, _matrix, _solver, b, x);
+    internal::DirectOperator<VectorType>::apply(_cuda_handle, _matrix, _solver,
+                                                b, x);
 }
 
 template <typename VectorType>
