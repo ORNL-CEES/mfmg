@@ -14,6 +14,7 @@
 
 #include <mfmg/amge_device.cuh>
 #include <mfmg/concepts.hpp>
+#include <mfmg/cuda_handle.cuh>
 #include <mfmg/dealii_mesh.hpp>
 #include <mfmg/dealii_operator_device.cuh>
 
@@ -32,12 +33,8 @@ public:
   using global_operator_type = SparseMatrixDeviceOperator<vector_type>;
   using local_operator_type = SparseMatrixDeviceOperator<vector_type>;
 
-  DealIIMeshEvaluatorDevice(cusolverDnHandle_t cusolver_dn_handle_,
-                            cusolverSpHandle_t cusolver_sp_handle_,
-                            cusparseHandle_t cusparse_handle_)
-      : cusolver_dn_handle(cusolver_dn_handle_),
-        cusolver_sp_handle(cusolver_sp_handle_),
-        cusparse_handle(cusparse_handle_)
+  DealIIMeshEvaluatorDevice(CudaHandle const &cuda_handle_)
+      : cuda_handle(cuda_handle_)
   {
   }
 
@@ -50,9 +47,7 @@ public:
   virtual dealii::LinearAlgebra::distributed::Vector<value_type>
   get_locally_relevant_diag() const = 0;
 
-  cusolverDnHandle_t cusolver_dn_handle;
-  cusolverSpHandle_t cusolver_sp_handle;
-  cusparseHandle_t cusparse_handle;
+  CudaHandle const &cuda_handle;
 
 protected:
   virtual void
@@ -116,8 +111,7 @@ public:
   {
     auto eigensolver_params = params->get_child("eigensolver");
     AMGe_device<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
-        comm, mesh._dof_handler, evaluator.cusolver_dn_handle,
-        evaluator.cusparse_handle);
+        comm, mesh._dof_handler, evaluator.cuda_handle);
 
     std::array<unsigned int, dim> agglomerate_dim;
     auto agglomerate_params = params->get_child("agglomeration");
@@ -154,8 +148,7 @@ public:
     auto global_op = dynamic_cast<global_operator_type const &>(op);
 
     return std::make_shared<direct_solver_type>(
-        evaluator.cusolver_dn_handle, evaluator.cusolver_sp_handle,
-        *global_op.get_matrix(), params);
+        evaluator.cuda_handle, *global_op.get_matrix(), params);
   }
 };
 }

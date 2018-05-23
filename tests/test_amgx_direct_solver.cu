@@ -27,20 +27,7 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
   int comm_size = dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
   if (comm_size == 1)
   {
-    // Create the cusolver_dn_handle
-    cusolverDnHandle_t cusolver_dn_handle = nullptr;
-    cusolverStatus_t cusolver_error_code;
-    cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-    mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-    // Create the cusolver_sp_handle
-    cusolverSpHandle_t cusolver_sp_handle = nullptr;
-    cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-    mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-    // Create the cusparse_handle
-    cusparseHandle_t cusparse_handle = nullptr;
-    cusparseStatus_t cusparse_error_code;
-    cusparse_error_code = cusparseCreate(&cusparse_handle);
-    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+    mfmg::CudaHandle cuda_handle;
 
     // Create the matrix on the host.
     dealii::SparsityPattern sparsity_pattern;
@@ -78,8 +65,9 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
 
     // Move the matrix and the rhs to the device
     mfmg::SparseMatrixDevice<double> matrix_dev(mfmg::convert_matrix(matrix));
-    matrix_dev.cusparse_handle = cusparse_handle;
-    cusparse_error_code = cusparseCreateMatDescr(&matrix_dev.descr);
+    matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+    cusparseStatus_t cusparse_error_code =
+        cusparseCreateMatDescr(&matrix_dev.descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
         cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
@@ -99,7 +87,7 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
     params->put("solver.type", "amgx");
     params->put("solver.config_file", "amgx_config_fgmres.json");
     mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-        cusolver_dn_handle, cusolver_sp_handle, matrix_dev, params);
+        cuda_handle, matrix_dev, params);
     BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
     BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
     direct_solver_dev.apply(rhs_dev, solution_dev);
@@ -112,14 +100,6 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
     // Check the result
     for (unsigned int i = 0; i < n_local_rows; ++i)
       BOOST_CHECK_CLOSE(solution_host[i], sol_ref[i], 1e-7);
-
-    // Clean up the memory
-    cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-    mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-    cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-    mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-    cusparse_error_code = cusparseDestroy(cusparse_handle);
-    mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   }
 }
 
@@ -136,20 +116,7 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
     {
       cuda_error_code = cudaSetDevice(rank);
 
-      // Create the cusolver_dn_handle
-      cusolverDnHandle_t cusolver_dn_handle = nullptr;
-      cusolverStatus_t cusolver_error_code;
-      cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-      mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-      // Create the cusolver_sp_handle
-      cusolverSpHandle_t cusolver_sp_handle = nullptr;
-      cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-      mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-      // Create the cusparse_handle
-      cusparseHandle_t cusparse_handle = nullptr;
-      cusparseStatus_t cusparse_error_code;
-      cusparse_error_code = cusparseCreate(&cusparse_handle);
-      mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+      mfmg::CudaHandle cuda_handle;
 
       // Create the matrix on the host.
       unsigned int const n_local_rows = 10000;
@@ -188,8 +155,9 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
       // Move the matrix and the rhs to the device
       mfmg::SparseMatrixDevice<double> matrix_dev(
           mfmg::convert_matrix(sparse_matrix));
-      matrix_dev.cusparse_handle = cusparse_handle;
-      cusparse_error_code = cusparseCreateMatDescr(&matrix_dev.descr);
+      matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+      cusparseStatus_t cusparse_error_code =
+          cusparseCreateMatDescr(&matrix_dev.descr);
       mfmg::ASSERT_CUSPARSE(cusparse_error_code);
       cusparse_error_code =
           cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
@@ -204,7 +172,7 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
       params->put("solver.type", "amgx");
       params->put("solver.config_file", "amgx_config_fgmres.json");
       mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-          cusolver_dn_handle, cusolver_sp_handle, matrix_dev, params);
+          cuda_handle, matrix_dev, params);
       BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
       BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
 
@@ -214,14 +182,6 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
 
       for (unsigned int i = 0; i < n_local_rows; ++i)
         BOOST_CHECK_CLOSE(solution_host[i], sol_ref.local_element(i), 1e-7);
-
-      // Clean up the memory
-      cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-      mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-      cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-      mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-      cusparse_error_code = cusparseDestroy(cusparse_handle);
-      mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     }
   }
 }

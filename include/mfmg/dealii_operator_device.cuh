@@ -15,11 +15,9 @@
 #ifdef MFMG_WITH_CUDA
 
 #include <mfmg/concepts.hpp>
+#include <mfmg/cuda_handle.cuh>
 #include <mfmg/exceptions.hpp>
 #include <mfmg/sparse_matrix_device.cuh>
-
-#include <cusolverDn.h>
-#include <cusolverSp.h>
 
 #if MFMG_WITH_AMGX
 #include <amgx_c.h>
@@ -111,9 +109,7 @@ public:
   using matrix_type = SparseMatrixDevice<value_type>;
   using operator_type = Operator<vector_type>;
 
-  DirectDeviceOperator(cusolverDnHandle_t const cusolver_dn_handle,
-                       cusolverSpHandle_t const cusolver_sp_handle,
-                       matrix_type const &matrix,
+  DirectDeviceOperator(CudaHandle const &cuda_handle, matrix_type const &matrix,
                        std::shared_ptr<boost::property_tree::ptree> params);
 
   virtual ~DirectDeviceOperator();
@@ -136,8 +132,8 @@ public:
   build_range_vector() const override final;
 
 private:
-  cusolverDnHandle_t _cusolver_dn_handle;
-  cusolverSpHandle_t _cusolver_sp_handle;
+  CudaHandle const &_cuda_handle;
+
   matrix_type const &_matrix;
   std::string _solver;
   std::string _amgx_config_file;

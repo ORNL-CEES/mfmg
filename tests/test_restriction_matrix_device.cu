@@ -33,11 +33,8 @@ class DummyMeshEvaluator
 public:
   using value_type = typename VectorType::value_type;
 
-  DummyMeshEvaluator(cusolverDnHandle_t cusolver_dn_handle,
-                     cusolverSpHandle_t cusolver_sp_handle,
-                     cusparseHandle_t cusparse_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(
-            cusolver_dn_handle, cusolver_sp_handle, cusparse_handle)
+  DummyMeshEvaluator(mfmg::CudaHandle &cuda_handle)
+      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle)
   {
   }
 
@@ -69,22 +66,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using value_type = typename Vector::value_type;
 
-  // Initialize dense cuSOLVER
-  cusolverDnHandle_t cusolver_dn_handle = nullptr;
-  cusolverStatus_t cusolver_error_code;
-  cusolver_error_code = cusolverDnCreate(&cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-
-  // Initialize sparse cuSOLVER
-  cusolverSpHandle_t cusolver_sp_handle = nullptr;
-  cusolver_error_code = cusolverSpCreate(&cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-
-  // Initialize cuSPARSE
-  cusparseHandle_t cusparse_handle = nullptr;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseCreate(&cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
+  mfmg::CudaHandle cuda_handle;
 
   MPI_Comm comm = MPI_COMM_WORLD;
   dealii::parallel::distributed::Triangulation<dim> triangulation(comm);
@@ -93,10 +75,9 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<dim> fe(1);
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  DummyMeshEvaluator<dim, Vector> evaluator(
-      cusolver_dn_handle, cusolver_sp_handle, cusparse_handle);
+  DummyMeshEvaluator<dim, Vector> evaluator(cuda_handle);
   mfmg::AMGe_device<dim, mfmg::DealIIMeshEvaluatorDevice<dim, Vector>, Vector>
-      amge(comm, dof_handler, cusolver_dn_handle, cusparse_handle);
+      amge(comm, dof_handler, cuda_handle);
 
   auto const locally_owned_dofs = dof_handler.locally_owned_dofs();
   unsigned int const n_local_rows = locally_owned_dofs.n_elements();
@@ -171,7 +152,7 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   mfmg::SparseMatrixDevice<value_type> restriction_matrix_dev =
       amge.compute_restriction_sparse_matrix(
           eigenvectors, diag_elements, locally_relevant_global_diag,
-          dof_indices_maps, n_local_eigenvectors, cusparse_handle);
+          dof_indices_maps, n_local_eigenvectors, cuda_handle.cusparse_handle);
 
   // Move the values to the host
   std::vector<value_type> restriction_matrix_host(
@@ -194,11 +175,4 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
       ++pos;
     }
   }
-
-  cusolver_error_code = cusolverDnDestroy(cusolver_dn_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusolver_error_code = cusolverSpDestroy(cusolver_sp_handle);
-  mfmg::ASSERT_CUSOLVER(cusolver_error_code);
-  cusparse_error_code = cusparseDestroy(cusparse_handle);
-  mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 }

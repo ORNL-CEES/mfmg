@@ -15,7 +15,6 @@
 #include <mfmg/amge_device.cuh>
 
 #include <mfmg/dealii_mesh.hpp>
-
 #include <mfmg/utils.cuh>
 
 #include <deal.II/dofs/dof_accessor.h>
@@ -201,9 +200,8 @@ __global__ void restrict_array(int full_array_size, ScalarType *full_array,
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_device<dim, MeshEvaluator, VectorType>::AMGe_device(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-    cusolverDnHandle_t cusolver_dn_handle, cusparseHandle_t cusparse_handle)
-    : AMGe<dim, VectorType>(comm, dof_handler),
-      _cusolver_dn_handle(cusolver_dn_handle), _cusparse_handle(cusparse_handle)
+    CudaHandle const &cuda_handle)
+    : AMGe<dim, VectorType>(comm, dof_handler), _cuda_handle(cuda_handle)
 {
 }
 
@@ -248,7 +246,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   // Convert the system matrix to dense
   ScalarType *dense_system_matrix_dev = nullptr;
-  internal::convert_csr_to_dense(_cusparse_handle, descr,
+  internal::convert_csr_to_dense(_cuda_handle.cusparse_handle, descr,
                                  agglomerate_system_matrix_dev,
                                  dense_system_matrix_dev);
   // Free the memory of the system sparse matrix
@@ -273,7 +271,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   ScalarType *eigenvalues_dev = nullptr;
   cudaError_t cuda_error_code;
   cuda_error_code = cudaMalloc(&eigenvalues_dev, n_rows * sizeof(ScalarType));
-  internal::compute_local_eigenvectors(_cusolver_dn_handle, n_rows,
+  internal::compute_local_eigenvectors(_cuda_handle.cusolver_dn_handle, n_rows,
                                        dense_system_matrix_dev,
                                        dense_mass_matrix_dev, eigenvalues_dev);
   cuda_free(dense_mass_matrix_dev);
@@ -419,7 +417,8 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
 
   return compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, locally_relevant_global_diag,
-      dof_indices_maps, n_local_eigenvectors, evaluator.cusparse_handle);
+      dof_indices_maps, n_local_eigenvectors,
+      evaluator.cuda_handle.cusparse_handle);
 }
 }
 
