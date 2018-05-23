@@ -12,6 +12,7 @@
 #include <mfmg/utils.cuh>
 
 #include <mfmg/sparse_matrix_device.cuh>
+#include <mfmg/utils.hpp>
 
 #include <deal.II/lac/trilinos_index_access.h>
 
@@ -201,6 +202,105 @@ convert_to_trilinos_matrix(SparseMatrixDevice<double> const &matrix_dev)
   sparse_matrix.compress(dealii::VectorOperation::insert);
 
   return sparse_matrix;
+}
+
+std::tuple<std::unordered_map<int, int>, std::unordered_map<int, int>>
+csr_to_amgx(std::unordered_set<int> const &rows_sent,
+            SparseMatrixDevice<double> &matrix_dev)
+{
+  unsigned int local_nnz = matrix_dev.local_nnz();
+  int *row_index_coo_dev = nullptr;
+  cuda_malloc(row_index_coo_dev, local_nnz);
+  int n_local_rows = matrix_dev.n_local_rows();
+
+  // Change to COO format. The only thing that needs to be change to go from CSR
+  // to COO is to change row_ptr_dev with row_index_coo_dev.
+  cusparseStatus_t cusparse_error_code = cusparseXcsr2coo(
+      matrix_dev.cusparse_handle, matrix_dev.row_ptr_dev, local_nnz,
+      n_local_rows, row_index_coo_dev, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  // Move the values, the rows, and the columns to the host
+  std::vector<double> value_host(local_nnz);
+  cuda_mem_copy_to_host(matrix_dev.val_dev, value_host);
+  std::vector<int> col_index_host(local_nnz);
+  cuda_mem_copy_to_host(matrix_dev.column_index_dev, col_index_host);
+  std::vector<int> row_index_host(local_nnz);
+  cuda_mem_copy_to_host(row_index_coo_dev, row_index_host);
+
+  // Renumber halo data behind the local data
+  auto range_indexset = matrix_dev.locally_owned_range_indices();
+  std::vector<unsigned int> global_rows;
+  range_indexset.fill_index_vector(global_rows);
+  std::unordered_map<int, int> halo_map;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    halo_map[global_rows[i]] = i;
+  unsigned int const n_rows = matrix_dev.m();
+  int next_free_id = n_local_rows;
+  dealii::IndexSet col_indexset(matrix_dev.n());
+  col_indexset.add_indices(col_index_host.begin(), col_index_host.end());
+  col_indexset.compress();
+  for (auto index : col_indexset)
+  {
+    int rank = dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+    if (range_indexset.is_element(index) == false)
+    {
+      halo_map[index] = next_free_id;
+      ++next_free_id;
+    }
+  }
+  for (auto &col_index : col_index_host)
+    col_index = halo_map[col_index];
+
+  // Reorder rows and columns. We need to move to the top the rows that are
+  // locally owned
+  int strictly_owned_rows = n_local_rows - rows_sent.size();
+  std::unordered_map<int, int> local_map;
+  next_free_id = strictly_owned_rows;
+  int next_free_local_id = 0;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    if (rows_sent.count(i) != 1)
+    {
+      local_map[i] = next_free_local_id;
+      ++next_free_local_id;
+    }
+    else
+    {
+      local_map[i] = next_free_id;
+      ++next_free_id;
+    }
+  }
+
+  for (auto &col_index : col_index_host)
+  {
+    if (col_index < n_local_rows)
+      col_index = local_map[col_index];
+  }
+
+  for (auto &row_index : row_index_host)
+    row_index = local_map[row_index];
+
+  // Sort the vectors
+  auto permutation = sort_permutation(row_index_host, col_index_host);
+  apply_permutation_in_place(permutation, value_host);
+  apply_permutation_in_place(permutation, col_index_host);
+  apply_permutation_in_place(permutation, row_index_host);
+
+  // Move the data back to the device
+  cuda_mem_copy_to_dev(value_host, matrix_dev.val_dev);
+  cuda_mem_copy_to_dev(col_index_host, matrix_dev.column_index_dev);
+  cuda_mem_copy_to_dev(row_index_host, row_index_coo_dev);
+
+  // Change to CSR format
+  cusparse_error_code = cusparseXcoo2csr(
+      matrix_dev.cusparse_handle, row_index_coo_dev, local_nnz, n_local_rows,
+      matrix_dev.row_ptr_dev, CUSPARSE_INDEX_BASE_ZERO);
+
+  // Free allocated memory
+  cuda_free(row_index_coo_dev);
+
+  return std::make_tuple(halo_map, local_map);
 }
 
 void all_gather(MPI_Comm communicator, unsigned int send_count,

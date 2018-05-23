@@ -408,6 +408,7 @@ BOOST_AUTO_TEST_CASE(hierarchy_3d)
           auto params = std::make_shared<boost::property_tree::ptree>();
           boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                        *params);
+          params->put("solver.type", "lu_dense");
 
           params->put("eigensolver.type", "lapack");
           params->put("agglomeration.nz", 2);
@@ -420,16 +421,50 @@ BOOST_AUTO_TEST_CASE(hierarchy_3d)
 
           double const conv_rate = test<dim>(params);
 
+          // Relative tolerance in %
+          double const tolerance = 1e-6;
           if (mesh == std::string("hyper_cube"))
+          {
             BOOST_CHECK_CLOSE(
                 conv_rate,
                 ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-                1e-6);
+                tolerance);
+          }
           else
             BOOST_CHECK_CLOSE(
                 conv_rate,
                 ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-                1e-6);
+                tolerance);
         }
   }
 }
+
+#if MFMG_WITH_AMGX
+BOOST_AUTO_TEST_CASE(amgx)
+{
+  if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
+  {
+    // We do not do as many tests as for the two-grid because AMGx will only
+    // use multiple levels if the problem is large enough.
+    unsigned int constexpr dim = 3;
+    auto params = std::make_shared<boost::property_tree::ptree>();
+    boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                 *params);
+    params->put("solver.type", "amgx");
+    params->put("solver.config_file", "amgx_config_amg.json");
+
+    params->put("eigensolver.type", "lapack");
+    params->put("agglomeration.nz", 2);
+    params->put("laplace.n_refinements", 5);
+    // We only supports Jacobi smoother on the device
+    params->put("smoother.type", "Jacobi");
+
+    double const tolerance = 1e-1;
+    // The convergence rate for the two grid algorithm is 0.345914564 which is
+    // much better than the multigrid.
+    double const ref_solution = 0.86418797066393482;
+    double const conv_rate = test<dim>(params);
+    BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance);
+  }
+}
+#endif
