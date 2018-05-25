@@ -101,12 +101,11 @@ public:
                        unsigned int const = 0) const override final
 
   {
-    double value = 10.;
+    unsigned int dim_scale = 0;
     for (unsigned int d = 0; d < dim; ++d)
-      if (p[d] > 0.5)
-        value *= value;
+      dim_scale += static_cast<unsigned int>(std::floor(p[d] * 100)) % 2;
 
-    return value;
+    return (dim_scale == dim ? 100. : 10.);
   }
 };
 
@@ -197,11 +196,15 @@ protected:
       fe_values.reinit(cell);
 
       for (unsigned int q_point = 0; q_point < n_q_points; ++q_point)
+      {
+        double const diffusion_coefficient =
+            _material_property->value(fe_values.quadrature_point(q_point));
         for (unsigned int i = 0; i < dofs_per_cell; ++i)
           for (unsigned int j = 0; j < dofs_per_cell; ++j)
-            cell_matrix(i, j) += fe_values.shape_grad(i, q_point) *
-                                 fe_values.shape_grad(j, q_point) *
-                                 fe_values.JxW(q_point);
+            cell_matrix(i, j) +=
+                diffusion_coefficient * fe_values.shape_grad(i, q_point) *
+                fe_values.shape_grad(j, q_point) * fe_values.JxW(q_point);
+      }
 
       cell->get_dof_indices(local_dof_indices);
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
