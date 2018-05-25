@@ -101,12 +101,11 @@ public:
                        unsigned int const = 0) const override final
 
   {
-    double value = 10.;
+    unsigned int dim_scale = 0;
     for (unsigned int d = 0; d < dim; ++d)
-      if (p[d] > 0.5)
-        value *= value;
+      dim_scale += static_cast<unsigned int>(std::floor(p[d] * 100)) % 2;
 
-    return value;
+    return (dim_scale == dim ? 100. : 10.);
   }
 };
 
