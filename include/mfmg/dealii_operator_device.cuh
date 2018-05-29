@@ -149,7 +149,7 @@ private:
   std::unordered_map<int, int> _row_map;
 #endif
 };
-}
+} // namespace mfmg
 
 #endif
 

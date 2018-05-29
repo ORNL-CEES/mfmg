@@ -350,6 +350,6 @@ DealIIDirectOperator<VectorType>::build_range_vector() const
 
   return nullptr;
 }
-}
+} // namespace mfmg
 
 #endif

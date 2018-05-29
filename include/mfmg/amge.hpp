@@ -92,6 +92,6 @@ private:
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
 };
-}
+} // namespace mfmg
 
 #endif

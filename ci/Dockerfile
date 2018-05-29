@@ -17,10 +17,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       libopenblas-dev \
       python2.7-dev \
       && \
-      echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-5.0 main" > /etc/apt/sources.list.d/llvm.list && \
+      echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main" > /etc/apt/sources.list.d/llvm.list && \
       wget -q -O - http://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
       apt-get update && apt-get install -y \
-        clang-format-5.0 \
+      clang-format-6.0 \
       && \
       apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -36,9 +36,8 @@ RUN mkdir -p ${PREFIX} && \
     mkdir source && \
     mkdir build
 
-# We need cmake 3.9 or later for CUDA
-RUN export CMAKE_VERSION=3.9.4 && \
-    export CMAKE_VERSION_SHORT=3.9 && \
+RUN export CMAKE_VERSION=3.11.1 && \
+    export CMAKE_VERSION_SHORT=3.11 && \
     export CMAKE_URL=https://cmake.org/files/v${CMAKE_VERSION_SHORT}/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz && \
     export CMAKE_ARCHIVE=${ARCHIVE_DIR}/cmake.tar.gz && \
     export CMAKE_BUILD_DIR=${BUILD_DIR}/cmake && \
@@ -51,9 +50,9 @@ RUN export CMAKE_VERSION=3.9.4 && \
 ENV PATH=${INSTALL_DIR}/cmake/bin:$PATH
 
 # Install OpenMPI
-RUN export OPENMPI_VERSION=3.0.0 && \
-    export OPENMPI_VERSION_SHORT=3.0 && \
-    export OPENMPI_SHA1=fa63990db1aec88b36335a1d79abf47ac6348e23 && \
+RUN export OPENMPI_VERSION=3.1.0 && \
+    export OPENMPI_VERSION_SHORT=3.1 && \
+    export OPENMPI_SHA1=12103f539196fc43f57b751197b4a82fd523f027 && \
     export OPENMPI_URL=https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_SHORT}/downloads/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_ARCHIVE=${ARCHIVE_DIR}/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_SOURCE_DIR=${SOURCE_DIR}/openmpi && \
@@ -76,10 +75,10 @@ ENV PATH=$PATH:${INSTALL_DIR}/openmpi/bin
 
 
 # Install Boost
-RUN export BOOST_VERSION=1.65.1 && \
-    export BOOST_VERSION_U=1_65_1 && \
+RUN export BOOST_VERSION=1.67.0 && \
+    export BOOST_VERSION_U=1_67_0 && \
     export BOOST_URL=https://dl.bintray.com/boostorg/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_U}.tar.bz2 && \
-    export BOOST_SHA256=9807a5d16566c57fd74fb522764e0b134a8bbe6b6e8967b83afefd30dcd3be81 && \
+    export BOOST_SHA256=2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba && \
     export BOOST_ARCHIVE=${ARCHIVE_DIR}/boost_${BOOST_VERSION_U}.tar.bz2 && \
     export BOOST_SOURCE_DIR=${SOURCE_DIR}/boost && \
     export BOOST_BUILD_DIR=${BUILD_DIR}/boost && \
@@ -105,9 +104,10 @@ RUN export BOOST_VERSION=1.65.1 && \
     rm -rf ${BOOST_SOURCE_DIR}
 ENV BOOST_ROOT=${INSTALL_DIR}/boost
 
-# Install Trilinos
-RUN export TRILINOS_VERSION=12-12-1 && \
-    export TRILINOS_URL=https://github.com/trilinos/Trilinos/archive/trilinos-release-${TRILINOS_VERSION}.tar.gz && \
+# Install Trilinos. Trilinos 12.12.1 is not compatible with deal.II 9.0 when
+# compiled with CUDA. So we need to use the master version.
+RUN export TRILINOS_HASH=996e8c2c2423564955e16a322b8b786121c5d2f0 && \
+    export TRILINOS_URL=https://github.com/trilinos/Trilinos/archive/${TRILINOS_HASH}.tar.gz && \
     export TRILINOS_ARCHIVE=${ARCHIVE_DIR}/trilinos.tar.gz && \
     export TRILINOS_SOURCE_DIR=${SOURCE_DIR}/trilinos && \
     export TRILINOS_BUILD_DIR=${BUILD_DIR}/trilinos && \
@@ -157,7 +157,7 @@ RUN export P4EST_VERSION=1.1 && \
     wget --quiet ${P4EST_URL} --output-document=${P4EST_ARCHIVE} && \
     mkdir -p ${P4EST_SOURCE_DIR} && \
     cd ${P4EST_SOURCE_DIR} && \
-    wget --quiet https://www.dealii.org/8.5.0/external-libs/p4est-setup.sh && \
+    wget --quiet https://www.dealii.org/9.0.0/external-libs/p4est-setup.sh && \
     bash ./p4est-setup.sh ${P4EST_ARCHIVE} ${P4EST_INSTALL_DIR} && \
     rm -rf ${P4EST_ARCHIVE} && \
     rm -rf ${P4EST_BUILD_DIR} && \
@@ -186,8 +186,8 @@ RUN export ARPACK_VERSION=3.5.0 && \
     rm -rf ${ARPACK_SOURCE_DIR}
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
-# Install deal.II
-RUN export DEAL_II_HASH=5f9d86ac1a5ca36df642e8a6d079b77219796a07 && \
+# Install deal.II 9.0
+RUN export DEAL_II_HASH=1eb3c441c2c4d313e29552cb35ce93ba0c4003d3 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \

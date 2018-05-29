@@ -257,6 +257,6 @@ private:
   std::vector<Level<operator_type>> _levels;
   bool _is_preconditioner = true;
 };
-}
+} // namespace mfmg
 
 #endif // ifdef MFMG_HIERARCHY_HPP

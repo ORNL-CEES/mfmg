@@ -114,7 +114,7 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
                     double *send_buffer, unsigned int recv_count,
                     double *recv_buffer);
-}
+} // namespace mfmg
 
 #endif
 #endif

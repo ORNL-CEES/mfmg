@@ -1,8 +1,8 @@
 IF (NOT CLANG_TIDY_EXECUTABLE)
   FIND_PROGRAM(CLANG_TIDY_EXECUTABLE
     NAMES
-    clang-tidy-5.0
-    clang-tidy-mp-5.0
+    clang-tidy-6.0
+    clang-tidy-mp-6.0
     clang-tidy
   )
   IF (CLANG_TIDY_EXECUTABLE)
@@ -22,8 +22,8 @@ EXECUTE_PROCESS(
   COMMAND ${CLANG_TIDY_EXECUTABLE} -version
   OUTPUT_VARIABLE CLANG_TIDY_VERSION
   )
-IF(NOT CLANG_TIDY_VERSION MATCHES "5.0")
-    MESSAGE(SEND_ERROR "You must use clang-tidy version 5.0")
+IF(NOT CLANG_TIDY_VERSION MATCHES "6.0")
+    MESSAGE(SEND_ERROR "You must use clang-tidy version 6.0")
 ENDIF()
 
 # Run clang-tidy on each of the C++ source file of the project

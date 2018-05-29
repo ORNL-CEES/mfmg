@@ -100,7 +100,7 @@ private:
   dealii::IndexSet _range_indexset;
   dealii::IndexSet _domain_indexset;
 };
-}
+} // namespace mfmg
 
 #endif
 

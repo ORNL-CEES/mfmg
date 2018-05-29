@@ -115,6 +115,6 @@ public:
     return nullptr;
   }
 };
-}
+} // namespace mfmg
 
 #endif

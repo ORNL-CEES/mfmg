@@ -151,6 +151,6 @@ public:
         evaluator.cuda_handle, *global_op.get_matrix(), params);
   }
 };
-}
+} // namespace mfmg
 
 #endif

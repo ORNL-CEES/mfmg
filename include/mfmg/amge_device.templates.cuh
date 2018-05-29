@@ -195,7 +195,7 @@ __global__ void restrict_array(int full_array_size, ScalarType *full_array,
   if (i < restrict_array_size)
     restricted_array[i] = full_array[i];
 }
-}
+} // namespace internal
 
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_device<dim, MeshEvaluator, VectorType>::AMGe_device(
@@ -420,6 +420,6 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
       dof_indices_maps, n_local_eigenvectors,
       evaluator.cuda_handle.cusparse_handle);
 }
-}
+} // namespace mfmg
 
 #endif

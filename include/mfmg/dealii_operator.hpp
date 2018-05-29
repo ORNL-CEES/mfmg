@@ -194,6 +194,6 @@ private:
   size_t _n;
   size_t _nnz;
 };
-}
+} // namespace mfmg
 
 #endif

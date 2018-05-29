@@ -350,6 +350,6 @@ AMGe<dim, VectorType>::compute_restriction_sparsity_pattern(
 
   return sp;
 }
-}
+} // namespace mfmg
 
 #endif

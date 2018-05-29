@@ -35,7 +35,7 @@ ScalarType *copy_to_gpu(std::vector<ScalarType> const &val)
 
   return val_dev;
 }
-}
+} // namespace internal
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>
@@ -484,4 +484,4 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 
 template SparseMatrixDevice<double>
 convert_matrix(dealii::SparseMatrix<double> const &sparse_matrix);
-}
+} // namespace mfmg
