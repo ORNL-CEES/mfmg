@@ -60,7 +60,7 @@ struct VectorDevice
   ScalarType *val_dev;
   std::shared_ptr<const dealii::Utilities::MPI::Partitioner> partitioner;
 };
-}
+} // namespace mfmg
 
 #endif
 

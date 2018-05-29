@@ -123,6 +123,6 @@ private:
 
   std::string const _eigensolver_type;
 };
-}
+} // namespace mfmg
 
 #endif

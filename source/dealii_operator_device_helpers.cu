@@ -134,7 +134,7 @@ void cusolverSpcsrlsvluHost(cusolverSpHandle_t cusolver_sp_handle,
   ASSERT_CUSOLVER(cusolver_error_code);
   ASSERT(singularity == -1, "Coarse matrix is singular");
 }
-}
+} // namespace internal
 
 void cholesky_factorization(cusolverSpHandle_t cusolver_sp_handle,
                             SparseMatrixDevice<float> const &matrix,
@@ -276,4 +276,4 @@ template void lu_factorization<float>(cusolverSpHandle_t cusolver_sp_handle,
 template void lu_factorization<double>(cusolverSpHandle_t cusolver_sp_handle,
                                        SparseMatrixDevice<double> const &matrix,
                                        double const *b, double *x);
-}
+} // namespace mfmg

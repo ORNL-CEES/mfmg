@@ -257,6 +257,6 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global(
 
   n_local_eigenvectors.push_back(copy_data.local_eigenvectors.size());
 }
-}
+} // namespace mfmg
 
 #endif

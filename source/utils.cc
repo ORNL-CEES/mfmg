@@ -96,4 +96,4 @@ void ptree2plist(boost::property_tree::ptree const &node,
 
   plist = *Teuchos::getParametersFromXmlString(ss.str());
 }
-}
+} // namespace mfmg

@@ -30,6 +30,6 @@ struct DealIIMesh
   dealii::DoFHandler<dim> &_dof_handler;
   dealii::ConstraintMatrix &_constraints;
 };
-}
+} // namespace mfmg
 
 #endif

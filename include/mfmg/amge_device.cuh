@@ -81,6 +81,6 @@ public:
 private:
   CudaHandle const &_cuda_handle;
 };
-}
+} // namespace mfmg
 
 #endif

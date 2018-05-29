@@ -41,6 +41,6 @@ void lu_factorization(cusolverSpHandle_t cusolver_sp_handle,
                       ScalarType const *b, ScalarType *x);
 
 __global__ void iota(int const size, int *value);
-}
+} // namespace mfmg
 
 #endif

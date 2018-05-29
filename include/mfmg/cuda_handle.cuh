@@ -46,6 +46,6 @@ struct CudaHandle
 
   cusparseHandle_t cusparse_handle;
 };
-}
+} // namespace mfmg
 
 #endif

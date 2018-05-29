@@ -134,7 +134,7 @@ void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
                                                      indices_dev, dst);
   cuda_free(dst_buffer);
 }
-}
+} // namespace internal
 
 template <typename ScalarType>
 SparseMatrixDevice<ScalarType>::SparseMatrixDevice()
@@ -420,6 +420,6 @@ void SparseMatrixDevice<ScalarType>::mmult(
     C = convert_matrix(C_host);
   }
 }
-}
+} // namespace mfmg
 
 #endif

@@ -55,4 +55,4 @@ CudaHandle::~CudaHandle()
     cusolver_dn_handle = nullptr;
   }
 }
-}
+} // namespace mfmg

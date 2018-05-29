@@ -299,7 +299,7 @@ void DirectOperator<dealii::LinearAlgebra::distributed::Vector<double>>::
     x.local_element(pos.first) = tmp[pos.second];
 }
 #endif
-}
+} // namespace internal
 
 template <typename VectorType>
 SparseMatrixDeviceOperator<VectorType>::SparseMatrixDeviceOperator(
@@ -816,6 +816,6 @@ DirectDeviceOperator<VectorType>::build_range_vector() const
 
   return nullptr;
 }
-}
+} // namespace mfmg
 
 #endif

@@ -28,7 +28,7 @@ __global__ void add(int const size, ScalarType alpha,
   if (idx < size)
     val[idx] += alpha * x_val[idx];
 }
-}
+} // namespace internal
 
 template <typename ScalarType>
 VectorDevice<ScalarType>::VectorDevice(
@@ -81,7 +81,7 @@ void VectorDevice<ScalarType>::add(ScalarType alpha,
   internal::add<<<n_blocks, block_size>>>(local_size, alpha, x.val_dev,
                                           val_dev);
 }
-}
+} // namespace mfmg
 
 #endif
 

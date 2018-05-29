@@ -83,6 +83,6 @@ void apply_permutation_in_place(std::vector<unsigned int> const &permutation,
     }
   }
 }
-}
+} // namespace mfmg
 
 #endif
