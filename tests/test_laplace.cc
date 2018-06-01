@@ -96,7 +96,7 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
   dealii::TrilinosWrappers::MPI::Vector solution =
       laplace.solve(preconditioner);
 
-  // The exact solution is quadratique so the error should be zero.
+  // The exact solution is quadratic so the error should be zero.
   ExactSolution<2> exact_solution;
   BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
 
@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
   dealii::TrilinosWrappers::MPI::Vector solution =
       laplace.solve(preconditioner);
 
-  // The exact solution is quadratique so the error should be zero.
+  // The exact solution is quadratic so the error should be zero.
   ExactSolution<3> exact_solution;
   BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
 }
