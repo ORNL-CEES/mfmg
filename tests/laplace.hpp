@@ -46,7 +46,7 @@ class Laplace
 public:
   Laplace(MPI_Comm const &comm, unsigned int fe_degree);
 
-  void setup_system(boost::property_tree::ptree const ptree);
+  void setup_system(boost::property_tree::ptree const &ptree);
 
   void assemble_system(dealii::Function<dim> const &source,
                        dealii::Function<dim> const &material_property);
@@ -66,8 +66,6 @@ public:
   // The following variable should be private but there are public for
   // simplicity
   MPI_Comm _comm;
-  // The manifold must outlive the Triangulation
-  dealii::SphericalManifold<dim> _spherical_manifold;
   dealii::parallel::distributed::Triangulation<dim> _triangulation;
   dealii::FE_Q<dim> _fe;
   dealii::DoFHandler<dim> _dof_handler;
@@ -88,15 +86,11 @@ Laplace<dim, VectorType>::Laplace(MPI_Comm const &comm, unsigned int fe_degree)
 
 template <int dim, typename VectorType>
 void Laplace<dim, VectorType>::setup_system(
-    boost::property_tree::ptree const ptree)
+    boost::property_tree::ptree const &ptree)
 {
   std::string const mesh = ptree.get("mesh", "hyper_cube");
   if (mesh == "hyper_ball")
-  {
     dealii::GridGenerator::hyper_ball(_triangulation);
-    _triangulation.set_all_manifold_ids_on_boundary(0);
-    _triangulation.set_manifold(0, _spherical_manifold);
-  }
   else
     dealii::GridGenerator::hyper_cube(_triangulation);
 
