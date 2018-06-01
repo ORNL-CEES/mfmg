@@ -17,11 +17,11 @@ The following third party libraries (TPLs) are used by mfmg:
 +------------------------+-----------------------------------+
 | BLAS/LAPACK            | N/A                               |
 +------------------------+-----------------------------------+
-| deal.II                | 8.5 (development for CUDA support)|
+| deal.II                | 9.0                               |
 +------------------------+-----------------------------------+
 | MPI                    | N/A                               |
 +------------------------+-----------------------------------+
-| Trilinos               | 12.X                              |
+| Trilinos               | 12.X (master for CUDA support)    |
 +------------------------+-----------------------------------+
 
 The dependencies of mfmg may be built using `Spack
