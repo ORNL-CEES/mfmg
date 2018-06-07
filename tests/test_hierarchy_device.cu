@@ -434,7 +434,7 @@ BOOST_AUTO_TEST_CASE(amgx)
     // We only supports Jacobi smoother on the device
     params->put("smoother.type", "Jacobi");
 
-    double const tolerance = 1e-1;
+    double const tolerance = 1.;
     // The convergence rate for the two grid algorithm is 0.345914564 which is
     // much better than the multigrid.
     double const ref_solution = 0.86418797066393482;
