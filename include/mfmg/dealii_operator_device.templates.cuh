@@ -16,8 +16,6 @@
 #include <mfmg/dealii_operator_device.cuh>
 #include <mfmg/dealii_operator_device_helpers.cuh>
 #include <mfmg/utils.cuh>
-// This is only tmp this files has moved in deal.II 9.0
-#include <deal.II/base/mpi.templates.h>
 
 #include <EpetraExt_Transpose_RowMatrix.h>
 
