@@ -178,7 +178,7 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::
 
 template <int dim, typename MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
-    std::array<unsigned int, dim> const &agglomerate_dim,
+    boost::property_tree::ptree const &agglomerate_ptree,
     unsigned int const n_eigenvectors, double const tolerance,
     MeshEvaluator const &evaluator,
     std::shared_ptr<typename MeshEvaluator::global_operator_type const>
@@ -186,7 +186,8 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix)
 {
   // Flag the cells to build agglomerates.
-  unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
+  unsigned int const n_agglomerates =
+      this->build_agglomerates(agglomerate_ptree);
 
   // Parallel part of the setup.
   std::vector<unsigned int> agglomerate_ids(n_agglomerates);

@@ -24,6 +24,8 @@
 
 #include <array>
 
+#include <deal.II/numerics/data_out.h>
+
 template <int dim>
 std::vector<unsigned int> test(MPI_Comm const &world)
 {
@@ -42,10 +44,13 @@ std::vector<unsigned int> test(MPI_Comm const &world)
                   dealii::TrilinosWrappers::MPI::Vector>
       amge(world, dof_handler);
 
-  std::array<unsigned int, dim> agglomerate_dim;
-  for (unsigned int i = 0; i < dim; ++i)
-    agglomerate_dim[i] = i + 2;
-  amge.build_agglomerates(agglomerate_dim);
+  boost::property_tree::ptree partitioner_params;
+  partitioner_params.put("partitioner", "block");
+  partitioner_params.put("nx", 2);
+  partitioner_params.put("ny", 3);
+  partitioner_params.put("nz", 4);
+
+  amge.build_agglomerates(partitioner_params);
 
   std::vector<unsigned int> agglomerates;
   agglomerates.reserve(dof_handler.get_triangulation().n_active_cells());
@@ -70,7 +75,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
                          7, 7, 6, 6, 8,  8,  3,  3,  3,  3,  4,  4, 4,
                          4, 9, 9, 9, 9,  10, 10, 10, 10, 7,  7,  7, 7,
                          8, 8, 8, 8, 11, 11, 11, 11, 12, 12, 12, 12}};
-  if (world_size == 2)
+  else if (world_size == 2)
   {
     if (world_rank == 0)
       ref_agglomerates = {{0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2,
@@ -81,7 +86,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_2d)
                            0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 3, 3, 2, 2, 4, 4,
                            5, 5, 5, 5, 6, 6, 6, 6, 5, 5, 7, 7, 6, 6, 8, 8}};
   }
-  if (world_size == 4)
+  else if (world_size == 4)
   {
     if (world_rank == 0)
       ref_agglomerates = {{0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
@@ -146,7 +151,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
          19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 23, 23, 23, 23, 23, 23, 23, 23,
          24, 24, 24, 24, 24, 24, 24, 24}};
   }
-  if (world_size == 2)
+  else if (world_size == 2)
   {
     if (world_rank == 0)
       ref_agglomerates = {
@@ -201,7 +206,7 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            7,  7,  8,  8,  8,  8,  8,  8,  8,  8,  11, 11, 11, 11, 11, 11, 11,
            11, 12, 12, 12, 12, 12, 12, 12, 12}};
   }
-  if (world_size == 4)
+  else if (world_size == 4)
   {
     if (world_rank == 0)
       ref_agglomerates = {
@@ -267,6 +272,81 @@ BOOST_AUTO_TEST_CASE(simple_agglomerate_3d)
            5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 7, 7, 5, 5, 7, 7,
            6, 6, 8, 8, 6, 6, 8, 8, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6,
            6, 5, 5, 7, 7, 5, 5, 7, 7, 6, 6, 8, 8, 6, 6, 8, 8}};
+  }
+
+  BOOST_TEST(agglomerates == ref_agglomerates);
+}
+
+BOOST_AUTO_TEST_CASE(zoltan_agglomerate_2d)
+{
+  int constexpr dim = 2;
+  unsigned int world_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  unsigned int world_rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  dealii::parallel::distributed::Triangulation<dim> triangulation(
+      MPI_COMM_WORLD);
+  dealii::FE_Q<dim> fe(1);
+  dealii::DoFHandler<dim> dof_handler(triangulation);
+
+  dealii::GridGenerator::hyper_cube(triangulation);
+  triangulation.refine_global(3);
+  dof_handler.distribute_dofs(fe);
+
+  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+
+  mfmg::AMGe_host<dim, DummyMeshEvaluator,
+                  dealii::TrilinosWrappers::MPI::Vector>
+      amge(MPI_COMM_WORLD, dof_handler);
+
+  boost::property_tree::ptree partitioner_params;
+  partitioner_params.put("partitioner", "zoltan");
+  partitioner_params.put("n_agglomerates", 3);
+  amge.build_agglomerates(partitioner_params);
+
+  std::vector<unsigned int> agglomerates;
+  agglomerates.reserve(dof_handler.get_triangulation().n_active_cells());
+  for (auto cell : dof_handler.active_cell_iterators())
+    agglomerates.push_back(cell->user_index());
+
+  std::vector<unsigned int> ref_agglomerates;
+  if (world_size == 1)
+  {
+    ref_agglomerates = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                        2, 2, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                        1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+  }
+  else if (world_size == 2)
+  {
+    if (world_rank == 0)
+      ref_agglomerates = {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0,
+                          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    else
+      ref_agglomerates = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  }
+  else if (world_size == 4)
+  {
+    if (world_rank == 0)
+      ref_agglomerates = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (world_rank == 1)
+      ref_agglomerates = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (world_rank == 2)
+      ref_agglomerates = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+    if (world_rank == 3)
+      ref_agglomerates = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
   }
 
   BOOST_TEST(agglomerates == ref_agglomerates);
