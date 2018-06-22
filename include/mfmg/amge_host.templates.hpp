@@ -21,12 +21,67 @@
 #include <deal.II/lac/arpack_solver.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/lapack_full_matrix.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_direct.h>
 
 #include <EpetraExt_MatrixMatrix.h>
 
+// APPROACH1: use UMFPACK to invert the matrix
+// APPROACH2: use CG to invert
+// APPROACH3: do not need invert, use ARPACK regular mode instead of
+//            shift-and-invert mode
+
+#define APPROACH3
+
 namespace mfmg
 {
+
+#if defined(APPROACH2)
+template <typename MatrixType>
+struct WrapInverse
+{
+  // NOTE I'd have liked to have SolverCG as data member but I gave up for now
+  // because it was getting very frustrating
+  // * SolverCG::solve is not marked as const so I'd have to make the solver
+  // mutable
+  // * The Solver base class takes a non const reference to SolverControl
+  WrapInverse(std::shared_ptr<MatrixType const> const &sparse_matrix,
+              unsigned int max_iterations, double tolerance)
+      : _sparse_matrix(sparse_matrix), _max_iterations(max_iterations),
+        _tolerance(tolerance)
+  {
+  }
+  // template <typename VectorType>
+  using VectorType = dealii::Vector<double>;
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    // Unefficient but that will do for now
+    dealii::SolverControl solver_control(_max_iterations, _tolerance);
+    dealii::SolverCG<VectorType> solver(solver_control);
+    solver.solve(*_sparse_matrix, dst, src, dealii::PreconditionIdentity());
+  }
+
+  std::shared_ptr<MatrixType const> _sparse_matrix;
+  unsigned int const _max_iterations;
+  double const _tolerance;
+};
+#endif
+
+#if defined(APPROACH3)
+struct NoOp
+{
+  template <typename VectorType>
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    std::ignore = src;
+    std::ignore = dst;
+    // Raise an error to make sure nobody uses this by inadvertance
+    throw std::runtime_error("should never get here");
+  }
+};
+#endif
+
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
@@ -88,12 +143,23 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
     for (unsigned int i = 0; i < size; ++i)
       agglomerate_mass_matrix.diag_element(i) = 1.;
+
+#if defined(APPROACH1)
     dealii::SparseDirectUMFPACK inv_system_matrix;
     inv_system_matrix.initialize(*agglomerate_system_matrix);
+#elif defined(APPROACH2)
+    WrapInverse<typename std::remove_reference<decltype(
+        *agglomerate_system_matrix)>::type>
+        inv_system_matrix(agglomerate_system_matrix, 1000 * n_dofs_agglomerate,
+                          .1 * tolerance);
+#elif defined(APPROACH3)
+    NoOp inv_system_matrix;
+#endif
 
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
+#if defined(APPROACH1) || defined(APPROACH2)
     // We want the eigenvalues of the smallest magnitudes but we need to ask for
     // the ones with the largest magnitudes because they are computed for the
     // inverse of the matrix we care about.
@@ -101,6 +167,18 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric);
+#elif defined(APPROACH3)
+    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+        dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
+    // We want to solve a standard eigenvalue problem A*x = lambda*x
+    dealii::ArpackSolver::WhichEigenvalueProblem problem_type =
+        dealii::ArpackSolver::WhichEigenvalueProblem::standard;
+    // We want to use ARPACK's regular mode to avoid having to compute inverses.
+    int const arpack_mode = 1;
+    dealii::ArpackSolver::AdditionalData additional_data(
+        n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
+        problem_type);
+#endif
     dealii::ArpackSolver solver(solver_control, additional_data);
 
     // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
