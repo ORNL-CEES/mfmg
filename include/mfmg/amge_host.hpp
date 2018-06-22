@@ -20,7 +20,6 @@ template <int dim, typename MeshEvaluator, typename VectorType>
 class AMGe_host : public AMGe<dim, VectorType>
 {
 public:
-public:
   using ScalarType = typename VectorType::value_type;
 
   AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
