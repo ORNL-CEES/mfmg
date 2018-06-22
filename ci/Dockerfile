@@ -138,6 +138,7 @@ RUN export TRILINOS_HASH=996e8c2c2423564955e16a322b8b786121c5d2f0 && \
         -DTrilinos_ENABLE_ML=ON \
         -DTrilinos_ENABLE_MueLu=ON \
         -DTrilinos_ENABLE_Sacado=ON \
+        -DTrilinos_ENABLE_Zoltan=ON \
         -DTrilinos_ENABLE_EXPLICIT_INSTANTIATION=ON \
         -DCMAKE_INSTALL_PREFIX=${TRILINOS_INSTALL_DIR} \
         ${TRILINOS_SOURCE_DIR} && \
