@@ -56,9 +56,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
                                    agglomerate_constraints);
 
   // Call user function to build the system matrix
-  auto agglomerate_operator = evaluator.get_local_operator(agglomerate_mesh);
+  auto const agglomerate_operator =
+      evaluator.get_local_operator(agglomerate_mesh);
 
-  auto agglomerate_system_matrix = agglomerate_operator->get_matrix();
+  auto const agglomerate_system_matrix = agglomerate_operator->get_matrix();
 
   // Get the diagonal elements
   unsigned int const size = agglomerate_system_matrix->m();
