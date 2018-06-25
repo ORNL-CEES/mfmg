@@ -12,7 +12,7 @@ SET(Boost_COMPONENTS
 FIND_PACKAGE(Boost 1.65.1 REQUIRED COMPONENTS ${Boost_COMPONENTS})
 
 #### deal.II #################################################################
-FIND_PACKAGE(deal.II 8.5 REQUIRED PATHS ${DEAL_II_DIR})
+FIND_PACKAGE(deal.II 9.0 REQUIRED PATHS ${DEAL_II_DIR})
 
 # If deal.II was configured in DebugRelease mode, then if mfmg was configured
 # in Debug mode, we link against the Debug version of deal.II. If mfmg was
