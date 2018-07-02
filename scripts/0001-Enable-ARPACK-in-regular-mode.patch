@@ -1,0 +1,145 @@
+From 64bac4d4428ebd0064629353bb2befb52bcef42b Mon Sep 17 00:00:00 2001
+From: Damien L-G <dalg24@gmail.com>
+Date: Fri, 29 Jun 2018 14:11:47 +0000
+Subject: [PATCH] Enable ARPACK in regular mode
+
+---
+ include/deal.II/lac/arpack_solver.h | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 65 insertions(+), 7 deletions(-)
+
+diff --git a/include/deal.II/lac/arpack_solver.h b/include/deal.II/lac/arpack_solver.h
+index 21be1b8..e3f8314 100644
+--- a/include/deal.II/lac/arpack_solver.h
++++ b/include/deal.II/lac/arpack_solver.h
+@@ -160,6 +160,23 @@ public:
+   };
+ 
+   /**
++   * An enum that lists the possible choices for the BMAT argument in ARPACK
++   * which is used to specify the type of the matrix B that defines the
++   * semi-inner product for the operator OP.
++   */
++  enum WhichEigenvalueProblem : char
++  {
++    /**
++     * BMAT = 'I' -> standard eigenvalue problem A*x = lambda*x
++     */
++    standard = 'I',
++    /**
++     * BMAT = 'G' -> generalized eigenvalue problem A*x = lambda*B*x
++     */
++    generalized = 'G'
++  };
++
++  /**
+    * Standardized data struct to pipe additional data to the solver.
+    */
+   struct AdditionalData
+@@ -172,7 +189,10 @@ public:
+     explicit AdditionalData(
+       const unsigned int number_of_arnoldi_vectors = 15,
+       const WhichEigenvalues eigenvalue_of_interest = largest_magnitude,
+-      const bool symmetric = false);
++      const bool symmetric = false,
++      const int mode = 3,
++      const WhichEigenvalueProblem = generalized
++      );
+ 
+     /**
+      * Number of Arnoldi/Lanczos vectors. This number should be less than the
+@@ -190,6 +210,16 @@ public:
+      * Specify if the problem is symmetric or not.
+      */
+     const bool symmetric;
++
++    /**
++     * Specify ARPACK's mode of operation.
++     */
++    const int mode;
++
++    /**
++     * Specify whether to solve a standard or a generalized eigenvalue problem.
++     */
++    const WhichEigenvalueProblem problem_type;
+   };
+ 
+   /**
+@@ -372,11 +402,16 @@ inline
+ ArpackSolver::AdditionalData::
+ AdditionalData (const unsigned int number_of_arnoldi_vectors,
+                 const WhichEigenvalues eigenvalue_of_interest,
+-                const bool symmetric)
++                const bool symmetric,
++                const int mode,
++                const WhichEigenvalueProblem problem_type)
++
+   :
+   number_of_arnoldi_vectors(number_of_arnoldi_vectors),
+   eigenvalue_of_interest(eigenvalue_of_interest),
+-  symmetric(symmetric)
++  symmetric(symmetric),
++  mode(mode),
++  problem_type(problem_type)
+ {
+   //Check for possible options for symmetric problems
+   if (symmetric)
+@@ -432,7 +467,7 @@ set_initial_vector(const VectorType &vec)
+ template <typename VectorType, typename MatrixType1,
+           typename MatrixType2, typename INVERSE>
+ inline
+-void ArpackSolver::solve (const MatrixType1                  &/*system_matrix*/,
++void ArpackSolver::solve (const MatrixType1                  &system_matrix,
+                           const MatrixType2                  &mass_matrix,
+                           const INVERSE                      &inverse,
+                           std::vector<std::complex<double> > &eigenvalues,
+@@ -473,14 +508,15 @@ void ArpackSolver::solve (const MatrixType1                  &/*system_matrix*/,
+           ArpackExcSmallNumberofArnoldiVectors(
+             additional_data.number_of_arnoldi_vectors, nev));
+ 
+-  // ARPACK mode for dsaupd/dnaupd, here only mode 3, i.e. shift-invert mode
+-  int mode = 3;
++  // ARPACK mode for dsaupd/dnaupd, here only mode 1 (regular mode) and mode 3
++  // (shift-invert mode)
++  int mode = additional_data.mode;
+ 
+   // reverse communication parameter
+   int ido = 0;
+ 
+   // 'G' generalized eigenvalue problem 'I' standard eigenvalue problem
+-  char bmat[2] = "G";
++  char bmat[2] = {additional_data.problem_type};
+ 
+   // Specify the eigenvalues of interest, possible parameters "LA" algebraically
+   // largest "SA" algebraically smallest "LM" largest magnitude "SM" smallest
+@@ -572,6 +608,28 @@ void ArpackSolver::solve (const MatrixType1                  &/*system_matrix*/,
+ 
+       switch (mode)
+         {
++        case 1:
++          if (ido == -1 || ido == 1)
++          {
++              VectorType src,dst;
++              src.reinit(eigenvectors[0]);
++              dst.reinit(src);
++
++              for (size_type i=0; i<src.size(); ++i)
++                src(i) = workd[ipntr[0]-1+i];
++
++              // multiplication with system matrix A
++              system_matrix.vmult(dst, src);
++
++              for (size_type i=0; i<dst.size(); ++i)
++                workd[ipntr[1]-1+i] = dst(i);
++          }
++          else
++          {
++              Assert (false, ArpackExcArpackIdo(ido));
++          }
++          break;
++
+         case 3:
+         {
+           switch (ido)
+-- 
+2.7.4
+
