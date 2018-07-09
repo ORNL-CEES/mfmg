@@ -13,7 +13,7 @@
 #define MFMG_DEALII_MESH_HPP
 
 #include <deal.II/dofs/dof_handler.h>
-#include <deal.II/lac/constraint_matrix.h>
+#include <deal.II/lac/affine_constraints.h>
 
 namespace mfmg
 {
@@ -21,14 +21,14 @@ template <int dim>
 struct DealIIMesh
 {
   DealIIMesh(dealii::DoFHandler<dim> &dof_handler,
-             dealii::ConstraintMatrix &constraints)
+             dealii::AffineConstraints<double> &constraints)
       : _dof_handler(dof_handler), _constraints(constraints)
   {
   }
 
   static constexpr int dimension() { return dim; }
   dealii::DoFHandler<dim> &_dof_handler;
-  dealii::ConstraintMatrix &_constraints;
+  dealii::AffineConstraints<double> &_constraints;
 };
 } // namespace mfmg
 

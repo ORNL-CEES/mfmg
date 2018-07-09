@@ -25,8 +25,8 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/manifold_lib.h>
-#include <deal.II/lac/constraint_matrix.h>
-#include <deal.II/lac/constraint_matrix.templates.h>
+#include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/affine_constraints.templates.h>
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/trilinos_solver.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
@@ -71,7 +71,7 @@ public:
   dealii::DoFHandler<dim> _dof_handler;
   dealii::IndexSet _locally_owned_dofs;
   dealii::IndexSet _locally_relevant_dofs;
-  dealii::ConstraintMatrix _constraints;
+  dealii::AffineConstraints<double> _constraints;
   dealii::TrilinosWrappers::SparseMatrix _system_matrix;
   VectorType _locally_relevant_solution;
   VectorType _system_rhs;

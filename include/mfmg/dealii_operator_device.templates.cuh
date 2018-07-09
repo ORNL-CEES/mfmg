@@ -20,6 +20,7 @@
 #include <EpetraExt_Transpose_RowMatrix.h>
 
 #include <algorithm>
+#include <set>
 
 namespace mfmg
 {
