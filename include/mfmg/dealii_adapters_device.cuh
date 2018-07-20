@@ -113,12 +113,7 @@ public:
     AMGe_device<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
         comm, mesh._dof_handler, evaluator.cuda_handle);
 
-    std::array<unsigned int, dim> agglomerate_dim;
     auto agglomerate_params = params->get_child("agglomeration");
-    agglomerate_dim[0] = agglomerate_params.get<unsigned int>("nx");
-    agglomerate_dim[1] = agglomerate_params.get<unsigned int>("ny");
-    if (dim == 3)
-      agglomerate_dim[2] = agglomerate_params.get<unsigned int>("nz");
     int n_eigenvectors = eigensolver_params.get("number of eigenvectors", 1);
     double tolerance = eigensolver_params.get("tolerance", 1e-14);
 
@@ -126,7 +121,7 @@ public:
 
     auto restrictor_matrix =
         std::make_shared<typename global_operator_type::matrix_type>(
-            amge.setup_restrictor(agglomerate_dim, n_eigenvectors, tolerance,
+            amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
                                   evaluator, global_operator));
 
     return std::make_shared<global_operator_type>(restrictor_matrix);

@@ -16,12 +16,15 @@
 
 #include <mfmg/exceptions.hpp>
 
+#include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/grid/grid_tools.h>
+#include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/numerics/data_out.h>
 
 #include <algorithm>
 #include <fstream>
+#include <map>
 
 namespace mfmg
 {
@@ -34,89 +37,33 @@ AMGe<dim, VectorType>::AMGe(MPI_Comm comm,
 
 template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates(
-    std::array<unsigned int, dim> const &agglomerate_dim) const
+    boost::property_tree::ptree const &ptree) const
 {
-  // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
-  // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
-  unsigned int constexpr x_p = 1;
-  unsigned int constexpr y_p = 3;
-  unsigned int constexpr z_p = 5;
-
-  // Flag the cells to create the agglomerates
-  unsigned int agglomerate = 1;
-  for (auto cell : _dof_handler.active_cell_iterators())
+  std::string partitioner_type = ptree.get<std::string>("partitioner");
+  std::transform(partitioner_type.begin(), partitioner_type.end(),
+                 partitioner_type.begin(), ::tolower);
+  if ((partitioner_type == "zoltan") || (partitioner_type == "metis"))
   {
-    if ((cell->is_locally_owned()) && (cell->user_index() == 0))
-    {
-#if MFMG_DEBUG
-      int const cell_level = cell->level();
-#endif
-      cell->set_user_index(agglomerate);
-      auto current_z_cell = cell;
-      unsigned int const d_3 = (dim < 3) ? 1 : agglomerate_dim.back();
-      for (unsigned int k = 0; k < d_3; ++k)
-      {
-        auto current_y_cell = current_z_cell;
-        for (unsigned int j = 0; j < agglomerate_dim[1]; ++j)
-        {
-          auto current_cell = current_y_cell;
-          for (unsigned int i = 0; i < agglomerate_dim[0]; ++i)
-          {
-            current_cell->set_user_index(agglomerate);
-            if (current_cell->at_boundary(x_p) == false)
-            {
-              // TODO For now, we assume that there is no adaptive refinement.
-              // When we change this, we will need to switch to hp::DoFHandler
-              auto neighbor_cell = current_cell->neighbor(x_p);
-#if MFMG_DEBUG
-              if ((!neighbor_cell->active()) ||
-                  (neighbor_cell->level() != cell_level))
-                throw std::runtime_error("Mesh locally refined");
-#endif
-              if (neighbor_cell->is_locally_owned())
-                current_cell = neighbor_cell;
-            }
-            else
-              break;
-          }
-          if (current_y_cell->at_boundary(y_p) == false)
-          {
-            auto neighbor_y_cell = current_y_cell->neighbor(y_p);
-            if (neighbor_y_cell->is_locally_owned())
-            {
-#if MFMG_DEBUG
-              if ((!neighbor_y_cell->active()) ||
-                  (neighbor_y_cell->level() != cell_level))
-                throw std::runtime_error("Mesh locally refined");
-#endif
-              current_y_cell = neighbor_y_cell;
-            }
-          }
-          else
-            break;
-        }
-        if ((dim == 3) && (current_z_cell->at_boundary(z_p) == false))
-        {
-          auto neighbor_z_cell = current_z_cell->neighbor(z_p);
-          if (neighbor_z_cell->is_locally_owned())
-          {
-#if MFMG_DEBUG
-            if ((!neighbor_z_cell->active()) ||
-                (neighbor_z_cell->level() != cell_level))
-              throw std::runtime_error("Mesh locally refined");
-#endif
-            current_z_cell = neighbor_z_cell;
-          }
-        }
-        else
-          break;
-      }
+    unsigned int const n_agglomerates =
+        ptree.get<unsigned int>("n_agglomerates");
 
-      ++agglomerate;
-    }
+    return build_agglomerates_partitioner(partitioner_type, n_agglomerates);
   }
+  else if (partitioner_type == "block")
+  {
+    std::array<unsigned int, dim> agglomerate_dim;
+    agglomerate_dim[0] = ptree.get<unsigned int>("nx");
+    agglomerate_dim[1] = ptree.get<unsigned int>("ny");
+    if (dim == 3)
+      agglomerate_dim[2] = ptree.get<unsigned int>("nz");
 
-  return agglomerate - 1;
+    return build_agglomerates_block(agglomerate_dim);
+  }
+  else
+    ASSERT_THROW(false, partitioner_type +
+                            " is not a valid choice for the partitioner. The "
+                            "acceptable values are zoltan, metis, and block.");
+  return 0;
 }
 
 template <int dim, typename VectorType>
@@ -300,6 +247,171 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
     ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
            "Sum of local weight matrices is not the identity");
 #endif
+}
+
+template <int dim, typename VectorType>
+unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
+    std::array<unsigned int, dim> const &agglomerate_dim) const
+{
+  // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
+  // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
+  unsigned int constexpr x_p = 1;
+  unsigned int constexpr y_p = 3;
+  unsigned int constexpr z_p = 5;
+
+  // Flag the cells to create the agglomerates
+  unsigned int agglomerate = 1;
+  for (auto cell : _dof_handler.active_cell_iterators())
+  {
+    if ((cell->is_locally_owned()) && (cell->user_index() == 0))
+    {
+#if MFMG_DEBUG
+      int const cell_level = cell->level();
+#endif
+      cell->set_user_index(agglomerate);
+      auto current_z_cell = cell;
+      unsigned int const d_3 = (dim < 3) ? 1 : agglomerate_dim.back();
+      for (unsigned int k = 0; k < d_3; ++k)
+      {
+        auto current_y_cell = current_z_cell;
+        for (unsigned int j = 0; j < agglomerate_dim[1]; ++j)
+        {
+          auto current_cell = current_y_cell;
+          for (unsigned int i = 0; i < agglomerate_dim[0]; ++i)
+          {
+            current_cell->set_user_index(agglomerate);
+            if (current_cell->at_boundary(x_p) == false)
+            {
+              // TODO For now, we assume that there is no adaptive refinement.
+              // When we change this, we will need to switch to hp::DoFHandler
+              auto neighbor_cell = current_cell->neighbor(x_p);
+#if MFMG_DEBUG
+              if ((!neighbor_cell->active()) ||
+                  (neighbor_cell->level() != cell_level))
+                throw std::runtime_error("Mesh locally refined");
+#endif
+              if (neighbor_cell->is_locally_owned())
+                current_cell = neighbor_cell;
+            }
+            else
+              break;
+          }
+          if (current_y_cell->at_boundary(y_p) == false)
+          {
+            auto neighbor_y_cell = current_y_cell->neighbor(y_p);
+            if (neighbor_y_cell->is_locally_owned())
+            {
+#if MFMG_DEBUG
+              if ((!neighbor_y_cell->active()) ||
+                  (neighbor_y_cell->level() != cell_level))
+                throw std::runtime_error("Mesh locally refined");
+#endif
+              current_y_cell = neighbor_y_cell;
+            }
+          }
+          else
+            break;
+        }
+        if ((dim == 3) && (current_z_cell->at_boundary(z_p) == false))
+        {
+          auto neighbor_z_cell = current_z_cell->neighbor(z_p);
+          if (neighbor_z_cell->is_locally_owned())
+          {
+#if MFMG_DEBUG
+            if ((!neighbor_z_cell->active()) ||
+                (neighbor_z_cell->level() != cell_level))
+              throw std::runtime_error("Mesh locally refined");
+#endif
+            current_z_cell = neighbor_z_cell;
+          }
+        }
+        else
+          break;
+      }
+
+      ++agglomerate;
+    }
+  }
+
+  return agglomerate - 1;
+}
+
+template <int dim, typename VectorType>
+unsigned int AMGe<dim, VectorType>::build_agglomerates_partitioner(
+    std::string const &partitioner_type, unsigned int n_agglomerates) const
+{
+  // We cannot use deal.II wrappers to create the agglomerates because
+  //   1) the wrappers only works on serial Triangulation
+  //   2) they override the subdomain_id which is already used by p4est
+  // Instead, we create the connectivity graph ourselves and then, we do the
+  // partitioning.
+
+  unsigned int const n_local_cells =
+      _dof_handler.get_triangulation().n_active_cells();
+
+  // Create the DynamicSparsityPattern
+  dealii::DynamicSparsityPattern connectivity(n_local_cells);
+
+  // Associate a local index to each cell
+  unsigned int local_index = 0;
+  std::map<std::pair<unsigned int, unsigned int>, unsigned int> index_map;
+  for (auto cell : _dof_handler.active_cell_iterators())
+  {
+    if (cell->is_locally_owned())
+    {
+      index_map[std::make_pair(cell->level(), cell->index())] = local_index;
+      ++local_index;
+    }
+  }
+
+  // Fill the dynamic connectivity sparsity pattern
+  for (auto cell : _dof_handler.active_cell_iterators())
+  {
+    if (cell->is_locally_owned())
+    {
+      unsigned int const index =
+          index_map.at(std::make_pair(cell->level(), cell->index()));
+      connectivity.add(index, index);
+      for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
+           ++f)
+      {
+        if ((cell->at_boundary(f) == false) &&
+            (cell->neighbor(f)->is_locally_owned() == true) &&
+            (cell->neighbor(f)->has_children() == false))
+        {
+          unsigned int const neighbor_index = index_map.at(std::make_pair(
+              cell->neighbor(f)->level(), cell->neighbor(f)->index()));
+          connectivity.add(index, neighbor_index);
+          connectivity.add(neighbor_index, index);
+        }
+      }
+    }
+  }
+
+  dealii::SparsityPattern cell_connectivity;
+  cell_connectivity.copy_from(connectivity);
+
+  // Partition the connection graph
+  dealii::SparsityTools::Partitioner partitioner;
+  if (partitioner_type == "metis")
+    partitioner = dealii::SparsityTools::Partitioner::metis;
+  else
+    partitioner = dealii::SparsityTools::Partitioner::zoltan;
+  std::vector<unsigned int> partition_indices(n_local_cells);
+  dealii::SparsityTools::partition(cell_connectivity, n_agglomerates,
+                                   partition_indices, partitioner);
+
+  for (auto cell : _dof_handler.active_cell_iterators())
+  {
+    if (cell->is_locally_owned())
+    {
+      unsigned int const index =
+          index_map.at(std::make_pair(cell->level(), cell->index()));
+      cell->set_user_index(partition_indices[index]);
+    }
+  }
+
+  return *std::max_element(partition_indices.begin(), partition_indices.end());
 }
 
 template <int dim, typename VectorType>

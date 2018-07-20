@@ -275,9 +275,7 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("eigensolver.number of eigenvectors", 1);
-  std::array<unsigned int, dim> agglomerate_dim;
-  agglomerate_dim[0] = params->get<unsigned int>("agglomeration.nx");
-  agglomerate_dim[1] = params->get<unsigned int>("agglomeration.ny");
+  auto agglomerate_ptree = params->get_child("agglomeration");
   int n_eigenvectors =
       params->get<int>("eigensolver.number of eigenvectors", 1);
   double tolerance = params->get<double>("eigensolver.tolerance", 1e-14);
@@ -299,7 +297,7 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   auto restrictor_matrix = std::make_shared<typename mfmg::DealIIMeshEvaluator<
       dim, MeshEvaluator>::global_operator_type::matrix_type>();
   auto global_operator = evaluator.get_global_operator(*mesh);
-  amge.setup_restrictor(agglomerate_dim, n_eigenvectors, tolerance, evaluator,
+  amge.setup_restrictor(agglomerate_ptree, n_eigenvectors, tolerance, evaluator,
                         global_operator, *restrictor_matrix);
 
   // Multiply the matrix by three because all the eigenvectors are 1/3. So we

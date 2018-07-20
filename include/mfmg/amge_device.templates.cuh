@@ -353,7 +353,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_restriction_sparse_matrix(
 template <int dim, typename MeshEvaluator, typename VectorType>
 mfmg::SparseMatrixDevice<typename VectorType::value_type>
 AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
-    std::array<unsigned int, dim> const &agglomerate_dim,
+    boost::property_tree::ptree const &agglomerate_dim,
     unsigned int const n_eigenvectors, double const tolerance,
     MeshEvaluator const &evaluator,
     std::shared_ptr<typename MeshEvaluator::global_operator_type const>

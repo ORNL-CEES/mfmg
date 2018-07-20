@@ -149,20 +149,15 @@ public:
     AMGe_host<mesh_type::dimension(), mesh_evaluator_type, vector_type> amge(
         comm, mesh._dof_handler, eigensolver_params.get("type", "arpack"));
 
-    std::array<unsigned int, dim> agglomerate_dim;
     auto agglomerate_params = params->get_child("agglomeration");
-    agglomerate_dim[0] = agglomerate_params.get<unsigned int>("nx");
-    agglomerate_dim[1] = agglomerate_params.get<unsigned int>("ny");
-    if (dim == 3)
-      agglomerate_dim[2] = agglomerate_params.get<unsigned int>("nz");
     int n_eigenvectors = eigensolver_params.get("number of eigenvectors", 1);
     double tolerance = eigensolver_params.get("tolerance", 1e-14);
 
     auto restrictor_matrix =
         std::make_shared<typename global_operator_type::matrix_type>();
     auto global_operator = evaluator.get_global_operator(mesh);
-    amge.setup_restrictor(agglomerate_dim, n_eigenvectors, tolerance, evaluator,
-                          global_operator, *restrictor_matrix);
+    amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
+                          evaluator, global_operator, *restrictor_matrix);
 
     return std::make_shared<global_operator_type>(restrictor_matrix);
   }

@@ -20,6 +20,8 @@
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 #include <deal.II/lac/trilinos_sparsity_pattern.h>
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <array>
 #include <map>
 #include <string>
@@ -33,12 +35,11 @@ public:
   AMGe(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler);
 
   /**
-   * Flag cells to create agglomerates. The desired size of the agglomerates is
-   * given by \p agglomerate_dim. This functions returns the number of
-   * agglomerates that have been created.
+   * Flag cells to create agglomerates. This function returns the local number
+   * of agglomerates that have been created.
    */
-  unsigned int build_agglomerates(
-      std::array<unsigned int, dim> const &agglomerate_dim) const;
+  unsigned int
+  build_agglomerates(boost::property_tree::ptree const &ptree) const;
 
   /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
@@ -85,6 +86,24 @@ protected:
   dealii::DoFHandler<dim> const &_dof_handler;
 
 private:
+  /**
+   * Flag cells to create agglomerates. The desired size of the agglomerates is
+   * given by \p agglomerate_dim. This function returns the local number of
+   * agglomerates that have been created.
+   */
+  unsigned int build_agglomerates_block(
+      std::array<unsigned int, dim> const &agglomerate_dim) const;
+
+  /**
+   * Flag cells to create agglomerates. \p partitioner_type is the partitioner
+   * used (zoltan or metis) and \p n_agglomerates is the local number of
+   * agglomerates that we would like to have. This function returns the local
+   * number of agglomerates that have been created.
+   */
+  unsigned int
+  build_agglomerates_partitioner(std::string const &partitioner_type,
+                                 unsigned int n_agglomerates) const;
+
   dealii::TrilinosWrappers::SparsityPattern
   compute_restriction_sparsity_pattern(
       std::vector<dealii::Vector<double>> const &eigenvectors,
