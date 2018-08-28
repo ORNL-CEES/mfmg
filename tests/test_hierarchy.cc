@@ -199,3 +199,24 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
           tt::tolerance(1e-6));
   }
 }
+
+BOOST_AUTO_TEST_CASE(zoltan)
+{
+  if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
+  {
+    unsigned int constexpr dim = 2;
+
+    auto params = std::make_shared<boost::property_tree::ptree>();
+    boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                 *params);
+
+    params->put("agglomeration.partitioner", "zoltan");
+    params->put("agglomeration.n_agglomerates", 4);
+
+    // This is a gold standard test. Not the greatest but it makes sure we don't
+    // break the code
+    double const ref_solution = 0.903284598;
+    double const conv_rate = test<dim>(params);
+    BOOST_TEST(conv_rate == ref_solution, tt::tolerance(1e-6));
+  }
+}
