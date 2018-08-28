@@ -1,6 +1,6 @@
 FROM nvidia/cuda:8.0-devel
 
-ENV N_PROCS=4
+ENV N_PROCS=1
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       gcc \
@@ -36,7 +36,7 @@ RUN mkdir -p ${PREFIX} && \
     mkdir source && \
     mkdir build
 
-RUN export CMAKE_VERSION=3.11.1 && \
+RUN export CMAKE_VERSION=3.11.4 && \
     export CMAKE_VERSION_SHORT=3.11 && \
     export CMAKE_URL=https://cmake.org/files/v${CMAKE_VERSION_SHORT}/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz && \
     export CMAKE_ARCHIVE=${ARCHIVE_DIR}/cmake.tar.gz && \
@@ -50,9 +50,9 @@ RUN export CMAKE_VERSION=3.11.1 && \
 ENV PATH=${INSTALL_DIR}/cmake/bin:$PATH
 
 # Install OpenMPI
-RUN export OPENMPI_VERSION=3.1.0 && \
+RUN export OPENMPI_VERSION=3.1.2 && \
     export OPENMPI_VERSION_SHORT=3.1 && \
-    export OPENMPI_SHA1=12103f539196fc43f57b751197b4a82fd523f027 && \
+    export OPENMPI_SHA1=b93c3b6ece16064e95578ec104f0c695c47a9fc8 && \
     export OPENMPI_URL=https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_SHORT}/downloads/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_ARCHIVE=${ARCHIVE_DIR}/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_SOURCE_DIR=${SOURCE_DIR}/openmpi && \
@@ -73,6 +73,24 @@ RUN export OPENMPI_VERSION=3.1.0 && \
 # overwrite it
 ENV PATH=$PATH:${INSTALL_DIR}/openmpi/bin
 
+# Install AMGX
+RUN export AMGX_HASH=6cb23fed26602e4873d5c1deb694a2c8480feac3 && \
+    export AMGX_URL=https://github.com/nvidia/amgx/archive/${AMGX_HASH}.tar.gz && \
+    export AMGX_ARCHIVE=${ARCHIVE_DIR}/amgx.tar.gz && \
+    export AMGX_SOURCE_DIR=${SOURCE_DIR}/amgx && \
+    export AMGX_BUILD_DIR=${BUILD_DIR}/amgx && \
+    export AMGX_INSTALL_DIR=${INSTALL_DIR}/amgx && \
+    wget --quiet ${AMGX_URL} --output-document=${AMGX_ARCHIVE} && \
+    mkdir -p ${AMGX_SOURCE_DIR} && \
+    tar -xf ${AMGX_ARCHIVE} -C ${AMGX_SOURCE_DIR} --strip-components=1 && \
+    mkdir -p ${AMGX_BUILD_DIR} && cd ${AMGX_BUILD_DIR} && \
+    cmake -DCMAKE_INSTALL_PREFIX=${AMGX_INSTALL_DIR} \
+        ${AMGX_SOURCE_DIR} && \
+    make -j${N_PROCS} install && \
+    rm -rf ${AMGX_ARCHIVE} && \
+    rm -rf ${AMGX_BUILD_DIR} && \
+    rm -rf ${AMGX_SOURCE_DIR}
+ENV AMGX_DIR=${INSTALL_DIR}/amgx
 
 # Install Boost
 RUN export BOOST_VERSION=1.67.0 && \
@@ -104,9 +122,8 @@ RUN export BOOST_VERSION=1.67.0 && \
     rm -rf ${BOOST_SOURCE_DIR}
 ENV BOOST_ROOT=${INSTALL_DIR}/boost
 
-# Install Trilinos. Trilinos 12.12.1 is not compatible with deal.II 9.0 when
-# compiled with CUDA. So we need to use the master version.
-RUN export TRILINOS_HASH=996e8c2c2423564955e16a322b8b786121c5d2f0 && \
+# Install Trilinos 12.12.1
+RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
     export TRILINOS_URL=https://github.com/trilinos/Trilinos/archive/${TRILINOS_HASH}.tar.gz && \
     export TRILINOS_ARCHIVE=${ARCHIVE_DIR}/trilinos.tar.gz && \
     export TRILINOS_SOURCE_DIR=${SOURCE_DIR}/trilinos && \
@@ -137,7 +154,6 @@ RUN export TRILINOS_HASH=996e8c2c2423564955e16a322b8b786121c5d2f0 && \
         -DTrilinos_ENABLE_Ifpack=ON \
         -DTrilinos_ENABLE_ML=ON \
         -DTrilinos_ENABLE_MueLu=ON \
-        -DTrilinos_ENABLE_Sacado=ON \
         -DTrilinos_ENABLE_Zoltan=ON \
         -DTrilinos_ENABLE_EXPLICIT_INSTANTIATION=ON \
         -DCMAKE_INSTALL_PREFIX=${TRILINOS_INSTALL_DIR} \
@@ -149,7 +165,7 @@ RUN export TRILINOS_HASH=996e8c2c2423564955e16a322b8b786121c5d2f0 && \
 ENV TRILINOS_DIR=${INSTALL_DIR}/trilinos
 
 # Install p4est
-RUN export P4EST_VERSION=1.1 && \
+RUN export P4EST_VERSION=2.0 && \
     export P4EST_URL=http://p4est.github.io/release/p4est-${P4EST_VERSION}.tar.gz && \
     export P4EST_ARCHIVE=${ARCHIVE_DIR}/p4est-${P4EST_VERSION}.tar.gz && \
     export P4EST_SOURCE_DIR=${SOURCE_DIR}/p4est && \
@@ -187,8 +203,8 @@ RUN export ARPACK_VERSION=3.5.0 && \
     rm -rf ${ARPACK_SOURCE_DIR}
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
-# Install deal.II 9.0
-RUN export DEAL_II_HASH=1eb3c441c2c4d313e29552cb35ce93ba0c4003d3 && \
+# Install deal.II
+RUN export DEAL_II_HASH=1a364b58c4a5e2235c1282544d55486d41bead96 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
@@ -215,25 +231,6 @@ RUN export DEAL_II_HASH=1eb3c441c2c4d313e29552cb35ce93ba0c4003d3 && \
     rm -rf ${DEAL_II_BUILD_DIR} && \
     rm -rf ${DEAL_II_SOURCE_DIR}
 ENV DEAL_II_DIR=${INSTALL_DIR}/dealii    
-
-# Install AMGX
-RUN export AMGX_HASH=6cb23fed26602e4873d5c1deb694a2c8480feac3 && \
-    export AMGX_URL=https://github.com/nvidia/amgx/archive/${AMGX_HASH}.tar.gz && \
-    export AMGX_ARCHIVE=${ARCHIVE_DIR}/amgx.tar.gz && \
-    export AMGX_SOURCE_DIR=${SOURCE_DIR}/amgx && \
-    export AMGX_BUILD_DIR=${BUILD_DIR}/amgx && \
-    export AMGX_INSTALL_DIR=${INSTALL_DIR}/amgx && \
-    wget --quiet ${AMGX_URL} --output-document=${AMGX_ARCHIVE} && \
-    mkdir -p ${AMGX_SOURCE_DIR} && \
-    tar -xf ${AMGX_ARCHIVE} -C ${AMGX_SOURCE_DIR} --strip-components=1 && \
-    mkdir -p ${AMGX_BUILD_DIR} && cd ${AMGX_BUILD_DIR} && \
-    cmake -DCMAKE_INSTALL_PREFIX=${AMGX_INSTALL_DIR} \
-        ${AMGX_SOURCE_DIR} && \
-    make -j${N_PROCS} install && \
-    rm -rf ${AMGX_ARCHIVE} && \
-    rm -rf ${AMGX_BUILD_DIR} && \
-    rm -rf ${AMGX_SOURCE_DIR}
-ENV AMGX_DIR=${INSTALL_DIR}/amgx
 
 # Append the option flag --allow-run-as-root to mpiexec
 RUN echo '#!/usr/bin/env bash' > /usr/local/bin/mpiexec && \
