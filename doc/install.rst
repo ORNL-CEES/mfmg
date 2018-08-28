@@ -8,32 +8,25 @@ Install third-party libraries
 
 The following third party libraries (TPLs) are used by mfmg:
 
-+------------------------+-----------------------------------+
-| Packages               | Version                           |
-+========================+===================================+
-| ARPACK                 | N/A                               |
-+------------------------+-----------------------------------+
-| Boost                  | 1.65.1                            |
-+------------------------+-----------------------------------+
-| BLAS/LAPACK            | N/A                               |
-+------------------------+-----------------------------------+
-| deal.II                | 9.0                               |
-+------------------------+-----------------------------------+
-| MPI                    | N/A                               |
-+------------------------+-----------------------------------+
-| Trilinos               | 12.X (master for CUDA support)    |
-+------------------------+-----------------------------------+
++------------------------+------------------------+
+| Packages               | Version                |
++========================+========================+
+| ARPACK                 | N/A                    |
++------------------------+------------------------+
+| Boost                  | 1.65.1                 |
++------------------------+------------------------+
+| BLAS/LAPACK            | N/A                    |
++------------------------+------------------------+
+| deal.II                | development            |
++------------------------+------------------------+
+| MPI                    | N/A                    |
++------------------------+------------------------+
+| Trilinos               | 12.X                   |
++------------------------+------------------------+
 
 The dependencies of mfmg may be built using `Spack
 <https://github.com/llnl/spack>`_ package manager. You need to install the
 following package:
-
-.. code::
-
-    $ spack install dealii
-
-This will install all the dependencies of mfmg. If you want to use CUDA, you
-will need to install the development version of deal.II
 
 .. code::
 
