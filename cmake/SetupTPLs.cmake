@@ -32,16 +32,3 @@ ELSE()
     ADD_DEFINITIONS(-DDEBUG)
   ENDIF()
 ENDIF()
-
-#### AMGX ####################################################################
-IF(${MFMG_ENABLE_CUDA})
-  IF (${MFMG_ENABLE_AMGX})
-    ADD_LIBRARY(amgx STATIC IMPORTED)
-    SET_TARGET_PROPERTIES(amgx PROPERTIES IMPORTED_LOCATION
-      "${AMGX_DIR}/lib/libamgx.a"
-      IMPORTED_LINK_INTERFACE_LIBRARIES "cublas")
-    ADD_DEFINITIONS(-DMFMG_WITH_AMGX)
-    SET(AMGX_INCLUDE_DIR "${AMGX_DIR}/include")
-    SET(AMGX_LIBRARY amgx)
-  ENDIF()
-ENDIF()
