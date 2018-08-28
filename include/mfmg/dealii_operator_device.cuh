@@ -150,6 +150,13 @@ private:
   AMGX_solver_handle _amgx_solver_handle;
   int _device_id[1];
   std::unordered_map<int, int> _row_map;
+#else
+  void *_amgx_config_handle;
+  void *_amgx_res_handle;
+  void *_amgx_matrix_handle;
+  void *_amgx_rhs_handle;
+  void *_amgx_solution_handle;
+  void *_amgx_solver_handle;
 #endif
 };
 } // namespace mfmg
