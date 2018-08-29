@@ -401,17 +401,22 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_partitioner(
   dealii::SparsityTools::partition(cell_connectivity, n_agglomerates,
                                    partition_indices, partitioner);
 
+  // Assign the agglomerate ID to all the locally owned cells. Add one to the
+  // agglomerate ID because zero is reserved for the ghost and artificial cells.
+  unsigned int n_zoltan_agglomerates = 0;
   for (auto cell : _dof_handler.active_cell_iterators())
   {
     if (cell->is_locally_owned())
     {
       unsigned int const index =
           index_map.at(std::make_pair(cell->level(), cell->index()));
-      cell->set_user_index(partition_indices[index]);
+      cell->set_user_index(partition_indices[index] + 1);
+      if (n_zoltan_agglomerates < partition_indices[index] + 1)
+        n_zoltan_agglomerates = partition_indices[index] + 1;
     }
   }
 
-  return *std::max_element(partition_indices.begin(), partition_indices.end());
+  return n_zoltan_agglomerates;
 }
 
 template <int dim, typename VectorType>
