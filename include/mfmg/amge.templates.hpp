@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <unordered_map>
 
 namespace mfmg
 {
@@ -401,18 +402,28 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_partitioner(
   dealii::SparsityTools::partition(cell_connectivity, n_agglomerates,
                                    partition_indices, partitioner);
 
-  // Assign the agglomerate ID to all the locally owned cells. Add one to the
-  // agglomerate ID because zero is reserved for the ghost and artificial cells.
+  // Assign the agglomerate ID to all the locally owned cells. Zoltan does not
+  // guarantee that the agglomerate IDs will consecutive so we need to
+  // renumber them. The lowest agglomerate ID is one because zero is reserved
+  // for ghost and artificial cells.
   unsigned int n_zoltan_agglomerates = 0;
+  std::unordered_map<unsigned int, unsigned int> agglomerate_renumbering;
   for (auto cell : _dof_handler.active_cell_iterators())
   {
     if (cell->is_locally_owned())
     {
       unsigned int const index =
           index_map.at(std::make_pair(cell->level(), cell->index()));
-      cell->set_user_index(partition_indices[index] + 1);
-      if (n_zoltan_agglomerates < partition_indices[index] + 1)
-        n_zoltan_agglomerates = partition_indices[index] + 1;
+      auto agg_id = agglomerate_renumbering.find(partition_indices[index]);
+      if (agg_id == agglomerate_renumbering.end())
+      {
+        ++n_zoltan_agglomerates;
+        agglomerate_renumbering[partition_indices[index]] =
+            n_zoltan_agglomerates;
+        cell->set_user_index(n_zoltan_agglomerates);
+      }
+      else
+        cell->set_user_index(agg_id->second);
     }
   }
 
