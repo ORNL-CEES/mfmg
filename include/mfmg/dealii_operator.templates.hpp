@@ -246,6 +246,27 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 std::shared_ptr<MatrixOperator<VectorType>>
+DealIITrilinosMatrixfreeOperator<VectorType>::multiply_transpose(
+    MatrixOperator<VectorType> const &operator_b) const
+{
+  // Downcast to TrilinosMatrixOperator
+  auto downcast_operator_b =
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+
+  auto a = this->get_matrix();
+  auto b = downcast_operator_b.get_matrix();
+
+  auto c = std::make_shared<matrix_type>(a->locally_owned_range_indices(),
+                                         b->locally_owned_range_indices(),
+                                         a->get_mpi_communicator());
+
+  matrix_transpose_matrix_multiply(*c, *b, *a);
+
+  return std::make_shared<DealIITrilinosMatrixfreeOperator<VectorType>>(c);
+}
+
+template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
 DealIITrilinosMatrixfreeOperator<VectorType>::multiply(
     MatrixOperator<VectorType> const &operator_b) const
 {
