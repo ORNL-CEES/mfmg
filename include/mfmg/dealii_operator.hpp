@@ -29,6 +29,11 @@
 namespace mfmg
 {
 
+void matrix_transpose_matrix_multiply(
+    dealii::TrilinosWrappers::SparseMatrix &C,
+    dealii::TrilinosWrappers::SparseMatrix const &B,
+    dealii::TrilinosWrappers::SparseMatrix const &A);
+
 template <typename VectorType>
 class DealIIMatrixOperator : public MatrixOperator<VectorType>
 {
