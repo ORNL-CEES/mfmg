@@ -115,6 +115,25 @@ private:
 };
 
 template <typename VectorType>
+class DealIITrilinosMatrixfreeOperator
+    : public DealIITrilinosMatrixOperator<VectorType>
+{
+public:
+  using value_type = typename VectorType::value_type;
+  using sparsity_pattern_type = dealii::TrilinosWrappers::SparsityPattern;
+  using matrix_type = dealii::TrilinosWrappers::SparseMatrix;
+  using vector_type = VectorType;
+  using operator_type = MatrixOperator<vector_type>;
+
+  DealIITrilinosMatrixfreeOperator(
+      std::shared_ptr<matrix_type> matrix,
+      std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
+
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &operator_b) const override final;
+};
+
+template <typename VectorType>
 class DealIISmootherOperator : public Operator<VectorType>
 {
 public:

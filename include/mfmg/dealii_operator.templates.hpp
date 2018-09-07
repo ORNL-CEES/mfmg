@@ -148,6 +148,14 @@ DealIITrilinosMatrixOperator<VectorType>::build_range_vector() const
 
 //-------------------------------------------------------------------------//
 
+template <typename VectorType>
+DealIITrilinosMatrixfreeOperator<VectorType>::DealIITrilinosMatrixfreeOperator(
+    std::shared_ptr<matrix_type> matrix,
+    std::shared_ptr<sparsity_pattern_type> sparsity_pattern)
+    : DealIITrilinosMatrixOperator<VectorType>(matrix, sparsity_pattern)
+{
+}
+
 dealii::LinearAlgebra::distributed::Vector<double>
 extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
             dealii::types::global_dof_index global_j)
@@ -235,6 +243,26 @@ void matrix_transpose_matrix_multiply(
   }
   C.compress(dealii::VectorOperation::insert);
 }
+
+template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+DealIITrilinosMatrixfreeOperator<VectorType>::multiply(
+    MatrixOperator<VectorType> const &operator_b) const
+{
+  // Downcast to TrilinosMatrixOperator
+  auto downcast_operator_b =
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+
+  auto a = this->get_matrix();
+  auto b = downcast_operator_b.get_matrix();
+
+  auto c = std::make_shared<matrix_type>();
+  a->mmult(*c, *b);
+
+  return std::make_shared<DealIITrilinosMatrixfreeOperator<VectorType>>(c);
+}
+
+//-------------------------------------------------------------------------//
 
 template <typename VectorType>
 DealIISmootherOperator<VectorType>::DealIISmootherOperator(
