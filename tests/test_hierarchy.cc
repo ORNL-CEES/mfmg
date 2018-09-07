@@ -17,6 +17,7 @@
 #include "test_hierarchy_helpers.hpp"
 
 #include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_operator.hpp>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -27,6 +28,8 @@
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/trilinos_linear_operator.h>
 #include <deal.II/lac/trilinos_vector.h>
+
+#include <EpetraExt_MatrixMatrix.h>
 
 #include <boost/property_tree/info_parser.hpp>
 #include <boost/test/data/monomorphic.hpp>
@@ -219,4 +222,107 @@ BOOST_AUTO_TEST_CASE(zoltan)
     double const conv_rate = test<dim>(params);
     BOOST_TEST(conv_rate == ref_solution, tt::tolerance(1e-6));
   }
+}
+
+// n_local_rows passed to gimme_a_matrix() must be the same on all processes
+dealii::TrilinosWrappers::SparseMatrix
+gimme_a_matrix(unsigned int n_local_rows, unsigned int n_entries_per_row)
+{
+  unsigned int const comm_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  unsigned int const comm_rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  unsigned int const size = comm_size * n_local_rows;
+  dealii::IndexSet parallel_partitioning(size);
+  unsigned int const local_offset = comm_rank * n_local_rows;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    parallel_partitioning.add_index(i + local_offset);
+  parallel_partitioning.compress();
+  dealii::TrilinosWrappers::SparseMatrix sparse_matrix(
+      parallel_partitioning, parallel_partitioning, MPI_COMM_WORLD);
+
+  unsigned int nnz = 0;
+  std::default_random_engine generator;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    std::uniform_int_distribution<int> distribution(0, size - 1);
+    std::set<int> column_indices;
+    for (unsigned int j = 0; j < n_entries_per_row; ++j)
+    {
+      int column_index = distribution(generator);
+      int row_index = i + local_offset;
+      sparse_matrix.set(row_index, column_index,
+                        static_cast<double>(row_index + column_index));
+      column_indices.insert(column_index);
+    }
+    nnz += column_indices.size();
+  }
+  sparse_matrix.compress(dealii::VectorOperation::insert);
+  return sparse_matrix;
+}
+
+dealii::TrilinosWrappers::SparseMatrix gimme_identity(unsigned int n_local_rows)
+{
+  unsigned int const comm_size =
+      dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
+  unsigned int const comm_rank =
+      dealii::Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);
+  unsigned int const size = comm_size * n_local_rows;
+  dealii::IndexSet parallel_partitioning(size);
+  unsigned int const local_offset = comm_rank * n_local_rows;
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+    parallel_partitioning.add_index(i + local_offset);
+  parallel_partitioning.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix identity_matrix(
+      parallel_partitioning, parallel_partitioning, MPI_COMM_WORLD);
+
+  for (unsigned int i = 0; i < n_local_rows; ++i)
+  {
+    unsigned int const global_i = i + local_offset;
+    identity_matrix.set(global_i, global_i, 1.);
+  }
+  identity_matrix.compress(dealii::VectorOperation::insert);
+  return identity_matrix;
+}
+
+BOOST_AUTO_TEST_CASE(matrix_transpose_matrix_multiply)
+{
+  unsigned int const n_local_rows = 10;
+  unsigned int const n_entries_per_row = 3;
+  auto A = gimme_a_matrix(n_local_rows, n_entries_per_row);
+  auto B = gimme_a_matrix(n_local_rows, n_entries_per_row);
+  dealii::TrilinosWrappers::SparseMatrix C(A.locally_owned_range_indices(),
+                                           B.locally_owned_range_indices(),
+                                           A.get_mpi_communicator());
+  mfmg::matrix_transpose_matrix_multiply(C, B, A);
+
+  dealii::TrilinosWrappers::SparseMatrix BT(B.locally_owned_domain_indices(),
+                                            B.locally_owned_range_indices(),
+                                            B.get_mpi_communicator());
+  // auto I = gimme_identity(n_local_rows);
+  // B.Tmmult(BT, I);
+  dealii::TrilinosWrappers::SparseMatrix C_ref(A.locally_owned_range_indices(),
+                                               B.locally_owned_range_indices(),
+                                               A.get_mpi_communicator());
+  // A.mmult(C_ref, BT);
+  int error_code = EpetraExt::MatrixMatrix::Multiply(
+      A.trilinos_matrix(), false, B.trilinos_matrix(), true,
+      const_cast<Epetra_CrsMatrix &>(BT.trilinos_matrix()));
+  BOOST_TEST(error_code == 0);
+  C_ref.reinit(BT.trilinos_matrix());
+
+  dealii::LinearAlgebra::distributed::Vector<double> u(
+      A.locally_owned_domain_indices(), A.get_mpi_communicator());
+  u = 1.;
+
+  dealii::LinearAlgebra::distributed::Vector<double> v(
+      A.locally_owned_domain_indices(), A.get_mpi_communicator());
+
+  C.vmult(v, u);
+  BOOST_TEST(v.l2_norm() > 1.);
+
+  u = -1.;
+  C_ref.vmult_add(v, u);
+  BOOST_TEST(v.l2_norm() == 0.);
 }
