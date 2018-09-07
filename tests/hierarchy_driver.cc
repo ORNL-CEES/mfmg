@@ -7,7 +7,7 @@
 template <int dim>
 void main_(std::shared_ptr<boost::property_tree::ptree> params)
 {
-  using DVector = dealii::TrilinosWrappers::MPI::Vector;
+  using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
   using Mesh = mfmg::DealIIMesh<dim>;
 
