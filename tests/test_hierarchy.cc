@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(ml)
 
   ml_rate = test<dim>(params);
 
-  BOOST_TEST(ml_rate > gold_rate + 0.1);
+  BOOST_TEST(ml_rate > gold_rate);
 }
 
 BOOST_DATA_TEST_CASE(hierarchy_3d,
