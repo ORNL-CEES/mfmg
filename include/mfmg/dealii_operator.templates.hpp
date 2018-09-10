@@ -265,24 +265,6 @@ DealIITrilinosMatrixfreeOperator<VectorType>::multiply_transpose(
   return std::make_shared<DealIITrilinosMatrixfreeOperator<VectorType>>(c);
 }
 
-template <typename VectorType>
-std::shared_ptr<MatrixOperator<VectorType>>
-DealIITrilinosMatrixfreeOperator<VectorType>::multiply(
-    MatrixOperator<VectorType> const &operator_b) const
-{
-  // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
-
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b.get_matrix();
-
-  auto c = std::make_shared<matrix_type>();
-  a->mmult(*c, *b);
-
-  return std::make_shared<DealIITrilinosMatrixfreeOperator<VectorType>>(c);
-}
-
 //-------------------------------------------------------------------------//
 
 template <typename VectorType>

@@ -136,9 +136,6 @@ public:
 
   std::shared_ptr<operator_type>
   multiply_transpose(operator_type const &operator_b) const;
-
-  virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override final;
 };
 
 template <typename VectorType>
