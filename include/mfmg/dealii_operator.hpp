@@ -106,7 +106,7 @@ public:
   virtual std::shared_ptr<operator_type> transpose() const override final;
 
   virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override;
+  multiply(operator_type const &operator_b) const override final;
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
