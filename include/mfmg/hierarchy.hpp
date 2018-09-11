@@ -89,6 +89,7 @@ public:
     using HierarchyHelpers = Adapter<mesh_evaluator_type>;
 
     _is_preconditioner = params->get("is preconditioner", true);
+    _n_smoothing_steps = params->get("smoother.n_smoothing_steps", 1);
 
     // TODO: add stopping criteria for levels (number of levels / coarse size)
     const int num_levels = params->get("max levels", 2);
@@ -170,7 +171,8 @@ public:
 
       // apply pre-smoother
       auto smoother = level_fine.get_smoother();
-      smoother->apply(b, x);
+      for (unsigned int i = 0; i < _n_smoothing_steps; ++i)
+        smoother->apply(b, x);
 
       // compute residual
       // NOTE: we compute negative residual -r = Ax-b, so that we can avoid
@@ -195,7 +197,8 @@ public:
       x.add(-1., *x_correction);
 
       // apply post-smoother
-      smoother->apply(b, x);
+      for (unsigned int i = 0; i < _n_smoothing_steps; ++i)
+        smoother->apply(b, x);
     }
   }
 
@@ -256,6 +259,7 @@ public:
 private:
   std::vector<Level<operator_type>> _levels;
   bool _is_preconditioner = true;
+  unsigned int _n_smoothing_steps;
 };
 } // namespace mfmg
 
