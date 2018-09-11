@@ -149,7 +149,7 @@ DealIITrilinosMatrixOperator<VectorType>::build_range_vector() const
 //-------------------------------------------------------------------------//
 
 template <typename VectorType>
-DealIITrilinosMatrixfreeOperator<VectorType>::DealIITrilinosMatrixfreeOperator(
+DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
     std::shared_ptr<matrix_type> matrix,
     std::shared_ptr<sparsity_pattern_type> sparsity_pattern)
     : DealIITrilinosMatrixOperator<VectorType>(matrix, sparsity_pattern)
@@ -246,7 +246,7 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 std::shared_ptr<MatrixOperator<VectorType>>
-DealIITrilinosMatrixfreeOperator<VectorType>::multiply_transpose(
+DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
     MatrixOperator<VectorType> const &operator_b) const
 {
   // Downcast to TrilinosMatrixOperator
@@ -262,7 +262,7 @@ DealIITrilinosMatrixfreeOperator<VectorType>::multiply_transpose(
 
   matrix_transpose_matrix_multiply(*c, *b, *a);
 
-  return std::make_shared<DealIITrilinosMatrixfreeOperator<VectorType>>(c);
+  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c);
 }
 
 //-------------------------------------------------------------------------//

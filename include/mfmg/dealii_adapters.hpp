@@ -36,7 +36,7 @@ public:
   using vector_type = VectorType;
   using value_type = typename VectorType::value_type;
   using operator_type = Operator<vector_type>;
-  using global_operator_type = DealIITrilinosMatrixfreeOperator<vector_type>;
+  using global_operator_type = DealIIMatrixFreeOperator<vector_type>;
   using local_operator_type = DealIIMatrixOperator<dealii::Vector<value_type>>;
 
   DealIIMeshEvaluator() = default;

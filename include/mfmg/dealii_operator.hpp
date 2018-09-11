@@ -120,8 +120,7 @@ private:
 };
 
 template <typename VectorType>
-class DealIITrilinosMatrixfreeOperator
-    : public DealIITrilinosMatrixOperator<VectorType>
+class DealIIMatrixFreeOperator : public DealIITrilinosMatrixOperator<VectorType>
 {
 public:
   using value_type = typename VectorType::value_type;
@@ -130,7 +129,7 @@ public:
   using vector_type = VectorType;
   using operator_type = MatrixOperator<vector_type>;
 
-  DealIITrilinosMatrixfreeOperator(
+  DealIIMatrixFreeOperator(
       std::shared_ptr<matrix_type> matrix,
       std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
 
