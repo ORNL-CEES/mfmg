@@ -61,6 +61,16 @@ DealIIMatrixOperator<VectorType>::multiply(
 }
 
 template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+DealIIMatrixOperator<VectorType>::multiply_transpose(
+    MatrixOperator<VectorType> const &) const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
+}
+
+template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixOperator<VectorType>::build_domain_vector() const
 {
