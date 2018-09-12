@@ -62,6 +62,9 @@ public:
   virtual std::shared_ptr<operator_type>
   multiply(operator_type const &operator_b) const override final;
 
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &operator_b) const override final;
+
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
   virtual std::shared_ptr<vector_type>
@@ -107,6 +110,9 @@ public:
 
   virtual std::shared_ptr<operator_type>
   multiply(operator_type const &operator_b) const override final;
+
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &operator_b) const override;
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
