@@ -15,6 +15,7 @@
 #include <mfmg/dealii_operator.hpp>
 #include <mfmg/utils.hpp>
 
+#include <EpetraExt_MatrixMatrix.h>
 #include <EpetraExt_Transpose_RowMatrix.h>
 #include <ml_MultiLevelPreconditioner.h>
 #include <ml_Preconditioner.h>
@@ -136,6 +137,30 @@ DealIITrilinosMatrixOperator<VectorType>::multiply(
 
   auto c = std::make_shared<matrix_type>();
   a->mmult(*c, *b);
+
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c);
+}
+
+template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+DealIITrilinosMatrixOperator<VectorType>::multiply_transpose(
+    MatrixOperator<VectorType> const &operator_b) const
+{
+  // Downcast to TrilinosMatrixOperator
+  auto downcast_operator_b =
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+
+  auto a = this->get_matrix();
+  auto b = downcast_operator_b.get_matrix();
+
+  auto c = std::make_shared<matrix_type>();
+
+  int error_code = EpetraExt::MatrixMatrix::Multiply(
+      a->trilinos_matrix(), false, b->trilinos_matrix(), true,
+      const_cast<Epetra_CrsMatrix &>(c->trilinos_matrix()));
+  ASSERT(error_code == 0, "EpetraExt::MatrixMatrix::Multiply() returned "
+                          "non-zero error code in "
+                          "DealIITrilinosMatrixOperator::multiply_transpose()");
 
   return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c);
 }
