@@ -140,7 +140,7 @@ public:
       std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
 
   std::shared_ptr<operator_type>
-  multiply_transpose(operator_type const &operator_b) const;
+  multiply_transpose(operator_type const &operator_b) const override final;
 };
 
 template <typename VectorType>
