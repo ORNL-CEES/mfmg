@@ -23,6 +23,8 @@ mfmg is developed and maintained by:
 
 * `Wayne Joubert <joubert@ornl.gov>`_
 
+* `Damien Lebrun-Grandie <lebrungrandt@ornl.gov>`_
+
 Questions, Bug Reporting, and Issue Tracking
 --------------------------------------------
 
