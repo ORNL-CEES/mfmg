@@ -9,21 +9,34 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/amge_device.templates.cuh>
+#ifndef MFMG_DEALII_SMOOTHER_HPP
+#define MFMG_DEALII_SMOOTHER_HPP
 
-#include <mfmg/cuda_mesh_evaluator.cuh>
-#include <mfmg/vector_device.cuh>
+#include <mfmg/operator.hpp>
+#include <mfmg/smoother.hpp>
 
-#include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/trilinos_precondition.h>
 
-// Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2, mfmg::CudaMeshEvaluator<2>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
-                                 mfmg::VectorDevice<double>>;
-template class mfmg::AMGe_device<
-    3, mfmg::CudaMeshEvaluator<3>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
-                                 mfmg::VectorDevice<double>>;
+#include <boost/property_tree/ptree.hpp>
+
+#include <memory>
+
+namespace mfmg
+{
+template <typename VectorType>
+class DealIISmoother : public Smoother<VectorType>
+{
+public:
+  using vector_type = VectorType;
+
+  DealIISmoother(std::shared_ptr<Operator<vector_type> const> op,
+                 std::shared_ptr<boost::property_tree::ptree const> params);
+
+  void apply(vector_type const &x, vector_type &y) const override final;
+
+private:
+  std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
+};
+} // namespace mfmg
+
+#endif

@@ -9,11 +9,37 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_operator.templates.hpp>
-#include <mfmg/instantiation.hpp>
+#ifndef MFMG_SOLVER_HPP
+#define MFMG_SOLVER_HPP
 
-INSTANTIATE_SERIALVECTORTYPE(TUPLE(DealIIMatrixOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(DealIITrilinosMatrixOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(DealIIMatrixFreeOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(DealIISmootherOperator))
-INSTANTIATE_VECTORTYPE(TUPLE(DealIIDirectOperator))
+#include <mfmg/operator.hpp>
+
+#include <boost/property_tree/ptree.hpp>
+
+#include <memory>
+
+namespace mfmg
+{
+template <typename VectorType>
+class Solver
+{
+public:
+  using vector_type = VectorType;
+
+  Solver(std::shared_ptr<Operator<vector_type> const> op,
+         std::shared_ptr<boost::property_tree::ptree const> params)
+      : _operator(op), _params(params)
+  {
+  }
+
+  virtual void apply(vector_type const &x, vector_type &y) const = 0;
+
+  virtual ~Solver() = default;
+
+protected:
+  std::shared_ptr<Operator<vector_type> const> _operator;
+  std::shared_ptr<boost::property_tree::ptree const> _params;
+};
+} // namespace mfmg
+
+#endif

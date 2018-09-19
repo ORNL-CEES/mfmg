@@ -9,21 +9,20 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/amge_device.templates.cuh>
+#ifndef MFMG_MESH_EVALUATOR_HPP
+#define MFMG_MESH_EVALUATOR_HPP
 
-#include <mfmg/cuda_mesh_evaluator.cuh>
-#include <mfmg/vector_device.cuh>
+#include <string>
 
-#include <deal.II/lac/la_parallel_vector.h>
+namespace mfmg
+{
+class MeshEvaluator
+{
+public:
+  virtual int get_dim() const = 0;
 
-// Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2, mfmg::CudaMeshEvaluator<2>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
-                                 mfmg::VectorDevice<double>>;
-template class mfmg::AMGe_device<
-    3, mfmg::CudaMeshEvaluator<3>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
-                                 mfmg::VectorDevice<double>>;
+  virtual std::string get_mesh_evaluator_type() const = 0;
+};
+} // namespace mfmg
+
+#endif

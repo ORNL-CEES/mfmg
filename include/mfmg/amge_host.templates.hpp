@@ -13,7 +13,7 @@
 #define AMGE_HOST_TEMPLATES_HPP
 
 #include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -46,8 +46,8 @@ struct WrapInverse
   // * SolverCG::solve is not marked as const so I'd have to make the solver
   // mutable
   // * The Solver base class takes a non const reference to SolverControl
-  WrapInverse(std::shared_ptr<MatrixType const> const &sparse_matrix,
-              unsigned int max_iterations, double tolerance)
+  WrapInverse(MatrixType const &sparse_matrix, unsigned int max_iterations,
+              double tolerance)
       : _sparse_matrix(sparse_matrix), _max_iterations(max_iterations),
         _tolerance(tolerance)
   {
@@ -59,10 +59,10 @@ struct WrapInverse
     // Unefficient but that will do for now
     dealii::SolverControl solver_control(_max_iterations, _tolerance);
     dealii::SolverCG<VectorType> solver(solver_control);
-    solver.solve(*_sparse_matrix, dst, src, dealii::PreconditionIdentity());
+    solver.solve(_sparse_matrix, dst, src, dealii::PreconditionIdentity());
   }
 
-  std::shared_ptr<MatrixType const> _sparse_matrix;
+  MatrixType const &_sparse_matrix;
   unsigned int const _max_iterations;
   double const _tolerance;
 };
@@ -104,26 +104,26 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         &patch_to_global_map,
     MeshEvaluator const &evaluator) const
 {
+  using value_type = typename VectorType::value_type;
+
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::ConstraintMatrix agglomerate_constraints;
-
-  DealIIMesh<dim> agglomerate_mesh(agglomerate_dof_handler,
-                                   agglomerate_constraints);
+  dealii::SparsityPattern agglomerate_sparsity_pattern;
+  dealii::SparseMatrix<value_type> agglomerate_system_matrix;
 
   // Call user function to build the system matrix
-  auto const agglomerate_operator =
-      evaluator.get_local_operator(agglomerate_mesh);
-
-  auto const agglomerate_system_matrix = agglomerate_operator->get_matrix();
+  evaluator.evaluate_agglomerate(
+      agglomerate_dof_handler, agglomerate_constraints,
+      agglomerate_sparsity_pattern, agglomerate_system_matrix);
 
   // Get the diagonal elements
-  unsigned int const size = agglomerate_system_matrix->m();
+  unsigned int const size = agglomerate_system_matrix.m();
   std::vector<ScalarType> diag_elements(size);
   for (unsigned int i = 0; i < size; ++i)
-    diag_elements[i] = agglomerate_system_matrix->diag_element(i);
+    diag_elements[i] = agglomerate_system_matrix.diag_element(i);
 
   // Compute the eigenvalues and the eigenvectors
-  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix->m();
+  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
   // Arpack only works with double not float
   std::vector<dealii::Vector<double>> eigenvectors(
@@ -146,12 +146,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
 #if defined(APPROACH1)
     dealii::SparseDirectUMFPACK inv_system_matrix;
-    inv_system_matrix.initialize(*agglomerate_system_matrix);
+    inv_system_matrix.initialize(agglomerate_system_matrix);
 #elif defined(APPROACH2)
-    WrapInverse<typename std::remove_reference<decltype(
-        *agglomerate_system_matrix)>::type>
-        inv_system_matrix(agglomerate_system_matrix, 1000 * n_dofs_agglomerate,
-                          .1 * tolerance);
+    WrapInverse<dealii::SparseMatrix<value_type>> inv_system_matrix(
+        agglomerate_system_matrix, 1000 * n_dofs_agglomerate, .1 * tolerance);
 #elif defined(APPROACH3)
     NoOp inv_system_matrix;
 #endif
@@ -184,16 +182,16 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
     // one.
     dealii::Vector<double> initial_vector(n_dofs_agglomerate);
-    evaluator.set_initial_guess(agglomerate_mesh, initial_vector);
+    evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
     solver.set_initial_vector(initial_vector);
-    solver.solve(*agglomerate_system_matrix, agglomerate_mass_matrix,
+    solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
                  inv_system_matrix, eigenvalues, eigenvectors);
   }
   else
   {
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
-    full_matrix.copy_from(*agglomerate_system_matrix);
+    full_matrix.copy_from(agglomerate_system_matrix);
 
     double const lower_bound = -0.5;
     double const upper_bound = 100.;
@@ -260,8 +258,7 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     boost::property_tree::ptree const &agglomerate_ptree,
     unsigned int const n_eigenvectors, double const tolerance,
     MeshEvaluator const &evaluator,
-    std::shared_ptr<typename MeshEvaluator::global_operator_type const>
-        global_operator,
+    dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix,
     dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix)
 {
   // Flag the cells to build agglomerates.
@@ -291,10 +288,9 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
       ScratchData(), copy_data);
 
   // Return to a serial execution
-  auto system_sparse_matrix = global_operator->get_matrix();
   compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
-      *system_sparse_matrix, restriction_sparse_matrix);
+      system_sparse_matrix, restriction_sparse_matrix);
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>

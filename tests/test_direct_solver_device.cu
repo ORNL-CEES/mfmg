@@ -13,7 +13,8 @@
 
 #include "main.cc"
 
-#include <mfmg/dealii_operator_device.cuh>
+#include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/cuda_solver.cuh>
 #include <mfmg/exceptions.hpp>
 #include <mfmg/utils.cuh>
 
@@ -58,16 +59,17 @@ BOOST_AUTO_TEST_CASE(direct_solver)
   matrix.vmult(rhs, sol_ref);
 
   // Move the matrix and the rhs to the host
-  mfmg::SparseMatrixDevice<double> matrix_dev(mfmg::convert_matrix(matrix));
-  matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+  auto matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+      mfmg::convert_matrix(matrix));
+  matrix_dev->cusparse_handle = cuda_handle.cusparse_handle;
   cusparseStatus_t cusparse_error_code =
-      cusparseCreateMatDescr(&matrix_dev.descr);
+      cusparseCreateMatDescr(&matrix_dev->descr);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   cusparse_error_code =
-      cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+      cusparseSetMatType(matrix_dev->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   cusparse_error_code =
-      cusparseSetMatIndexBase(matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+      cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   auto partitioner =
       std::make_shared<dealii::Utilities::MPI::Partitioner>(size);
@@ -82,10 +84,10 @@ BOOST_AUTO_TEST_CASE(direct_solver)
     params->put("solver.type", solver);
 
     // Solve on the device
-    mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-        cuda_handle, matrix_dev, params);
-    BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
-    BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
+    std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> op_dev(
+        new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
+    mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
+        cuda_handle, op_dev, params);
     mfmg::VectorDevice<double> x_dev(partitioner);
 
     direct_solver_dev.apply(rhs_dev, x_dev);

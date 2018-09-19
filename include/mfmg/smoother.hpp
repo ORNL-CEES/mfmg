@@ -9,21 +9,37 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/amge_device.templates.cuh>
+#ifndef MFMG_SMOOTHER_HPP
+#define MFMG_SMOOTHER_HPP
 
-#include <mfmg/cuda_mesh_evaluator.cuh>
-#include <mfmg/vector_device.cuh>
+#include <mfmg/operator.hpp>
 
-#include <deal.II/lac/la_parallel_vector.h>
+#include <boost/property_tree/ptree.hpp>
 
-// Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2, mfmg::CudaMeshEvaluator<2>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
-                                 mfmg::VectorDevice<double>>;
-template class mfmg::AMGe_device<
-    3, mfmg::CudaMeshEvaluator<3>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
-                                 mfmg::VectorDevice<double>>;
+#include <memory>
+
+namespace mfmg
+{
+template <typename VectorType>
+class Smoother
+{
+public:
+  using vector_type = VectorType;
+
+  Smoother(std::shared_ptr<Operator<vector_type> const> op,
+           std::shared_ptr<boost::property_tree::ptree const> params)
+      : _operator(op), _params(params)
+  {
+  }
+
+  virtual void apply(vector_type const &x, vector_type &y) const = 0;
+
+  virtual ~Smoother() = default;
+
+protected:
+  std::shared_ptr<Operator<vector_type> const> _operator;
+  std::shared_ptr<boost::property_tree::ptree const> _params;
+};
+} // namespace mfmg
+
+#endif

@@ -9,21 +9,31 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/amge_device.templates.cuh>
+#ifndef MFMG_DEALII_SOLVER_HPP
+#define MFMG_DEALII_SOLVER_HPP
 
-#include <mfmg/cuda_mesh_evaluator.cuh>
-#include <mfmg/vector_device.cuh>
+#include <mfmg/solver.hpp>
 
-#include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/trilinos_solver.h>
 
-// Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2, mfmg::CudaMeshEvaluator<2>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
-                                 mfmg::VectorDevice<double>>;
-template class mfmg::AMGe_device<
-    3, mfmg::CudaMeshEvaluator<3>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
-                                 mfmg::VectorDevice<double>>;
+namespace mfmg
+{
+template <typename VectorType>
+class DealIISolver : public Solver<VectorType>
+{
+public:
+  using vector_type = VectorType;
+
+  DealIISolver(std::shared_ptr<Operator<vector_type> const> op,
+               std::shared_ptr<boost::property_tree::ptree const> params);
+
+  void apply(vector_type const &b, vector_type &x) const override final;
+
+private:
+  dealii::SolverControl _solver_control;
+  std::unique_ptr<dealii::TrilinosWrappers::SolverDirect> _solver;
+  std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
+};
+} // namespace mfmg
+
+#endif

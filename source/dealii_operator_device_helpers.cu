@@ -15,7 +15,7 @@
 
 namespace mfmg
 {
-namespace internal
+namespace
 {
 void cusparsecsr2dense(SparseMatrixDevice<float> const &matrix,
                        float *dense_matrix_dev)
@@ -134,7 +134,7 @@ void cusolverSpcsrlsvluHost(cusolverSpHandle_t cusolver_sp_handle,
   ASSERT_CUSOLVER(cusolver_error_code);
   ASSERT(singularity == -1, "Coarse matrix is singular");
 }
-} // namespace internal
+} // namespace
 
 void cholesky_factorization(cusolverSpHandle_t cusolver_sp_handle,
                             SparseMatrixDevice<float> const &matrix,
@@ -179,12 +179,12 @@ void lu_factorization(cusolverDnHandle_t cusolver_dn_handle,
   cuda_malloc(dense_matrix_dev, m * n);
 
   // Change the format of matrix to dense
-  internal::cusparsecsr2dense(matrix, dense_matrix_dev);
+  cusparsecsr2dense(matrix, dense_matrix_dev);
 
   // Create the working space
   int workspace_size = 0;
-  internal::cusolverDngetrf_buffer_size(cusolver_dn_handle, m, n,
-                                        dense_matrix_dev, workspace_size);
+  cusolverDngetrf_buffer_size(cusolver_dn_handle, m, n, dense_matrix_dev,
+                              workspace_size);
   ASSERT(workspace_size > 0, "No workspace was allocated");
   ScalarType *workspace_dev;
   cuda_malloc(workspace_dev, workspace_size);
@@ -195,8 +195,8 @@ void lu_factorization(cusolverDnHandle_t cusolver_dn_handle,
   int *info_dev;
   cuda_malloc(info_dev, 1);
 
-  internal::cusolverDngetrf(cusolver_dn_handle, m, n, dense_matrix_dev,
-                            workspace_dev, pivot_dev, info_dev);
+  cusolverDngetrf(cusolver_dn_handle, m, n, dense_matrix_dev, workspace_dev,
+                  pivot_dev, info_dev);
 
   cudaError_t cuda_error_code;
 #ifdef MFMG_DEBUG
@@ -211,8 +211,8 @@ void lu_factorization(cusolverDnHandle_t cusolver_dn_handle,
   cuda_error_code = cudaMemcpy(x_dev, b_dev, m * sizeof(ScalarType),
                                cudaMemcpyDeviceToDevice);
   ASSERT_CUDA(cuda_error_code);
-  internal::cusolverDngetrs(cusolver_dn_handle, m, dense_matrix_dev, pivot_dev,
-                            x_dev, info_dev);
+  cusolverDngetrs(cusolver_dn_handle, m, dense_matrix_dev, pivot_dev, x_dev,
+                  info_dev);
 #ifdef MFMG_DEBUG
   cuda_error_code =
       cudaMemcpy(&info, info_dev, sizeof(int), cudaMemcpyDeviceToHost);
@@ -247,10 +247,10 @@ void lu_factorization(cusolverSpHandle_t cusolver_sp_handle,
   std::vector<ScalarType> x_host(n_rows);
   cuda_mem_copy_to_host(x_dev, x_host);
 
-  internal::cusolverSpcsrlsvluHost(
-      cusolver_sp_handle, n_rows, nnz, matrix.descr, val_host.data(),
-      row_ptr_host.data(), column_index_host.data(), b_host.data(),
-      x_host.data());
+  cusolverSpcsrlsvluHost(cusolver_sp_handle, n_rows, nnz, matrix.descr,
+                         val_host.data(), row_ptr_host.data(),
+                         column_index_host.data(), b_host.data(),
+                         x_host.data());
 
   // Move the solution back to the device
   cuda_mem_copy_to_dev(x_host, x_dev);

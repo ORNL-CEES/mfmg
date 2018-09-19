@@ -16,7 +16,7 @@
 #include "laplace.hpp"
 
 #include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/distributed/tria.h>
@@ -30,21 +30,27 @@
 
 namespace utf = boost::unit_test;
 
-template <int dim, typename VectorType>
-class DummyMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+template <int dim>
+class DummyMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
 {
-protected:
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-           dealii::TrilinosWrappers::SparsityPattern &,
-           dealii::TrilinosWrappers::SparseMatrix &) const override final
+public:
+  DummyMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
+                     dealii::AffineConstraints<double> &constraints)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints)
   {
   }
 
-  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                        dealii::SparsityPattern &,
-                        dealii::SparseMatrix<typename VectorType::value_type> &)
-      const override final
+  void
+  evaluate_global(dealii::DoFHandler<dim> &,
+                  dealii::AffineConstraints<double> &,
+                  dealii::TrilinosWrappers::SparseMatrix &) const override final
+  {
+  }
+
+  void evaluate_agglomerate(dealii::DoFHandler<dim> &,
+                            dealii::AffineConstraints<double> &,
+                            dealii::SparsityPattern &,
+                            dealii::SparseMatrix<double> &) const override final
   {
   }
 };
@@ -52,7 +58,6 @@ protected:
 BOOST_AUTO_TEST_CASE(restriction_matrix)
 {
   unsigned int constexpr dim = 2;
-  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
   dealii::parallel::distributed::Triangulation<dim> triangulation(comm);
@@ -61,8 +66,9 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<dim> fe(1);
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  DummyMeshEvaluator<dim, Vector> evaluator;
-  mfmg::AMGe_host<dim, mfmg::DealIIMeshEvaluator<dim, Vector>,
+  dealii::AffineConstraints<double> constraints;
+  DummyMeshEvaluator<dim> evaluator(dof_handler, constraints);
+  mfmg::AMGe_host<dim, mfmg::DealIIMeshEvaluator<dim>,
                   dealii::LinearAlgebra::distributed::Vector<double>>
       amge(comm, dof_handler);
 
@@ -170,28 +176,32 @@ public:
   }
 };
 
-template <int dim, typename VectorType>
-class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+template <int dim>
+class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
 {
-private:
-  using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
+public:
+  TestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
+                    dealii::AffineConstraints<double> &constraints,
+                    dealii::TrilinosWrappers::SparseMatrix const &matrix)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints),
+        _matrix(matrix)
+  {
+  }
 
-protected:
-  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                        dealii::TrilinosWrappers::SparsityPattern &,
-                        dealii::TrilinosWrappers::SparseMatrix &system_matrix)
+  void evaluate_global(dealii::DoFHandler<dim> &,
+                       dealii::AffineConstraints<double> &,
+                       dealii::TrilinosWrappers::SparseMatrix &system_matrix)
       const override final
   {
     // TODO this is pretty expansive, we should use a shared pointer
     system_matrix.copy_from(_matrix);
   }
 
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::ConstraintMatrix &constraints,
+      dealii::SparsityPattern &system_sparsity_pattern,
+      dealii::SparseMatrix<double> &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -245,12 +255,6 @@ protected:
     }
   }
 
-public:
-  TestMeshEvaluator(const dealii::TrilinosWrappers::SparseMatrix &matrix)
-      : _matrix(matrix)
-  {
-  }
-
 private:
   const dealii::TrilinosWrappers::SparseMatrix &_matrix;
 };
@@ -262,8 +266,7 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   // Check that the weight sum is equal to one
   unsigned int constexpr dim = 2;
   using DVector = dealii::TrilinosWrappers::MPI::Vector;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
-  using Mesh = mfmg::DealIIMesh<dim>;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -288,32 +291,28 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 
-  auto mesh =
-      std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
+  TestMeshEvaluator<dim> evaluator(laplace._dof_handler, laplace._constraints,
+                                   laplace._system_matrix);
+  mfmg::AMGe_host<dim, MeshEvaluator, DVector> amge(comm, laplace._dof_handler);
 
-  TestMeshEvaluator<dim, DVector> evaluator(laplace._system_matrix);
-  mfmg::AMGe_host<dim, MeshEvaluator, DVector> amge(comm, mesh->_dof_handler);
-
-  auto restrictor_matrix = std::make_shared<typename mfmg::DealIIMeshEvaluator<
-      dim, MeshEvaluator>::global_operator_type::matrix_type>();
-  auto global_operator = evaluator.get_global_operator(*mesh);
+  dealii::TrilinosWrappers::SparseMatrix restrictor_matrix;
   amge.setup_restrictor(agglomerate_ptree, n_eigenvectors, tolerance, evaluator,
-                        global_operator, *restrictor_matrix);
+                        laplace._system_matrix, restrictor_matrix);
 
   // Multiply the matrix by three because all the eigenvectors are 1/3. So we
   // are left with the weights.
-  *restrictor_matrix *= 3.;
-  unsigned int const size = restrictor_matrix->n();
-  auto domain_dofs = restrictor_matrix->locally_owned_domain_indices();
+  restrictor_matrix *= 3.;
+  unsigned int const size = restrictor_matrix.n();
+  auto domain_dofs = restrictor_matrix.locally_owned_domain_indices();
   DVector e(domain_dofs);
-  auto range_dofs = restrictor_matrix->locally_owned_range_indices();
+  auto range_dofs = restrictor_matrix.locally_owned_range_indices();
   DVector ee(range_dofs);
   for (unsigned int i = 0; i < size; ++i)
   {
     e = 0;
     e[i] = 1.;
     e.compress(::dealii::VectorOperation::insert);
-    restrictor_matrix->vmult(ee, e);
+    restrictor_matrix.vmult(ee, e);
     BOOST_TEST(ee.l1_norm() == 1.);
   }
 }

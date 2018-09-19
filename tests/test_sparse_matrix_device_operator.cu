@@ -13,7 +13,8 @@
 
 #include "main.cc"
 
-#include <mfmg/dealii_operator_device.cuh>
+#include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
 #include <set>
@@ -59,10 +60,8 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
   cusparse_error_code = cusparseSetMatIndexBase(sparse_matrix_dev->descr,
                                                 CUSPARSE_INDEX_BASE_ZERO);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
-  mfmg::SparseMatrixDeviceOperator<mfmg::VectorDevice<double>> matrix_operator(
+  mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>> matrix_operator(
       sparse_matrix_dev);
-  BOOST_CHECK_EQUAL(matrix_operator.m(), n_rows);
-  BOOST_CHECK_EQUAL(matrix_operator.n(), n_cols);
 
   // Check build_domain_vector
   auto domain_dev = matrix_operator.build_domain_vector();
@@ -102,25 +101,20 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
       if (sparsity_pattern_indices.count(std::make_pair(j, i)) > 0)
         transpose_sparse_matrix.set(i, j, static_cast<double>(i + j));
   auto transpose_matrix_operator = matrix_operator.transpose();
-  BOOST_CHECK_EQUAL(transpose_matrix_operator->m(),
-                    transpose_sparse_matrix.m());
-  BOOST_CHECK_EQUAL(transpose_matrix_operator->n(),
-                    transpose_sparse_matrix.n());
   // We don't have access to the underlying matrix directly so we apply the new
   // operator and check the results
   auto transpose_domain_dev = transpose_matrix_operator->build_domain_vector();
   auto transpose_range_dev = transpose_matrix_operator->build_range_vector();
-  std::vector<double> transpose_domain_vector(transpose_matrix_operator->n(),
-                                              1.);
+  std::vector<double> transpose_domain_vector(n_rows, 1.);
   mfmg::cuda_mem_copy_to_dev(transpose_domain_vector,
                              transpose_domain_dev->get_values());
   transpose_matrix_operator->apply(*transpose_domain_dev, *transpose_range_dev);
   dealii::Vector<double> transpose_domain_dealii(
       transpose_domain_vector.begin(), transpose_domain_vector.end());
-  dealii::Vector<double> transpose_range_dealii(transpose_matrix_operator->m());
+  dealii::Vector<double> transpose_range_dealii(n_cols);
   transpose_sparse_matrix.vmult(transpose_range_dealii,
                                 transpose_domain_dealii);
-  std::vector<double> transpose_range_vector(transpose_matrix_operator->m());
+  std::vector<double> transpose_range_vector(n_cols);
   mfmg::cuda_mem_copy_to_host(transpose_range_dev->val_dev,
                               transpose_range_vector);
   for (unsigned int i = 0; i < n_rows; ++i)
@@ -129,11 +123,8 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
   // Check multiply
   sparse_matrix.vmult(range_dealii, transpose_range_dealii);
   auto multiplied_matrix_operator =
-      matrix_operator.multiply(*transpose_matrix_operator);
+      matrix_operator.multiply(transpose_matrix_operator);
   multiplied_matrix_operator->apply(*transpose_domain_dev, *range_dev);
-  BOOST_CHECK_EQUAL(multiplied_matrix_operator->m(), sparse_matrix.m());
-  BOOST_CHECK_EQUAL(multiplied_matrix_operator->n(),
-                    transpose_sparse_matrix.n());
 
   mfmg::cuda_mem_copy_to_host(range_dev->val_dev, range_vector);
 

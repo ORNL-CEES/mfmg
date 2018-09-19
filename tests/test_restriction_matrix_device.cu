@@ -14,7 +14,7 @@
 #include "main.cc"
 
 #include <mfmg/amge_device.cuh>
-#include <mfmg/dealii_adapters_device.cuh>
+#include <mfmg/cuda_mesh_evaluator.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
@@ -26,36 +26,25 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
-template <int dim, typename VectorType>
-class DummyMeshEvaluator
-    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
+template <int dim>
+class DummyMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
 {
 public:
-  using value_type = typename VectorType::value_type;
-
-  DummyMeshEvaluator(mfmg::CudaHandle &cuda_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle)
+  DummyMeshEvaluator(mfmg::CudaHandle &cuda_handle,
+                     dealii::DoFHandler<dim> &dof_handler,
+                     dealii::AffineConstraints<double> &constraints)
+      : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints)
   {
   }
 
-  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
-  get_locally_relevant_diag() const override final
-  {
-    return dealii::LinearAlgebra::distributed::Vector<value_type>();
-  }
-
-protected:
-  virtual void
-  evaluate_local(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                 std::shared_ptr<mfmg::SparseMatrixDevice<value_type>> &)
-      const override final
+  void
+  evaluate_agglomerate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                       mfmg::SparseMatrixDevice<double> &) const override final
   {
   }
 
-  virtual void
-  evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                  std::shared_ptr<mfmg::SparseMatrixDevice<value_type>> &)
-      const override final
+  void evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                       mfmg::SparseMatrixDevice<double> &) const override final
   {
   }
 };
@@ -75,9 +64,10 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<dim> fe(1);
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  DummyMeshEvaluator<dim, Vector> evaluator(cuda_handle);
-  mfmg::AMGe_device<dim, mfmg::DealIIMeshEvaluatorDevice<dim, Vector>, Vector>
-      amge(comm, dof_handler, cuda_handle);
+  dealii::AffineConstraints<double> constraints;
+  DummyMeshEvaluator<dim> evaluator(cuda_handle, dof_handler, constraints);
+  mfmg::AMGe_device<dim, mfmg::CudaMeshEvaluator<dim>, Vector> amge(
+      comm, dof_handler, cuda_handle);
 
   auto const locally_owned_dofs = dof_handler.locally_owned_dofs();
   unsigned int const n_local_rows = locally_owned_dofs.n_elements();

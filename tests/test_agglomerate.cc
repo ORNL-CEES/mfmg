@@ -14,7 +14,7 @@
 #include "main.cc"
 
 #include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -38,11 +38,9 @@ std::vector<unsigned int> test(MPI_Comm const &world)
   dof_handler.distribute_dofs(fe);
 
   using Vector = dealii::TrilinosWrappers::MPI::Vector;
-  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
-  mfmg::AMGe_host<dim, DummyMeshEvaluator,
-                  dealii::TrilinosWrappers::MPI::Vector>
-      amge(world, dof_handler);
+  mfmg::AMGe_host<dim, DummyMeshEvaluator, Vector> amge(world, dof_handler);
 
   boost::property_tree::ptree partitioner_params;
   partitioner_params.put("partitioner", "block");
@@ -294,11 +292,10 @@ BOOST_AUTO_TEST_CASE(zoltan_agglomerate_2d)
   dof_handler.distribute_dofs(fe);
 
   using Vector = dealii::TrilinosWrappers::MPI::Vector;
-  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim, Vector>;
+  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
-  mfmg::AMGe_host<dim, DummyMeshEvaluator,
-                  dealii::TrilinosWrappers::MPI::Vector>
-      amge(MPI_COMM_WORLD, dof_handler);
+  mfmg::AMGe_host<dim, DummyMeshEvaluator, Vector> amge(MPI_COMM_WORLD,
+                                                        dof_handler);
 
   boost::property_tree::ptree partitioner_params;
   partitioner_params.put("partitioner", "zoltan");

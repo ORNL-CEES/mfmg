@@ -14,7 +14,7 @@
 #include "main.cc"
 
 #include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -27,21 +27,22 @@
 namespace tt = boost::test_tools;
 namespace ut = boost::unit_test;
 
-template <int dim, typename VectorType>
-class DiagonalTestMeshEvaluator
-    : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+template <int dim>
+class DiagonalTestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
 {
 public:
-  using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
+  DiagonalTestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
+                            dealii::AffineConstraints<double> &constraints)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints)
+  {
+  }
 
-protected:
   // Diagonal matrices. We only need local evaluate function.
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::ConstraintMatrix &constraints,
+      dealii::SparsityPattern &system_sparsity_pattern,
+      dealii::SparseMatrix<double> &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -60,10 +61,10 @@ protected:
       system_matrix.diag_element(i) = static_cast<double>(i + 1);
   }
 
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-           dealii::TrilinosWrappers::SparsityPattern &,
-           dealii::TrilinosWrappers::SparseMatrix &) const override final
+  void
+  evaluate_global(dealii::DoFHandler<dim> &,
+                  dealii::AffineConstraints<double> &,
+                  dealii::TrilinosWrappers::SparseMatrix &) const override final
   {
   }
 };
@@ -72,7 +73,7 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
 {
   const int dim = 2;
   using Vector = dealii::TrilinosWrappers::MPI::Vector;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2, Vector>;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
@@ -89,7 +90,8 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
-  DiagonalTestMeshEvaluator<dim, Vector> evaluator;
+  dealii::AffineConstraints<double> constraints;
+  DiagonalTestMeshEvaluator<dim> evaluator(dof_handler, constraints);
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<double> diag_elements;
@@ -122,21 +124,24 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   }
 }
 
-template <int dim, class Vector>
+template <int dim>
 class ConstrainedDiagonalTestMeshEvaluator
-    : public mfmg::DealIIMeshEvaluator<dim, Vector>
+    : public mfmg::DealIIMeshEvaluator<dim>
 {
-private:
-  using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, Vector>::value_type;
+public:
+  ConstrainedDiagonalTestMeshEvaluator(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::AffineConstraints<double> &constraints)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints)
+  {
+  }
 
-protected:
   // Diagonal matrices. We only need local evaluate function.
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::ConstraintMatrix &constraints,
+      dealii::SparsityPattern &system_sparsity_pattern,
+      dealii::SparseMatrix<double> &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -157,10 +162,9 @@ protected:
       system_matrix.diag_element(i) = static_cast<double>(i + 1);
   }
 
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-           dealii::TrilinosWrappers::SparsityPattern &,
-           dealii::TrilinosWrappers::SparseMatrix &) const override final
+  void
+  evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                  dealii::TrilinosWrappers::SparseMatrix &) const override final
   {
   }
 };
@@ -169,7 +173,7 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
 {
   const int dim = 2;
   using Vector = dealii::TrilinosWrappers::MPI::Vector;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2, Vector>;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
@@ -186,7 +190,8 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
-  ConstrainedDiagonalTestMeshEvaluator<dim, Vector> evaluator;
+  dealii::AffineConstraints<double> constraints;
+  ConstrainedDiagonalTestMeshEvaluator<dim> evaluator(dof_handler, constraints);
   std::vector<std::complex<double>> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<double> diag_elements;
