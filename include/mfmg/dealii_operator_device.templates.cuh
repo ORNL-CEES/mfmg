@@ -370,6 +370,28 @@ SparseMatrixDeviceOperator<VectorType>::multiply(
 }
 
 template <typename VectorType>
+std::shared_ptr<MatrixOperator<VectorType>>
+SparseMatrixDeviceOperator<VectorType>::multiply_transpose(
+    MatrixOperator<VectorType> const &operator_b) const
+{
+  // Downcast to SparseMatrixDeviceOperator
+  auto operator_bt = operator_b.transpose();
+  auto downcast_operator_bt =
+      std::dynamic_pointer_cast<SparseMatrixDeviceOperator<VectorType>>(
+          operator_bt);
+
+  auto a = this->get_matrix();
+  auto bt = downcast_operator_bt->get_matrix();
+
+  // Initialize c
+  auto c = std::make_shared<matrix_type>(*a);
+
+  a->mmult(*c, *bt);
+
+  return std::make_shared<SparseMatrixDeviceOperator<VectorType>>(c);
+}
+
+template <typename VectorType>
 std::shared_ptr<VectorType>
 SparseMatrixDeviceOperator<VectorType>::build_domain_vector() const
 {
