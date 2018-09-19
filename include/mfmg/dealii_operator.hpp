@@ -109,7 +109,7 @@ public:
   virtual std::shared_ptr<operator_type> transpose() const override final;
 
   virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override final;
+  multiply(operator_type const &operator_b) const override;
 
   virtual std::shared_ptr<operator_type>
   multiply_transpose(operator_type const &operator_b) const override;
@@ -139,7 +139,10 @@ public:
       std::shared_ptr<matrix_type> matrix,
       std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
 
-  std::shared_ptr<operator_type>
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &operator_b) const override final;
+
+  virtual std::shared_ptr<operator_type>
   multiply_transpose(operator_type const &operator_b) const override final;
 };
 
