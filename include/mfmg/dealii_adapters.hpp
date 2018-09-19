@@ -25,6 +25,10 @@
 
 #include <random>
 
+#ifndef MFMG_USE_MATRIXFREE_GLOBAL_OPERATOR
+#define MFMG_USE_MATRIXFREE_GLOBAL_OPERATOR 1
+#endif
+
 namespace mfmg
 {
 
@@ -36,7 +40,11 @@ public:
   using vector_type = VectorType;
   using value_type = typename VectorType::value_type;
   using operator_type = Operator<vector_type>;
+#if MFMG_USE_MATRIXFREE_GLOBAL_OPERATOR
+  using global_operator_type = DealIIMatrixFreeOperator<vector_type>;
+#else
   using global_operator_type = DealIITrilinosMatrixOperator<vector_type>;
+#endif
   using local_operator_type = DealIIMatrixOperator<dealii::Vector<value_type>>;
 
   DealIIMeshEvaluator() = default;
