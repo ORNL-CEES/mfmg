@@ -126,9 +126,11 @@ public:
               ->transpose();
       level_coarse.set_prolongator(prolongator);
 
-      auto ap =
-          std::dynamic_pointer_cast<global_operator_type const>(a)->multiply(
-              *prolongator);
+      auto ap = std::dynamic_pointer_cast<global_operator_type const>(a)
+                    ->multiply_transpose(
+                        *std::dynamic_pointer_cast<MatrixOperator<VectorType>>(
+                            restrictor));
+
       auto a_coarse =
           std::dynamic_pointer_cast<global_operator_type>(restrictor)
               ->multiply(*ap);

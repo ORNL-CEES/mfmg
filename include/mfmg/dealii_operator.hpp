@@ -29,6 +29,11 @@
 namespace mfmg
 {
 
+void matrix_transpose_matrix_multiply(
+    dealii::TrilinosWrappers::SparseMatrix &C,
+    dealii::TrilinosWrappers::SparseMatrix const &B,
+    dealii::TrilinosWrappers::SparseMatrix const &A);
+
 template <typename VectorType>
 class DealIIMatrixOperator : public MatrixOperator<VectorType>
 {
@@ -56,6 +61,9 @@ public:
 
   virtual std::shared_ptr<operator_type>
   multiply(operator_type const &operator_b) const override final;
+
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &operator_b) const override final;
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
@@ -101,7 +109,10 @@ public:
   virtual std::shared_ptr<operator_type> transpose() const override final;
 
   virtual std::shared_ptr<operator_type>
-  multiply(operator_type const &operator_b) const override final;
+  multiply(operator_type const &operator_b) const override;
+
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &operator_b) const override;
 
   std::shared_ptr<matrix_type> get_matrix() const { return _matrix; }
 
@@ -112,6 +123,27 @@ public:
 
 private:
   std::shared_ptr<matrix_type> _matrix;
+};
+
+template <typename VectorType>
+class DealIIMatrixFreeOperator : public DealIITrilinosMatrixOperator<VectorType>
+{
+public:
+  using value_type = typename VectorType::value_type;
+  using sparsity_pattern_type = dealii::TrilinosWrappers::SparsityPattern;
+  using matrix_type = dealii::TrilinosWrappers::SparseMatrix;
+  using vector_type = VectorType;
+  using operator_type = MatrixOperator<vector_type>;
+
+  DealIIMatrixFreeOperator(
+      std::shared_ptr<matrix_type> matrix,
+      std::shared_ptr<sparsity_pattern_type> sparsity_pattern = nullptr);
+
+  virtual std::shared_ptr<operator_type>
+  multiply(operator_type const &operator_b) const override final;
+
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &operator_b) const override final;
 };
 
 template <typename VectorType>

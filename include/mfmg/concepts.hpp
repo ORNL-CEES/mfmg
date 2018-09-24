@@ -51,6 +51,8 @@ public:
   virtual std::shared_ptr<operator_type> transpose() const = 0;
   virtual std::shared_ptr<operator_type>
   multiply(operator_type const &b) const = 0;
+  virtual std::shared_ptr<operator_type>
+  multiply_transpose(operator_type const &b) const = 0;
 };
 
 template <typename Mesh, typename GlobalOperatorType,
