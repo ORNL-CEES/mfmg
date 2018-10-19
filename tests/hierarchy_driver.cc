@@ -1,4 +1,4 @@
-#include <mfmg/exceptions.hpp>
+#include <mfmg/common/exceptions.hpp>
 
 #include <boost/program_options.hpp>
 

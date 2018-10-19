@@ -11,8 +11,8 @@
 
 #define BOOST_TEST_MODULE restriction
 
-#include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_mesh_evaluator.hpp>
+#include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/distributed/tria.h>

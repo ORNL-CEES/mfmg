@@ -11,9 +11,9 @@
 
 #define BOOST_TEST_MODULE smoother_device
 
-#include <mfmg/cuda_matrix_operator.cuh>
-#include <mfmg/cuda_smoother.cuh>
-#include <mfmg/sparse_matrix_device.cuh>
+#include <mfmg/cuda/cuda_matrix_operator.cuh>
+#include <mfmg/cuda/cuda_smoother.cuh>
+#include <mfmg/cuda/sparse_matrix_device.cuh>
 
 #include <deal.II/lac/precondition.h>
 

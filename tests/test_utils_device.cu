@@ -11,8 +11,8 @@
 
 #define BOOST_TEST_MODULE utils_device
 
-#include <mfmg/sparse_matrix_device.cuh>
-#include <mfmg/utils.cuh>
+#include <mfmg/cuda/sparse_matrix_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/sparse_matrix.h>

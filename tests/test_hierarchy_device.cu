@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE hierarchy_boost
 
-#include <mfmg/hierarchy.hpp>
+#include <mfmg/common/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 
