@@ -1,92 +1,150 @@
-/*************************************************************************
- * Copyright (c) 2017-2018 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
+/**************************************************************************
+ * Copyright (c) 2017-2018 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
  * This file is part of the mfmg libary. mfmg is distributed under op BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
- *************************************************************************/
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
+ **************************************************************************/
 
 #ifndef MFMG_HIERARCHY_HPP
 #define MFMG_HIERARCHY_HPP
 
-#include <memory>
-#include <vector>
+#include <mfmg/cuda_hierarchy_helpers.cuh>
+#include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/cuda_mesh_evaluator.cuh>
+#include <mfmg/dealii_hierarchy_helpers.hpp>
+#include <mfmg/exceptions.hpp>
+#include <mfmg/level.hpp>
+#include <mfmg/mesh_evaluator.hpp>
+#include <mfmg/utils.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
-#include "mfmg/utils.hpp"
+#include <memory>
+#include <vector>
 
 namespace mfmg
 {
-
-template <typename OperatorType>
-class Level
+template <typename VectorType>
+std::unique_ptr<HierarchyHelpers<VectorType>>
+create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 {
-public:
-  using operator_type = OperatorType;
-
-public:
-  std::shared_ptr<operator_type const> get_operator() const
+  std::unique_ptr<HierarchyHelpers<VectorType>> hierarchy_helpers;
+  std::string evaluator_type = evaluator->get_mesh_evaluator_type();
+  if (evaluator_type == "DealIIMeshEvaluator")
   {
-    return _operator;
+    int const dim = evaluator->get_dim();
+    if (dim == 2)
+      hierarchy_helpers.reset(new DealIIHierarchyHelpers<2, VectorType>());
+    else if (dim == 3)
+      hierarchy_helpers.reset(new DealIIHierarchyHelpers<3, VectorType>());
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
   }
-
-  std::shared_ptr<operator_type const> get_restrictor() const
+  else if (evaluator_type == "CudaMeshEvaluator")
   {
-    return _restrictor;
-  }
+    int const dim = evaluator->get_dim();
 
-  std::shared_ptr<operator_type const> get_prolongator() const
+    if (dim == 2)
+    {
+      // Downcast evaluator
+      auto const cuda_evaluator =
+          std::dynamic_pointer_cast<CudaMeshEvaluator<2> const>(evaluator);
+      hierarchy_helpers.reset(new CudaHierarchyHelpers<2, VectorType>(
+          cuda_evaluator->get_cuda_handle()));
+    }
+    else if (dim == 3)
+    {
+      // Downcast evaluator
+      auto const cuda_evaluator =
+          std::dynamic_pointer_cast<CudaMeshEvaluator<3> const>(evaluator);
+      hierarchy_helpers.reset(new CudaHierarchyHelpers<3, VectorType>(
+          cuda_evaluator->get_cuda_handle()));
+    }
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return hierarchy_helpers;
+  }
+}
+
+template <>
+std::unique_ptr<HierarchyHelpers<dealii::TrilinosWrappers::MPI::Vector>>
+create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
+{
+  std::unique_ptr<HierarchyHelpers<dealii::TrilinosWrappers::MPI::Vector>>
+      hierarchy_helpers;
+  std::string evaluator_type = evaluator->get_mesh_evaluator_type();
+  if (evaluator_type == "DealIIMeshEvaluator")
   {
-    return _prolongator;
+    int const dim = evaluator->get_dim();
+    if (dim == 2)
+      hierarchy_helpers.reset(
+          new DealIIHierarchyHelpers<2,
+                                     dealii::TrilinosWrappers::MPI::Vector>());
+    else if (dim == 3)
+      hierarchy_helpers.reset(
+          new DealIIHierarchyHelpers<3,
+                                     dealii::TrilinosWrappers::MPI::Vector>());
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
   }
+  else
+    ASSERT_THROW_NOT_IMPLEMENTED();
 
-  std::shared_ptr<operator_type const> get_smoother() const
+  return hierarchy_helpers;
+}
+
+template <>
+std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
+create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
+{
+  std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
+      hierarchy_helpers;
+  std::string evaluator_type = evaluator->get_mesh_evaluator_type();
+  if (evaluator_type == "CudaMeshEvaluator")
   {
-    return _smoother;
+    int const dim = evaluator->get_dim();
+
+    if (dim == 2)
+    {
+      // Downcast evaluator
+      auto const cuda_evaluator =
+          std::dynamic_pointer_cast<CudaMeshEvaluator<2> const>(evaluator);
+      hierarchy_helpers.reset(
+          new CudaHierarchyHelpers<2, mfmg::VectorDevice<double>>(
+              cuda_evaluator->get_cuda_handle()));
+    }
+    else if (dim == 3)
+    {
+      // Downcast evaluator
+      auto const cuda_evaluator =
+          std::dynamic_pointer_cast<CudaMeshEvaluator<3> const>(evaluator);
+      hierarchy_helpers.reset(
+          new CudaHierarchyHelpers<3, mfmg::VectorDevice<double>>(
+              cuda_evaluator->get_cuda_handle()));
+    }
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
   }
+  else
+    ASSERT_THROW_NOT_IMPLEMENTED();
 
-  void set_operator(std::shared_ptr<operator_type const> op) { _operator = op; }
+  return hierarchy_helpers;
+}
 
-  void set_restrictor(std::shared_ptr<operator_type const> r)
-  {
-    _restrictor = r;
-  }
-
-  void set_prolongator(std::shared_ptr<operator_type const> p)
-  {
-    _prolongator = p;
-  }
-
-  void set_smoother(std::shared_ptr<operator_type const> s) { _smoother = s; }
-
-private:
-  std::shared_ptr<operator_type const> _operator, _prolongator, _restrictor,
-      _smoother;
-};
-
-template <typename MeshEvaluatorType, typename VectorType>
+template <typename VectorType>
 class Hierarchy
 {
 public:
-  using mesh_evaluator_type = MeshEvaluatorType;
-  using mesh_type = typename MeshEvaluatorType::mesh_type;
-  using vector_type = VectorType;
-  using operator_type = typename MeshEvaluatorType::operator_type;
-  using global_operator_type = typename MeshEvaluatorType::global_operator_type;
-
-public:
-  Hierarchy(MPI_Comm comm, mesh_evaluator_type &evaluator, mesh_type &mesh,
+  Hierarchy(MPI_Comm comm, std::shared_ptr<MeshEvaluator> evaluator,
             std::shared_ptr<boost::property_tree::ptree> params = nullptr)
   {
-    static_assert(std::is_same<typename MeshEvaluatorType::vector_type,
-                               vector_type>::value,
-                  "Vector template does not match the one in MeshEvaluator");
-
-    using HierarchyHelpers = Adapter<mesh_evaluator_type>;
+    // Replace by a factory
+    auto hierarchy_helpers = create_hierarchy_helpers<VectorType>(evaluator);
 
     _is_preconditioner = params->get("is preconditioner", true);
     _n_smoothing_steps = params->get("smoother.n_smoothing_steps", 1);
@@ -95,54 +153,45 @@ public:
     const int num_levels = params->get("max levels", 2);
     _levels.resize(num_levels);
 
-    _levels[0].set_operator(evaluator.get_global_operator(mesh));
+    _levels[0].set_operator(hierarchy_helpers->get_global_operator(evaluator));
     for (int level_index = 0; level_index < num_levels; level_index++)
     {
       auto &level_fine = _levels[level_index];
 
-      auto a = std::dynamic_pointer_cast<global_operator_type const>(
-          level_fine.get_operator());
+      auto a = level_fine.get_operator();
 
       if (level_index == num_levels - 1)
       {
-        auto coarse_solver =
-            HierarchyHelpers::build_coarse_solver(*a, evaluator, params);
-        level_fine.set_smoother(coarse_solver);
+        auto coarse_solver = hierarchy_helpers->build_coarse_solver(a, params);
+        level_fine.set_solver(coarse_solver);
 
         break;
       }
 
       auto &level_coarse = _levels[level_index + 1];
 
-      auto smoother = HierarchyHelpers::build_smoother(*a, params);
+      auto smoother = hierarchy_helpers->build_smoother(a, params);
       level_fine.set_smoother(smoother);
 
       auto restrictor =
-          HierarchyHelpers::build_restrictor(comm, evaluator, mesh, params);
+          hierarchy_helpers->build_restrictor(comm, evaluator, params);
       level_coarse.set_restrictor(restrictor);
 
-      auto prolongator =
-          std::dynamic_pointer_cast<global_operator_type>(restrictor)
-              ->transpose();
+      // TODO is this useless or is it used in multigrid?
+      auto prolongator = restrictor->transpose();
       level_coarse.set_prolongator(prolongator);
 
-      auto ap = std::dynamic_pointer_cast<global_operator_type const>(a)
-                    ->multiply_transpose(
-                        *std::dynamic_pointer_cast<MatrixOperator<VectorType>>(
-                            restrictor));
+      auto ap = a->multiply_transpose(restrictor);
+      // auto ap = a->multiply(prolongator);
+      auto a_coarse = restrictor->multiply(ap);
 
-      auto a_coarse =
-          std::dynamic_pointer_cast<global_operator_type>(restrictor)
-              ->multiply(*ap);
       level_coarse.set_operator(a_coarse);
     }
   }
 
-  // TODO: should this go to some kind of deal.ii mfmg adapter? This is deal.ii
-  // specific.
-  void vmult(vector_type &x, vector_type const &b) const { apply(b, x, 0); }
+  void vmult(VectorType &x, VectorType const &b) const { apply(b, x, 0); }
 
-  void apply(vector_type const &b, vector_type &x, int level_index = 0) const
+  void apply(VectorType const &b, VectorType &x, int level_index = 0) const
   {
     auto const num_levels = _levels.size();
 
@@ -152,17 +201,16 @@ public:
     if (level_index > 0 || _is_preconditioner)
     {
       // Zero out any garbage in x.
-      // The only exception is when it's the finest level in a standalone mode.
+      // The only exception is when it's the finest level in a standalone
+      // mode.
       x = 0.;
     }
 
     if (level_index == num_levels - 1)
     {
       // Coarsest level
-
-      // Direct solver = smoother
-      auto smoother = level_fine.get_smoother();
-      smoother->apply(b, x);
+      auto coarse_solver = level_fine.get_solver();
+      coarse_solver->apply(b, x);
     }
     else
     {
@@ -195,7 +243,8 @@ public:
       auto x_correction = prolongator->build_range_vector();
       prolongator->apply(*x_coarse, *x_correction);
 
-      // NOTE: as we used negative residual, we subtract instead of adding here
+      // NOTE: as we used negative residual, we subtract instead of adding
+      // here
       x.add(-1., *x_correction);
 
       // apply post-smoother
@@ -206,60 +255,63 @@ public:
 
   double grid_complexity() const
   {
-    auto const num_levels = _levels.size();
+    // auto const num_levels = _levels.size();
 
-    if (num_levels == 0)
-      return -1.0;
+    // if (num_levels == 0)
+    //   return -1.0;
 
-    auto level0_m = _levels[0].get_operator()->grid_complexity();
-    ASSERT(level0_m, "The size of the finest level operator is 0.");
+    // auto level0_m = _levels[0].get_operator()->grid_complexity();
+    // ASSERT(level0_m, "The size of the finest level operator is 0.");
 
-    double complexity = level0_m;
+    // double complexity = level0_m;
 
-    for (int i = 1; i < num_levels; i++)
-    {
-      if (i < num_levels - 1)
-        complexity += _levels[i].get_operator()->grid_complexity();
-      else
-      {
-        // Hierarchy may be continued using a different multigrid
-        // For direct solvers, this would be equivalent to using
-        //   _levels[i].get_operator()->grid_complexity()
-        complexity += _levels[i].get_smoother()->grid_complexity();
-      }
-    }
+    // for (int i = 1; i < num_levels; i++)
+    // {
+    //   if (i < num_levels - 1)
+    //     complexity += _levels[i].get_operator()->grid_complexity();
+    //   else
+    //   {
+    //     // Hierarchy may be continued using a different multigrid
+    //     // For direct solvers, this would be equivalent to using
+    //     //   _levels[i].get_operator()->grid_complexity()
+    //     complexity += _levels[i].get_smoother()->grid_complexity();
+    //   }
+    // }
 
-    return complexity / level0_m;
+    // return complexity / level0_m;
+
+    return 0;
   }
 
   double operator_complexity() const
   {
-    auto const num_levels = _levels.size();
+    // auto const num_levels = _levels.size();
 
-    if (num_levels == 0)
-      return -1.0;
+    // if (num_levels == 0)
+    //   return -1.0;
 
-    auto level0_nnz = _levels[0].get_operator()->operator_complexity();
-    ASSERT(level0_nnz, "The nnz of the finest level operator is 0.");
+    // auto level0_nnz = _levels[0].get_operator()->operator_complexity();
+    // ASSERT(level0_nnz, "The nnz of the finest level operator is 0.");
 
-    double complexity = level0_nnz;
-    for (int i = 1; i < num_levels; i++)
-    {
-      if (i < num_levels - 1)
-        complexity += _levels[i].get_operator()->operator_complexity();
-      else
-      {
-        // Hierarchy may be continued using a different multigrid
-        // For direct solvers, this would be equivalent to using
-        //   _levels[i].get_operator()->operator_complexity()
-        complexity += _levels[i].get_smoother()->operator_complexity();
-      }
-    }
-    return complexity / level0_nnz;
+    // double complexity = level0_nnz;
+    // for (int i = 1; i < num_levels; i++)
+    // {
+    //   if (i < num_levels - 1)
+    //     complexity += _levels[i].get_operator()->operator_complexity();
+    //   else
+    //   {
+    //     // Hierarchy may be continued using a different multigrid
+    //     // For direct solvers, this would be equivalent to using
+    //     //   _levels[i].get_operator()->operator_complexity()
+    //     complexity += _levels[i].get_smoother()->operator_complexity();
+    //   }
+    // }
+    // return complexity / level0_nnz;
+    return 0;
   }
 
 private:
-  std::vector<Level<operator_type>> _levels;
+  std::vector<Level<VectorType>> _levels;
   bool _is_preconditioner = true;
   unsigned int _n_smoothing_steps;
 };

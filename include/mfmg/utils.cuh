@@ -60,6 +60,8 @@ std::tuple<std::unordered_map<int, int>, std::unordered_map<int, int>>
 csr_to_amgx(std::unordered_set<int> const &rows_sent,
             mfmg::SparseMatrixDevice<double> &matrix_dev);
 
+#if __CUDACC__
+
 template <typename T>
 inline void cuda_free(T *&pointer)
 {
@@ -94,6 +96,7 @@ inline void cuda_mem_copy_to_dev(std::vector<T> const &vector_host,
                  vector_host.size() * sizeof(T), cudaMemcpyHostToDevice);
   ASSERT_CUDA(cuda_error_code);
 }
+#endif
 
 void all_gather(MPI_Comm communicator, unsigned int send_count,
                 unsigned int *send_buffer, unsigned int recv_count,

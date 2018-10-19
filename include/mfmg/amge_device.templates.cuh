@@ -12,9 +12,9 @@
 #ifndef AMGE_DEVICE_TEMPLATES_CUH
 #define AMGE_DEVICE_TEMPLATES_CUH
 
+#include <mfmg/amge.templates.hpp>
 #include <mfmg/amge_device.cuh>
 
-#include <mfmg/dealii_mesh.hpp>
 #include <mfmg/utils.cuh>
 
 #include <deal.II/dofs/dof_accessor.h>
@@ -221,12 +221,13 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::ConstraintMatrix agglomerate_constraints;
 
-  DealIIMesh<dim> agglomerate_mesh(agglomerate_dof_handler,
-                                   agglomerate_constraints);
-
   // Call user function to build the system matrix
-  auto agglomerate_operator = evaluator.get_local_operator(agglomerate_mesh);
-  auto agglomerate_system_matrix_dev = agglomerate_operator->get_matrix();
+  using value_type = typename VectorType::value_type;
+  auto agglomerate_system_matrix_dev =
+      std::make_shared<SparseMatrixDevice<value_type>>();
+  evaluator.evaluate_agglomerate(agglomerate_dof_handler,
+                                 agglomerate_constraints,
+                                 *agglomerate_system_matrix_dev);
 
   // Convert the matrix from CRS to dense. First, create and setup matrix
   // descriptor
@@ -355,9 +356,7 @@ mfmg::SparseMatrixDevice<typename VectorType::value_type>
 AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
     boost::property_tree::ptree const &agglomerate_dim,
     unsigned int const n_eigenvectors, double const tolerance,
-    MeshEvaluator const &evaluator,
-    std::shared_ptr<typename MeshEvaluator::global_operator_type const>
-        global_operator)
+    MeshEvaluator const &evaluator)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates = this->build_agglomerates(agglomerate_dim);
@@ -418,7 +417,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
   return compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, locally_relevant_global_diag,
       dof_indices_maps, n_local_eigenvectors,
-      evaluator.cuda_handle.cusparse_handle);
+      evaluator.get_cuda_handle().cusparse_handle);
 }
 } // namespace mfmg
 

@@ -14,7 +14,7 @@
 #include "main.cc"
 
 #include <mfmg/amge_device.cuh>
-#include <mfmg/dealii_adapters_device.cuh>
+#include <mfmg/cuda_mesh_evaluator.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
@@ -24,29 +24,21 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
-template <int dim, typename VectorType>
-class DiagonalTestMeshEvaluator
-    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
+template <int dim>
+class DiagonalTestMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
 {
 public:
-  using value_type = typename VectorType::value_type;
-
-  DiagonalTestMeshEvaluator(mfmg::CudaHandle const &cuda_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle)
+  DiagonalTestMeshEvaluator(mfmg::CudaHandle const &cuda_handle,
+                            dealii::DoFHandler<dim> &dof_handler,
+                            dealii::AffineConstraints<double> &constraints)
+      : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints)
   {
   }
 
-  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
-  get_locally_relevant_diag() const override final
-  {
-    return dealii::LinearAlgebra::distributed::Vector<value_type>();
-  }
-
-protected:
-  virtual void evaluate_local(dealii::DoFHandler<2> &dof_handler,
-                              dealii::ConstraintMatrix &constraint_matrix,
-                              std::shared_ptr<mfmg::SparseMatrixDevice<double>>
-                                  &system_matrix_dev) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<2> &dof_handler,
+      dealii::ConstraintMatrix &constraint_matrix,
+      mfmg::SparseMatrixDevice<double> &system_matrix_dev) const override final
   {
     // Build the matrix on the host
     dealii::FE_Q<2> fe(1);
@@ -69,14 +61,13 @@ protected:
     }
 
     // Move the matrices to the device
-    system_matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
-        mfmg::convert_matrix(system_matrix));
+    system_matrix_dev = std::move(mfmg::convert_matrix(system_matrix));
   }
 
-  virtual void evaluate_global(dealii::DoFHandler<2> &dof_handler,
-                               dealii::ConstraintMatrix &constraint_matrix,
-                               std::shared_ptr<mfmg::SparseMatrixDevice<double>>
-                                   &system_matrix_dev) const override final
+  void evaluate_global(
+      dealii::DoFHandler<2> &dof_handler,
+      dealii::ConstraintMatrix &constraint_matrix,
+      mfmg::SparseMatrixDevice<double> &system_matrix_dev) const override final
   {
   }
 };
@@ -85,7 +76,7 @@ BOOST_AUTO_TEST_CASE(diagonal)
 {
   int constexpr dim = 2;
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using DummyMeshEvaluator = mfmg::DealIIMeshEvaluatorDevice<dim, Vector>;
+  using DummyMeshEvaluator = mfmg::CudaMeshEvaluator<dim>;
 
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
   dealii::GridGenerator::hyper_cube(triangulation);
@@ -107,7 +98,9 @@ BOOST_AUTO_TEST_CASE(diagonal)
   for (auto cell : dof_handler.active_cell_iterators())
     patch_to_global_map[cell] = cell;
 
-  DiagonalTestMeshEvaluator<dim, Vector> evaluator(cuda_handle);
+  dealii::AffineConstraints<double> constraints;
+  DiagonalTestMeshEvaluator<dim> evaluator(cuda_handle, dof_handler,
+                                           constraints);
   double *eigenvalues_dev;
   double *eigenvectors_dev;
   double *diag_elements_dev;

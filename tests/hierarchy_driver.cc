@@ -8,8 +8,7 @@ template <int dim>
 void main_(std::shared_ptr<boost::property_tree::ptree> params)
 {
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim, DVector>;
-  using Mesh = mfmg::DealIIMesh<dim>;
+  using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -26,9 +25,6 @@ void main_(std::shared_ptr<boost::property_tree::ptree> params)
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 
-  auto mesh =
-      std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
-
   auto const &a = laplace._system_matrix;
   auto const locally_owned_dofs = laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
@@ -40,9 +36,9 @@ void main_(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  TestMeshEvaluator<dim, DVector> evaluator(a, material_property);
-  mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
-                                                    params);
+  std::shared_ptr<MeshEvaluator> evaluator(new TestMeshEvaluator<dim>(
+      laplace._dof_handler, laplace._constraints, a, material_property));
+  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
   pcout << "Operator complexity: " << hierarchy.operator_complexity()

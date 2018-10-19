@@ -13,7 +13,8 @@
 
 #include "main.cc"
 
-#include <mfmg/dealii_operator_device.cuh>
+#include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/cuda_smoother.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 
 #include <deal.II/lac/precondition.h>
@@ -73,25 +74,28 @@ BOOST_AUTO_TEST_CASE(smoother)
   range_vector.add(-1., tmp);
 
   // Move the matrix to the device
-  mfmg::SparseMatrixDevice<double> matrix_dev(mfmg::convert_matrix(matrix));
-  matrix_dev.cusparse_handle = cusparse_handle;
-  cusparse_error_code = cusparseCreateMatDescr(&matrix_dev.descr);
+  auto matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+      mfmg::convert_matrix(matrix));
+  matrix_dev->cusparse_handle = cusparse_handle;
+  cusparse_error_code = cusparseCreateMatDescr(&matrix_dev->descr);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   cusparse_error_code =
-      cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+      cusparseSetMatType(matrix_dev->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   cusparse_error_code =
-      cusparseSetMatIndexBase(matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+      cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
   // Build the smoother operator
+  std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> cuda_op(
+      new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
   auto param = std::make_shared<boost::property_tree::ptree>();
-  mfmg::SmootherDeviceOperator<mfmg::VectorDevice<double>> smoother_operator(
-      matrix_dev, param);
+  mfmg::CudaSmoother<mfmg::VectorDevice<double>> smoother_operator(cuda_op,
+                                                                   param);
 
   // Apply the smoother
-  auto domain_dev = smoother_operator.build_domain_vector();
-  auto range_dev = smoother_operator.build_range_vector();
+  auto domain_dev = cuda_op->build_domain_vector();
+  auto range_dev = cuda_op->build_range_vector();
   mfmg::cuda_mem_copy_to_dev(domain_host, domain_dev->val_dev);
   mfmg::cuda_mem_copy_to_dev(range_host, range_dev->val_dev);
   smoother_operator.apply(*domain_dev, *range_dev);

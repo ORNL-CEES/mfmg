@@ -14,7 +14,7 @@
 
 #include "laplace.hpp"
 
-#include <mfmg/dealii_adapters.hpp>
+#include <mfmg/dealii_mesh_evaluator.hpp>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -133,28 +133,32 @@ public:
   }
 };
 
-template <int dim, typename VectorType>
-class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim, VectorType>
+template <int dim>
+class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
 {
-private:
-  using value_type =
-      typename mfmg::DealIIMeshEvaluator<dim, VectorType>::value_type;
+public:
+  TestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
+                    dealii::AffineConstraints<double> &constraints,
+                    dealii::TrilinosWrappers::SparseMatrix const &matrix,
+                    std::shared_ptr<dealii::Function<dim>> material_property)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints),
+        _matrix(matrix), _material_property(material_property)
+  {
+  }
 
-protected:
-  virtual void evaluate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                        dealii::TrilinosWrappers::SparsityPattern &,
-                        dealii::TrilinosWrappers::SparseMatrix &system_matrix)
+  void evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+                       dealii::TrilinosWrappers::SparseMatrix &system_matrix)
       const override final
   {
     // TODO this is pretty expansive, we should use a shared pointer
     system_matrix.copy_from(_matrix);
   }
 
-  virtual void
-  evaluate(dealii::DoFHandler<dim> &dof_handler,
-           dealii::ConstraintMatrix &constraints,
-           dealii::SparsityPattern &system_sparsity_pattern,
-           dealii::SparseMatrix<value_type> &system_matrix) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::ConstraintMatrix &constraints,
+      dealii::SparsityPattern &system_sparsity_pattern,
+      dealii::SparseMatrix<double> &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -210,13 +214,6 @@ protected:
       constraints.distribute_local_to_global(cell_matrix, local_dof_indices,
                                              system_matrix);
     }
-  }
-
-public:
-  TestMeshEvaluator(dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property)
-      : _matrix(matrix), _material_property(material_property)
-  {
   }
 
 private:

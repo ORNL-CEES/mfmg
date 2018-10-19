@@ -15,7 +15,6 @@
 
 #include "laplace.hpp"
 
-#include <mfmg/dealii_adapters_device.cuh>
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -121,38 +120,35 @@ public:
   }
 };
 
-template <int dim, typename VectorType>
-class TestMeshEvaluator
-    : public mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>
+template <int dim>
+class TestMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
 {
 public:
-  using value_type = typename VectorType::value_type;
-
-  TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
+  TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler,
+                    dealii::AffineConstraints<double> &constraints,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
                     std::shared_ptr<dealii::Function<dim>> material_property,
                     mfmg::CudaHandle &cuda_handle)
-      : mfmg::DealIIMeshEvaluatorDevice<dim, VectorType>(cuda_handle),
-        _comm(comm), _dof_handler(dof_handler), _matrix(matrix),
-        _material_property(material_property)
+      : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints),
+        _comm(comm), _matrix(matrix), _material_property(material_property)
   {
   }
 
-  virtual dealii::LinearAlgebra::distributed::Vector<value_type>
+  virtual dealii::LinearAlgebra::distributed::Vector<double>
   get_locally_relevant_diag() const override final
   {
     dealii::IndexSet locally_owned_dofs =
         _matrix.locally_owned_domain_indices();
     dealii::IndexSet locally_relevant_dofs;
-    dealii::DoFTools::extract_locally_relevant_dofs(_dof_handler,
+    dealii::DoFTools::extract_locally_relevant_dofs(this->_dof_handler,
                                                     locally_relevant_dofs);
-    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+    dealii::LinearAlgebra::distributed::Vector<double>
         locally_owned_global_diag(locally_owned_dofs, _comm);
     for (auto const val : locally_owned_dofs)
       locally_owned_global_diag[val] = _matrix.diag_element(val);
     locally_owned_global_diag.compress(dealii::VectorOperation::insert);
 
-    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+    dealii::LinearAlgebra::distributed::Vector<double>
         locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
                                      _comm);
     locally_relevant_global_diag = locally_owned_global_diag;
@@ -160,31 +156,27 @@ public:
     return locally_relevant_global_diag;
   }
 
-protected:
-  virtual void
-  evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
-                  std::shared_ptr<mfmg::SparseMatrixDevice<value_type>>
-                      &system_matrix) const override final
+  void evaluate_global(
+      dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+      mfmg::SparseMatrixDevice<double> &system_matrix) const override final
   {
-    system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
-        mfmg::convert_matrix(_matrix)));
-    system_matrix->cusparse_handle = this->cuda_handle.cusparse_handle;
+    system_matrix = std::move(mfmg::convert_matrix(_matrix));
+    system_matrix.cusparse_handle = this->_cuda_handle.cusparse_handle;
     cusparseStatus_t cusparse_error_code;
-    cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
+    cusparse_error_code = cusparseCreateMatDescr(&system_matrix.descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatType(system_matrix->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+        cusparseSetMatType(system_matrix.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatIndexBase(system_matrix->descr, CUSPARSE_INDEX_BASE_ZERO);
+        cusparseSetMatIndexBase(system_matrix.descr, CUSPARSE_INDEX_BASE_ZERO);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   }
 
-  virtual void
-  evaluate_local(dealii::DoFHandler<dim> &dof_handler,
-                 dealii::ConstraintMatrix &constraints,
-                 std::shared_ptr<mfmg::SparseMatrixDevice<value_type>>
-                     &system_matrix) const override final
+  void evaluate_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::ConstraintMatrix &constraints,
+      mfmg::SparseMatrixDevice<double> &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -206,8 +198,7 @@ protected:
     dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
     dealii::SparsityPattern agg_system_sparsity_pattern;
     agg_system_sparsity_pattern.copy_from(dsp);
-    dealii::SparseMatrix<value_type> agg_system_matrix(
-        agg_system_sparsity_pattern);
+    dealii::SparseMatrix<double> agg_system_matrix(agg_system_sparsity_pattern);
 
     // Fill the system matrix
     dealii::QGauss<dim> const quadrature(fe_degree + 1);
@@ -239,23 +230,21 @@ protected:
                                              agg_system_matrix);
     }
 
-    system_matrix.reset(new mfmg::SparseMatrixDevice<value_type>(
-        mfmg::convert_matrix(agg_system_matrix)));
-    system_matrix->cusparse_handle = this->cuda_handle.cusparse_handle;
+    system_matrix = std::move(mfmg::convert_matrix(agg_system_matrix));
+    system_matrix.cusparse_handle = this->_cuda_handle.cusparse_handle;
     cusparseStatus_t cusparse_error_code;
-    cusparse_error_code = cusparseCreateMatDescr(&system_matrix->descr);
+    cusparse_error_code = cusparseCreateMatDescr(&system_matrix.descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatType(system_matrix->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+        cusparseSetMatType(system_matrix.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatIndexBase(system_matrix->descr, CUSPARSE_INDEX_BASE_ZERO);
+        cusparseSetMatIndexBase(system_matrix.descr, CUSPARSE_INDEX_BASE_ZERO);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   }
 
 private:
   MPI_Comm _comm;
-  dealii::DoFHandler<dim> const &_dof_handler;
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
 };
@@ -264,8 +253,7 @@ template <int dim>
 double test(std::shared_ptr<boost::property_tree::ptree> params)
 {
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using MeshEvaluator = mfmg::DealIIMeshEvaluatorDevice<dim, DVector>;
-  using Mesh = mfmg::DealIIMesh<dim>;
+  using MeshEvaluator = mfmg::CudaMeshEvaluator<dim>;
 
   mfmg::CudaHandle cuda_handle;
 
@@ -284,9 +272,6 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 
-  auto mesh =
-      std::make_shared<Mesh>(laplace._dof_handler, laplace._constraints);
-
   auto const &a = laplace._system_matrix;
   auto const locally_owned_dofs = laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
@@ -299,10 +284,10 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  TestMeshEvaluator<dim, DVector> evaluator(comm, laplace._dof_handler, a,
-                                            material_property, cuda_handle);
-  mfmg::Hierarchy<MeshEvaluator, DVector> hierarchy(comm, evaluator, *mesh,
-                                                    params);
+  std::shared_ptr<MeshEvaluator> evaluator(new TestMeshEvaluator<dim>(
+      comm, laplace._dof_handler, laplace._constraints, a, material_property,
+      cuda_handle));
+  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
   pcout << "Operator complexity: " << hierarchy.operator_complexity()

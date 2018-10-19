@@ -72,11 +72,10 @@ public:
    *  Build the agglomerates and their associated triangulations.
    */
   void setup_restrictor(
-      boost::property_tree::ptree const &agglomerate_dim,
+      boost::property_tree::ptree const &params,
       unsigned int const n_eigenvectors, double const tolerance,
       MeshEvaluator const &evaluator,
-      std::shared_ptr<typename MeshEvaluator::global_operator_type const>
-          global_operator,
+      dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix);
 
 private:

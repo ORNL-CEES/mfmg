@@ -71,12 +71,10 @@ public:
   /**
    *  Build the agglomerates and their associated triangulations.
    */
-  mfmg::SparseMatrixDevice<typename VectorType::value_type> setup_restrictor(
-      boost::property_tree::ptree const &agglomerate_dim,
-      unsigned int const n_eigenvectors, double const tolerance,
-      MeshEvaluator const &evaluator,
-      std::shared_ptr<typename MeshEvaluator::global_operator_type const>
-          global_operator);
+  SparseMatrixDevice<typename VectorType::value_type>
+  setup_restrictor(boost::property_tree::ptree const &agglomerate_dim,
+                   unsigned int const n_eigenvectors, double const tolerance,
+                   MeshEvaluator const &evaluator);
 
 private:
   CudaHandle const &_cuda_handle;

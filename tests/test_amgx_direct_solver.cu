@@ -14,7 +14,8 @@
 #include "main.cc"
 
 #if MFMG_WITH_AMGX
-#include <mfmg/dealii_operator_device.cuh>
+#include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/cuda_solver.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/vector_device.cuh>
 
@@ -64,16 +65,17 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
     matrix.vmult(rhs, sol_ref);
 
     // Move the matrix and the rhs to the device
-    mfmg::SparseMatrixDevice<double> matrix_dev(mfmg::convert_matrix(matrix));
-    matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+    auto matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
+        mfmg::convert_matrix(matrix));
+    matrix_dev->cusparse_handle = cuda_handle.cusparse_handle;
     cusparseStatus_t cusparse_error_code =
-        cusparseCreateMatDescr(&matrix_dev.descr);
+        cusparseCreateMatDescr(&matrix_dev->descr);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+        cusparseSetMatType(matrix_dev->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     cusparse_error_code =
-        cusparseSetMatIndexBase(matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+        cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     auto partitioner =
         std::make_shared<dealii::Utilities::MPI::Partitioner>(size);
@@ -86,14 +88,15 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
 
     params->put("solver.type", "amgx");
     params->put("solver.config_file", "amgx_config_fgmres.json");
-    mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-        cuda_handle, matrix_dev, params);
-    BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
-    BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
+    std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> op_dev =
+        std::make_shared<mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>>(
+            matrix_dev);
+    mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
+        cuda_handle, op_dev, params);
     direct_solver_dev.apply(rhs_dev, solution_dev);
 
     // Move the result back to the host
-    int const n_local_rows = matrix_dev.n_local_rows();
+    int const n_local_rows = matrix_dev->n_local_rows();
     std::vector<double> solution_host(n_local_rows);
     mfmg::cuda_mem_copy_to_host(solution_dev.val_dev, solution_host);
 
@@ -153,17 +156,17 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
       sparse_matrix.vmult(rhs, sol_ref);
 
       // Move the matrix and the rhs to the device
-      mfmg::SparseMatrixDevice<double> matrix_dev(
+      auto matrix_dev = std::make_shared<mfmg::SparseMatrixDevice<double>>(
           mfmg::convert_matrix(sparse_matrix));
-      matrix_dev.cusparse_handle = cuda_handle.cusparse_handle;
+      matrix_dev->cusparse_handle = cuda_handle.cusparse_handle;
       cusparseStatus_t cusparse_error_code =
-          cusparseCreateMatDescr(&matrix_dev.descr);
+          cusparseCreateMatDescr(&matrix_dev->descr);
       mfmg::ASSERT_CUSPARSE(cusparse_error_code);
       cusparse_error_code =
-          cusparseSetMatType(matrix_dev.descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+          cusparseSetMatType(matrix_dev->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
       mfmg::ASSERT_CUSPARSE(cusparse_error_code);
       cusparse_error_code =
-          cusparseSetMatIndexBase(matrix_dev.descr, CUSPARSE_INDEX_BASE_ZERO);
+          cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
       mfmg::ASSERT_CUSPARSE(cusparse_error_code);
       mfmg::VectorDevice<double> rhs_dev(rhs);
       mfmg::VectorDevice<double> solution_dev(sol_ref);
@@ -171,10 +174,11 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
 
       params->put("solver.type", "amgx");
       params->put("solver.config_file", "amgx_config_fgmres.json");
-      mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>> direct_solver_dev(
-          cuda_handle, matrix_dev, params);
-      BOOST_CHECK_EQUAL(direct_solver_dev.m(), matrix_dev.m());
-      BOOST_CHECK_EQUAL(direct_solver_dev.n(), matrix_dev.n());
+
+      std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> cuda_op(
+          new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
+      mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
+          cuda_handle, cuda_op, params);
 
       // Move the result back to the host
       std::vector<double> solution_host(n_local_rows);

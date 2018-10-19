@@ -9,27 +9,35 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef MFMG_DEALII_MESH_HPP
-#define MFMG_DEALII_MESH_HPP
+#ifndef MFMG_CUDA_SMOOTHER
+#define MFMG_CUDA_SMOOTHER
 
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/lac/affine_constraints.h>
+#include <mfmg/operator.hpp>
+#include <mfmg/smoother.hpp>
+
+#ifdef MFMG_WITH_CUDA
+
+#include <mfmg/sparse_matrix_device.cuh>
 
 namespace mfmg
 {
-template <int dim>
-struct DealIIMesh
+template <typename VectorType>
+class CudaSmoother : public Smoother<VectorType>
 {
-  DealIIMesh(dealii::DoFHandler<dim> &dof_handler,
-             dealii::AffineConstraints<double> &constraints)
-      : _dof_handler(dof_handler), _constraints(constraints)
-  {
-  }
+public:
+  using value_type = typename VectorType::value_type;
+  using vector_type = VectorType;
 
-  static constexpr int dimension() { return dim; }
-  dealii::DoFHandler<dim> &_dof_handler;
-  dealii::AffineConstraints<double> &_constraints;
+  CudaSmoother(std::shared_ptr<Operator<vector_type> const> op,
+               std::shared_ptr<boost::property_tree::ptree const> params);
+
+  void apply(vector_type const &x, vector_type &y) const final;
+
+private:
+  SparseMatrixDevice<value_type> _smoother;
 };
 } // namespace mfmg
+
+#endif
 
 #endif

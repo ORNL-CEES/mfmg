@@ -9,18 +9,28 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_operator_device.templates.cuh>
-#include <mfmg/vector_device.cuh>
+#ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
+#define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
-#include <deal.II/lac/la_parallel_vector.h>
+#include <mfmg/dealii_trilinos_matrix_operator.hpp>
 
-template class mfmg::SparseMatrixDeviceOperator<mfmg::VectorDevice<double>>;
-template class mfmg::SmootherDeviceOperator<mfmg::VectorDevice<double>>;
-template class mfmg::DirectDeviceOperator<mfmg::VectorDevice<double>>;
+namespace mfmg
+{
+template <typename VectorType>
+class DealIIMatrixFreeOperator : public DealIITrilinosMatrixOperator<VectorType>
+{
+public:
+  using vector_type = VectorType;
 
-template class mfmg::SparseMatrixDeviceOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::SmootherDeviceOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::DirectDeviceOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+  DealIIMatrixFreeOperator(
+      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
+
+  std::shared_ptr<Operator<VectorType>>
+  multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
+
+  std::shared_ptr<Operator<VectorType>> multiply_transpose(
+      std::shared_ptr<Operator<VectorType> const> b) const override final;
+};
+} // namespace mfmg
+
+#endif
