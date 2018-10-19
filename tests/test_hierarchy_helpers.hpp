@@ -12,8 +12,8 @@
 #ifndef MFMG_TEST_HIERARCHY_HELPERS_HPP
 #define MFMG_TEST_HIERARCHY_HELPERS_HPP
 
-#include <mfmg/dealii_mesh_evaluator.hpp>
-#include <mfmg/hierarchy.hpp>
+#include <mfmg/common/hierarchy.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/dofs/dof_accessor.h>

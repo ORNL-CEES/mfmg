@@ -11,8 +11,8 @@
 
 #define BOOST_TEST_MODULE utils
 
-#include <mfmg/sparse_matrix_device.cuh>
-#include <mfmg/utils.cuh>
+#include <mfmg/cuda/sparse_matrix_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/lac/la_parallel_vector.h>
 

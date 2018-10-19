@@ -11,10 +11,10 @@
 
 #define BOOST_TEST_MODULE eigenvectors_device
 
-#include <mfmg/amge_device.cuh>
-#include <mfmg/cuda_mesh_evaluator.cuh>
-#include <mfmg/sparse_matrix_device.cuh>
-#include <mfmg/utils.cuh>
+#include <mfmg/cuda/amge_device.cuh>
+#include <mfmg/cuda/cuda_mesh_evaluator.cuh>
+#include <mfmg/cuda/sparse_matrix_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>

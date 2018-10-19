@@ -14,10 +14,10 @@
 #include "main.cc"
 
 #if MFMG_WITH_AMGX
-#include <mfmg/cuda_matrix_operator.cuh>
-#include <mfmg/cuda_solver.cuh>
-#include <mfmg/sparse_matrix_device.cuh>
-#include <mfmg/vector_device.cuh>
+#include <mfmg/cuda/cuda_matrix_operator.cuh>
+#include <mfmg/cuda/cuda_solver.cuh>
+#include <mfmg/cuda/sparse_matrix_device.cuh>
+#include <mfmg/cuda/vector_device.cuh>
 
 #include <boost/property_tree/ptree.hpp>
 

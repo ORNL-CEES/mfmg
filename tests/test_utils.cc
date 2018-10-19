@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE utils
 
-#include <mfmg/utils.hpp>
+#include <mfmg/common/utils.hpp>
 
 #include <Teuchos_ParameterList.hpp>
 

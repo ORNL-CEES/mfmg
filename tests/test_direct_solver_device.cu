@@ -11,10 +11,10 @@
 
 #define BOOST_TEST_MODULE direct_solver_device
 
-#include <mfmg/cuda_matrix_operator.cuh>
-#include <mfmg/cuda_solver.cuh>
-#include <mfmg/exceptions.hpp>
-#include <mfmg/utils.cuh>
+#include <mfmg/common/exceptions.hpp>
+#include <mfmg/cuda/cuda_matrix_operator.cuh>
+#include <mfmg/cuda/cuda_solver.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <random>
 

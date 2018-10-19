@@ -11,8 +11,8 @@
 
 #define BOOST_TEST_MODULE eigenvectors
 
-#include <mfmg/amge_host.hpp>
-#include <mfmg/dealii_mesh_evaluator.hpp>
+#include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
