@@ -10,7 +10,6 @@
  *************************************************************************/
 
 #include <mfmg/dealii_smoother.hpp>
-
 #include <mfmg/dealii_trilinos_matrix_operator.hpp>
 #include <mfmg/exceptions.hpp>
 #include <mfmg/instantiation.hpp>

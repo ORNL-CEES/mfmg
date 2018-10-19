@@ -11,8 +11,6 @@
 
 #define BOOST_TEST_MODULE smoother_device
 
-#include "main.cc"
-
 #include <mfmg/cuda_matrix_operator.cuh>
 #include <mfmg/cuda_smoother.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
@@ -20,6 +18,8 @@
 #include <deal.II/lac/precondition.h>
 
 #include <boost/property_tree/ptree.hpp>
+
+#include "main.cc"
 
 BOOST_AUTO_TEST_CASE(smoother)
 {

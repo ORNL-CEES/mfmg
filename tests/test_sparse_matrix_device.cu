@@ -11,14 +11,14 @@
 
 #define BOOST_TEST_MODULE utils
 
-#include "main.cc"
-
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
 #include <deal.II/lac/la_parallel_vector.h>
 
 #include <set>
+
+#include "main.cc"
 
 BOOST_AUTO_TEST_CASE(serial_mv)
 {

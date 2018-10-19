@@ -11,11 +11,8 @@
 
 #define BOOST_TEST_MODULE utils_device
 
-#include "main.cc"
-
-#include <mfmg/utils.cuh>
-
 #include <mfmg/sparse_matrix_device.cuh>
+#include <mfmg/utils.cuh>
 
 #include <deal.II/base/index_set.h>
 #include <deal.II/lac/sparse_matrix.h>
@@ -25,6 +22,8 @@
 #include <algorithm>
 #include <random>
 #include <set>
+
+#include "main.cc"
 
 template <typename ScalarType>
 std::vector<ScalarType> copy_to_host(ScalarType *val_dev,

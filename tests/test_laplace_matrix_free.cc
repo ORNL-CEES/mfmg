@@ -11,10 +11,10 @@
 
 #define BOOST_TEST_MODULE laplace_matrix_free
 
+#include <deal.II/lac/precondition.h>
+
 #include "laplace_matrix_free.hpp"
 #include "main.cc"
-
-#include <deal.II/lac/precondition.h>
 
 namespace tt = boost::test_tools;
 

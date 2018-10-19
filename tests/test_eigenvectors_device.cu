@@ -11,8 +11,6 @@
 
 #define BOOST_TEST_MODULE eigenvectors_device
 
-#include "main.cc"
-
 #include <mfmg/amge_device.cuh>
 #include <mfmg/cuda_mesh_evaluator.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
@@ -23,6 +21,8 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
+
+#include "main.cc"
 
 template <int dim>
 class DiagonalTestMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>

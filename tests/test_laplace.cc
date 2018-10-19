@@ -11,11 +11,12 @@
 
 #define BOOST_TEST_MODULE laplace
 
-#include "laplace.hpp"
-#include "main.cc"
 #include <deal.II/lac/trilinos_precondition.h>
 
 #include <cstdio>
+
+#include "laplace.hpp"
+#include "main.cc"
 
 namespace tt = boost::test_tools;
 

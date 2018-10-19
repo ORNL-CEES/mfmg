@@ -19,9 +19,9 @@
 
 #include <boost/property_tree/ptree.hpp>
 
-#include <mpi.h>
-
 #include <memory>
+
+#include <mpi.h>
 
 namespace mfmg
 {

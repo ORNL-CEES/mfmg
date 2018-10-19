@@ -13,7 +13,6 @@
 #define AMG_TEMPLATES_HPP
 
 #include <mfmg/amge.hpp>
-
 #include <mfmg/exceptions.hpp>
 
 #include <deal.II/distributed/tria.h>

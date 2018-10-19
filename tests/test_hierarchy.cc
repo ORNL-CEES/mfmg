@@ -11,11 +11,6 @@
 
 #define BOOST_TEST_MODULE hierarchy
 
-#include "main.cc"
-
-#include "laplace.hpp"
-#include "test_hierarchy_helpers.hpp"
-
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -34,6 +29,10 @@
 #include <boost/test/data/test_case.hpp>
 
 #include <random>
+
+#include "laplace.hpp"
+#include "main.cc"
+#include "test_hierarchy_helpers.hpp"
 
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;

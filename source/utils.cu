@@ -9,9 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/utils.cuh>
-
 #include <mfmg/sparse_matrix_device.cuh>
+#include <mfmg/utils.cuh>
 #include <mfmg/utils.hpp>
 
 #include <deal.II/lac/trilinos_index_access.h>

@@ -11,10 +11,6 @@
 
 #define BOOST_TEST_MODULE restriction
 
-#include "main.cc"
-
-#include "laplace.hpp"
-
 #include <mfmg/amge_host.hpp>
 #include <mfmg/dealii_mesh_evaluator.hpp>
 
@@ -27,6 +23,9 @@
 #include <boost/property_tree/info_parser.hpp>
 
 #include <random>
+
+#include "laplace.hpp"
+#include "main.cc"
 
 namespace utf = boost::unit_test;
 

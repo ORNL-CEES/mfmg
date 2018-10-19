@@ -11,14 +11,14 @@
 
 #define BOOST_TEST_MODULE sparse_matrix_device_operator
 
-#include "main.cc"
-
 #include <mfmg/cuda_matrix_operator.cuh>
 #include <mfmg/sparse_matrix_device.cuh>
 #include <mfmg/utils.cuh>
 
 #include <set>
 #include <utility>
+
+#include "main.cc"
 
 BOOST_AUTO_TEST_CASE(matrix_operator)
 {

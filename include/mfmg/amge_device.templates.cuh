@@ -14,7 +14,6 @@
 
 #include <mfmg/amge.templates.hpp>
 #include <mfmg/amge_device.cuh>
-
 #include <mfmg/utils.cuh>
 
 #include <deal.II/dofs/dof_accessor.h>

@@ -12,9 +12,8 @@
 #ifndef MFMG_DEALII_MESH_EVALUATOR_HPP
 #define MFMG_DEALII_MESH_EVALUATOR_HPP
 
-#include <mfmg/mesh_evaluator.hpp>
-
 #include <mfmg/exceptions.hpp>
+#include <mfmg/mesh_evaluator.hpp>
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/affine_constraints.h>

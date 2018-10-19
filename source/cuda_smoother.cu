@@ -9,9 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/cuda_smoother.cuh>
-
 #include <mfmg/cuda_matrix_operator.cuh>
+#include <mfmg/cuda_smoother.cuh>
 #include <mfmg/dealii_operator_device_helpers.cuh>
 
 namespace mfmg
