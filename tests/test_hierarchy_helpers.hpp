@@ -12,8 +12,6 @@
 #ifndef MFMG_TEST_HIERARCHY_HELPERS_HPP
 #define MFMG_TEST_HIERARCHY_HELPERS_HPP
 
-#include "laplace.hpp"
-
 #include <mfmg/dealii_mesh_evaluator.hpp>
 #include <mfmg/hierarchy.hpp>
 
@@ -31,6 +29,8 @@
 #include <boost/test/data/test_case.hpp>
 
 #include <random>
+
+#include "laplace.hpp"
 
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;

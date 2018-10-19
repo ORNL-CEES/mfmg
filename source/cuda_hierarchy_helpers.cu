@@ -9,9 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/cuda_hierarchy_helpers.cuh>
-
 #include <mfmg/amge_device.cuh>
+#include <mfmg/cuda_hierarchy_helpers.cuh>
 #include <mfmg/cuda_matrix_operator.cuh>
 #include <mfmg/cuda_mesh_evaluator.cuh>
 #include <mfmg/cuda_smoother.cuh>

@@ -11,14 +11,14 @@
 
 #define BOOST_TEST_MODULE direct_solver_device
 
-#include "main.cc"
-
 #include <mfmg/cuda_matrix_operator.cuh>
 #include <mfmg/cuda_solver.cuh>
 #include <mfmg/exceptions.hpp>
 #include <mfmg/utils.cuh>
 
 #include <random>
+
+#include "main.cc"
 
 BOOST_AUTO_TEST_CASE(direct_solver)
 {

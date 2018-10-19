@@ -14,10 +14,9 @@
 
 #ifdef MFMG_WITH_CUDA
 
-#include <mfmg/mesh_evaluator.hpp>
-
 #include <mfmg/cuda_handle.cuh>
 #include <mfmg/exceptions.hpp>
+#include <mfmg/mesh_evaluator.hpp>
 #include <mfmg/sparse_matrix_device.cuh>
 
 #include <deal.II/dofs/dof_handler.h>

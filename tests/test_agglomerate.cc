@@ -11,8 +11,6 @@
 
 #define BOOST_TEST_MODULE agglomerate
 
-#include "main.cc"
-
 #include <mfmg/amge_host.hpp>
 #include <mfmg/dealii_mesh_evaluator.hpp>
 
@@ -21,10 +19,11 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/trilinos_vector.h>
+#include <deal.II/numerics/data_out.h>
 
 #include <array>
 
-#include <deal.II/numerics/data_out.h>
+#include "main.cc"
 
 template <int dim>
 std::vector<unsigned int> test(MPI_Comm const &world)

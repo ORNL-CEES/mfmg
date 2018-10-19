@@ -10,7 +10,6 @@
  *************************************************************************/
 
 #include <mfmg/cuda_handle.cuh>
-
 #include <mfmg/exceptions.hpp>
 
 namespace mfmg

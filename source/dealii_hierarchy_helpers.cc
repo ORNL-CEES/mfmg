@@ -9,9 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_hierarchy_helpers.hpp>
-
 #include <mfmg/amge_host.hpp>
+#include <mfmg/dealii_hierarchy_helpers.hpp>
 #include <mfmg/dealii_mesh_evaluator.hpp>
 #include <mfmg/dealii_smoother.hpp>
 #include <mfmg/dealii_solver.hpp>

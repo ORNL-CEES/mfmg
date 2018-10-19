@@ -11,13 +11,14 @@
 
 #define BOOST_TEST_MODULE utils
 
-#include "main.cc"
-
 #include <mfmg/utils.hpp>
 
 #include <Teuchos_ParameterList.hpp>
+
 #include <boost/property_tree/info_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+
+#include "main.cc"
 
 BOOST_AUTO_TEST_CASE(plist2ptree)
 {

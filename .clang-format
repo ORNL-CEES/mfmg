@@ -3,4 +3,25 @@ BasedOnStyle:  LLVM
 Language:        Cpp
 AlwaysBreakTemplateDeclarations: true
 BreakBeforeBraces: Allman
+IncludeBlocks: Regroup
+IncludeCategories:
+# mfmg first
+  - Regex: "mfmg/*"
+    Priority: 100
+# Then deal.II
+  - Regex: "deal.II/*"
+    Priority: 200
+# Then Trilinos
+  - Regex: "Epetra_*"
+    Priority: 300
+  - Regex: "ml_*"
+    Priority: 310
+  - Regex: "Teuchos_*"
+    Priority: 320
+# Then boost
+  - Regex: "boost*"
+    Priority: 400
+# Finally the standard library
+  - Regex: "<[a-z_]+>"
+    Priority: 1000
 ...

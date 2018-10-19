@@ -1,8 +1,8 @@
-#include "test_hierarchy_helpers.hpp"
-
 #include <mfmg/exceptions.hpp>
 
 #include <boost/program_options.hpp>
+
+#include "test_hierarchy_helpers.hpp"
 
 template <int dim>
 void main_(std::shared_ptr<boost::property_tree::ptree> params)

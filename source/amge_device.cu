@@ -10,7 +10,6 @@
  *************************************************************************/
 
 #include <mfmg/amge_device.templates.cuh>
-
 #include <mfmg/cuda_mesh_evaluator.cuh>
 #include <mfmg/vector_device.cuh>
 

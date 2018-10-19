@@ -11,15 +11,14 @@
 
 #define BOOST_TEST_MODULE hierarchy_boost
 
-#include "main.cc"
-
-#include "laplace.hpp"
-
 #include <mfmg/hierarchy.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 
 #include <boost/property_tree/info_parser.hpp>
+
+#include "laplace.hpp"
+#include "main.cc"
 
 template <int dim>
 class Source : public dealii::Function<dim>

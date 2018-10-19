@@ -11,8 +11,6 @@
 
 #define BOOST_TEST_MODULE eigenvectors
 
-#include "main.cc"
-
 #include <mfmg/amge_host.hpp>
 #include <mfmg/dealii_mesh_evaluator.hpp>
 
@@ -23,6 +21,8 @@
 #include <deal.II/lac/trilinos_vector.h>
 
 #include <algorithm>
+
+#include "main.cc"
 
 namespace tt = boost::test_tools;
 namespace ut = boost::unit_test;

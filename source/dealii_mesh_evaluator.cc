@@ -10,7 +10,6 @@
  *************************************************************************/
 
 #include <mfmg/dealii_mesh_evaluator.hpp>
-
 #include <mfmg/instantiation.hpp>
 
 namespace mfmg
