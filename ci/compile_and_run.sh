@@ -8,12 +8,13 @@
 # using an `rpath` (see https://github.com/NVIDIA/nvidia-docker/issues/775). For
 # some reason the problem only appears with CUSolver having missing symbol to
 # OpenMP. Removing the stubs fixes the problem.
-rm -r  /usr/local/cuda/lib64/stubs
+#rm -r  /usr/local/cuda/lib64/stubs
 cd $1
 rm -rf build
 export LD_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/5.4.0:${LD_LIBRARY_PATH}
 mkdir build && cd build
 ARGS=(
+  -D BUILD_SHARED_LIBS=OFF
   -D CMAKE_BUILD_TYPE=Debug
   -D MFMG_ENABLE_TESTS=ON
   -D MFMG_ENABLE_CUDA=ON
