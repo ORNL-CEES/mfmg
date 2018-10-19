@@ -8,16 +8,10 @@ INCLUDE(SetupTPLs)
 INCLUDE(SetupMFMG)
 INCLUDE(SetupCache)
 
-# By default build a static library because CUDA does not work with a shared
-# library
-OPTION(BUILD_SHARED_LIBS "Build a shared library" OFF)
 
 INITIALIZE_CACHE()
 
 IF(${MFMG_ENABLE_CUDA})
-  IF (${BUILD_SHARED_LIBS})
-    MESSAGE(SEND_ERROR "CUDA build does not support shared library")
-  ENDIF()
   # ENABLE_LANGUAGE cannot be in a function and it has to be called in the
   # highest directory so we cannot encapsulate it
   ENABLE_LANGUAGE(CUDA)
@@ -74,7 +68,7 @@ TARGET_INCLUDE_DIRECTORIES(mfmg SYSTEM PUBLIC ${DEAL_II_INCLUDE_DIRS})
 TARGET_LINK_LIBRARIES(mfmg PUBLIC ${DEAL_II_LIBRARIES})
 TARGET_LINK_LIBRARIES(mfmg PUBLIC ${MFMG_CUDA_LIBRARIES})
 TARGET_INCLUDE_DIRECTORIES(mfmg PUBLIC ${AMGX_INCLUDE_DIR})
-TARGET_LINK_LIBRARIES(mfmg PUBLIC ${AMGX_LIBRARY})
+TARGET_LINK_LIBRARIES(mfmg PUBLIC ${AMGX_LIBRARIES})
 TARGET_COMPILE_DEFINITIONS(mfmg PRIVATE ${CLANG_TIDY_DEFINITIONS})
 
 IF(${Backtrace_FOUND})
