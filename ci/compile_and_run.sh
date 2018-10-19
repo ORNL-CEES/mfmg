@@ -14,6 +14,7 @@ rm -rf build
 export LD_LIBRARY_PATH=/usr/lib/gcc/x86_64-linux-gnu/5.4.0:${LD_LIBRARY_PATH}
 mkdir build && cd build || exit 1
 ARGS=(
+  -D BUILD_SHARED_LIBS=OFF
   -D CMAKE_BUILD_TYPE=Debug
   -D MFMG_ENABLE_TESTS=ON
   -D MFMG_ENABLE_CUDA=ON
