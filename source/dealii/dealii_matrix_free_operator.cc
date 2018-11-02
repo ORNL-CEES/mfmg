@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#include <mfmg/common/instantiation.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 
 #include <deal.II/lac/la_parallel_vector.h>
@@ -154,5 +155,4 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::DealIIMatrixFreeOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+INSTANTIATE_VECTORTYPE(TUPLE(DealIIMatrixFreeOperator))
