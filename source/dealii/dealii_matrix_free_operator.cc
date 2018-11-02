@@ -108,48 +108,48 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
-    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> matrix)
-    : DealIITrilinosMatrixOperator<VectorType>(matrix)
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
+    : DealIITrilinosMatrixOperator<VectorType>(sparse_matrix)
 {
 }
 
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
-    std::shared_ptr<Operator<VectorType> const> operator_b) const
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+  auto downcast_b =
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(b);
 
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b.get_matrix();
+  auto a_mat = this->get_matrix();
+  auto b_mat = downcast_b.get_matrix();
 
-  auto c = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-  a->mmult(*c, *b);
+  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
+  a_mat->mmult(*c_mat, *b_mat);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c);
+  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
 }
 
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
-    std::shared_ptr<Operator<VectorType> const> operator_b) const
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+  auto downcast_b =
+      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(b);
 
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b.get_matrix();
+  auto a_mat = this->get_matrix();
+  auto b_mat = downcast_b.get_matrix();
 
-  auto c = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-      a->locally_owned_range_indices(), b->locally_owned_range_indices(),
-      a->get_mpi_communicator());
+  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
+      a_mat->locally_owned_range_indices(),
+      b_mat->locally_owned_range_indices(), a_mat->get_mpi_communicator());
 
-  matrix_transpose_matrix_multiply(*c, *b, *a);
+  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *a_mat);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c);
+  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
 }
 } // namespace mfmg
 
