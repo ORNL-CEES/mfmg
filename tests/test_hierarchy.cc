@@ -68,8 +68,12 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
+  auto const mesh_evaluator_type =
+      params->get<std::string>("mesh_evaluator_type", "DealIIMeshEvaluator");
+
   auto evaluator = std::make_shared<TestMeshEvaluator<dim>>(
-      laplace._dof_handler, laplace._constraints, a, material_property);
+      laplace._dof_handler, laplace._constraints, a, material_property,
+      mesh_evaluator_type);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
@@ -107,22 +111,27 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-BOOST_AUTO_TEST_CASE(benchmark)
+char const *mesh_evaluator_types[] = {"DealIIMeshEvaluator",
+                                      "DealIIMatrixFreeMeshEvaluator"};
+BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
+                     mesh_evaluator_type)
 {
   unsigned int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("mesh_evaluator_type", mesh_evaluator_type);
 
   test<dim>(params);
 }
 
-BOOST_AUTO_TEST_CASE(ml)
+BOOST_DATA_TEST_CASE(ml, bdata::make(mesh_evaluator_types), mesh_evaluator_type)
 {
   unsigned int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("mesh_evaluator_type", mesh_evaluator_type);
 
   double gold_rate = test<dim>(params);
 
@@ -145,8 +154,9 @@ BOOST_AUTO_TEST_CASE(ml)
 BOOST_DATA_TEST_CASE(hierarchy_3d,
                      bdata::make({"hyper_cube", "hyper_ball"}) *
                          bdata::make({false, true}) *
-                         bdata::make({"None", "Reverse Cuthill_McKee"}),
-                     mesh, distort_random, reordering)
+                         bdata::make({"None", "Reverse Cuthill_McKee"}) *
+                         bdata::make(mesh_evaluator_types),
+                     mesh, distort_random, reordering, mesh_evaluator_type)
 {
   // TODO investigate why there is large difference in convergence rate when
   // running in parallel.
@@ -156,6 +166,7 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
+    params->put("mesh_evaluator_type", mesh_evaluator_type);
 
     params->put("eigensolver.type", "lapack");
     params->put("agglomeration.nz", 2);
