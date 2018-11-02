@@ -40,7 +40,9 @@ extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
 
   dealii::IndexSet ghost_indices(matrix.locally_owned_domain_indices().size());
   for (int k = 0; k < num_entries; ++k)
+  {
     ghost_indices.add_index(matrix.trilinos_matrix().GCID(local_indices[k]));
+  }
   ghost_indices.compress();
   dealii::LinearAlgebra::distributed::Vector<double> ghosted_vector(
       matrix.locally_owned_domain_indices(), ghost_indices,
@@ -100,7 +102,9 @@ void matrix_transpose_matrix_multiply(
       {
         auto const value = dst[i];
         if (std::abs(value) > 1e-14) // is that an appropriate epsilon?
+        {
           C.set(i, j, value);
+        }
       }
     }
   }
