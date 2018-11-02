@@ -126,10 +126,11 @@ DealIIMatrixFreeOperator<VectorType>::multiply(
 {
   // Downcast to TrilinosMatrixOperator
   auto downcast_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(b);
+      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
+          b);
 
   auto a_mat = this->get_matrix();
-  auto b_mat = downcast_b.get_matrix();
+  auto b_mat = downcast_b->get_matrix();
 
   auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
   a_mat->mmult(*c_mat, *b_mat);
@@ -144,10 +145,11 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
 {
   // Downcast to TrilinosMatrixOperator
   auto downcast_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(b);
+      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
+          b);
 
   auto a_mat = this->get_matrix();
-  auto b_mat = downcast_b.get_matrix();
+  auto b_mat = downcast_b->get_matrix();
 
   auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
       a_mat->locally_owned_range_indices(),
