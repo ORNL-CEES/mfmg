@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
+#include <mfmg/common/exceptions.hpp>
 #include <mfmg/common/instantiation.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 
