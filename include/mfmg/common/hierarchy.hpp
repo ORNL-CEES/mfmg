@@ -20,6 +20,7 @@
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
 #include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
+#include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
