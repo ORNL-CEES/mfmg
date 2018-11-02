@@ -9,7 +9,7 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_matrix_free_operator.hpp>
+#include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 
 #include <deal.II/lac/la_parallel_vector.h>
 

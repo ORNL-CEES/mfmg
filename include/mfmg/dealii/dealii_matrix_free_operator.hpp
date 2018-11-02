@@ -12,7 +12,7 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 #define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
-#include <mfmg/dealii_trilinos_matrix_operator.hpp>
+#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 namespace mfmg
 {
