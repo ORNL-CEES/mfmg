@@ -46,7 +46,9 @@ void DealIIMeshEvaluator<dim>::set_initial_guess(
   std::default_random_engine generator;
   std::uniform_real_distribution<double> distribution(0., 1.);
   for (unsigned int i = 0; i < n; ++i)
+  {
     x[i] = (!constraints.is_constrained(i) ? distribution(generator) : 0.);
+  }
 }
 
 template <int dim>
