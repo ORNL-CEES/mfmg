@@ -25,10 +25,9 @@ template <int dim>
 class DealIIMeshEvaluator : public MeshEvaluator
 {
 public:
-  DealIIMeshEvaluator(
-      dealii::DoFHandler<dim> &dof_handler,
-      dealii::AffineConstraints<double> &constraints,
-      std::string const &mesh_evaluator_type = "DealIIMeshEvaluator");
+  DealIIMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
+                      dealii::AffineConstraints<double> &constraints,
+                      std::string mesh_evaluator_type = "DealIIMeshEvaluator");
 
   int get_dim() const override final;
 

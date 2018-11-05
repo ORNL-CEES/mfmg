@@ -21,9 +21,9 @@ template <int dim>
 DealIIMeshEvaluator<dim>::DealIIMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
     dealii::AffineConstraints<double> &constraints,
-    std::string const &mesh_evaluator_type)
+    std::string mesh_evaluator_type)
     : _dof_handler(dof_handler), _constraints(constraints),
-      _mesh_evaluator_type(mesh_evaluator_type)
+      _mesh_evaluator_type(std::move(mesh_evaluator_type))
 {
   std::vector<std::string> const valid_mesh_evaluator_types = {
       "DealIIMeshEvaluator", "DealIIMatrixFreeMeshEvaluator"};
