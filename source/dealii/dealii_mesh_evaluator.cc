@@ -17,8 +17,10 @@ namespace mfmg
 template <int dim>
 DealIIMeshEvaluator<dim>::DealIIMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
-    dealii::AffineConstraints<double> &constraints)
-    : _dof_handler(dof_handler), _constraints(constraints)
+    dealii::AffineConstraints<double> &constraints,
+    std::string const &mesh_evaluator_type)
+    : _dof_handler(dof_handler), _constraints(constraints),
+      _mesh_evaluator_type(mesh_evaluator_type)
 {
 }
 
@@ -31,7 +33,7 @@ int DealIIMeshEvaluator<dim>::get_dim() const
 template <int dim>
 std::string DealIIMeshEvaluator<dim>::get_mesh_evaluator_type() const
 {
-  return "DealIIMeshEvaluator";
+  return _mesh_evaluator_type;
 }
 
 template <int dim>

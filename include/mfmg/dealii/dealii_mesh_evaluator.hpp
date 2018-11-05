@@ -25,8 +25,10 @@ template <int dim>
 class DealIIMeshEvaluator : public MeshEvaluator
 {
 public:
-  DealIIMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
-                      dealii::AffineConstraints<double> &constraints);
+  DealIIMeshEvaluator(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::AffineConstraints<double> &constraints,
+      std::string const &mesh_evaluator_type = "DealIIMeshEvaluator");
 
   int get_dim() const override final;
 
@@ -64,6 +66,7 @@ public:
 protected:
   dealii::DoFHandler<dim> &_dof_handler;
   dealii::AffineConstraints<double> &_constraints;
+  std::string const _mesh_evaluator_type;
 };
 } // namespace mfmg
 
