@@ -12,6 +12,9 @@
 #include <mfmg/common/instantiation.hpp>
 #include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
+#include <algorithm>
+#include <vector>
+
 namespace mfmg
 {
 template <int dim>
@@ -22,6 +25,14 @@ DealIIMeshEvaluator<dim>::DealIIMeshEvaluator(
     : _dof_handler(dof_handler), _constraints(constraints),
       _mesh_evaluator_type(mesh_evaluator_type)
 {
+  std::vector<std::string> const valid_mesh_evaluator_types = {
+      "DealIIMeshEvaluator", "DealIIMatrixFreeMeshEvaluator"};
+  ASSERT(std::find(std::begin(valid_mesh_evaluator_types),
+                   std::end(valid_mesh_evaluator_types),
+                   _mesh_evaluator_type) !=
+             std::end(valid_mesh_evaluator_types),
+         "mesh_evaluator_type string argument passed to DealIIMeshEvaluator "
+         "constructor is not valid");
 }
 
 template <int dim>
