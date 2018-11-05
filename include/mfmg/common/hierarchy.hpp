@@ -45,6 +45,18 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
     else
       ASSERT_THROW_NOT_IMPLEMENTED();
   }
+  else if (evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    int const dim = evaluator->get_dim();
+    if (dim == 2)
+      hierarchy_helpers.reset(
+          new DealIIMatrixFreeHierarchyHelpers<2, VectorType>());
+    else if (dim == 3)
+      hierarchy_helpers.reset(
+          new DealIIMatrixFreeHierarchyHelpers<3, VectorType>());
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
+  }
   else if (evaluator_type == "CudaMeshEvaluator")
   {
     int const dim = evaluator->get_dim();
