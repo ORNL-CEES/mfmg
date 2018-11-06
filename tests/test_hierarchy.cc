@@ -206,7 +206,8 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
   }
 }
 
-BOOST_AUTO_TEST_CASE(zoltan)
+BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
+                     mesh_evaluator_type)
 {
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
@@ -215,6 +216,7 @@ BOOST_AUTO_TEST_CASE(zoltan)
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
+    params->put("mesh_evaluator_type", mesh_evaluator_type);
 
     params->put("agglomeration.partitioner", "zoltan");
     params->put("agglomeration.n_agglomerates", 4);
