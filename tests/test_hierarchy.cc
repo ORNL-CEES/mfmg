@@ -206,11 +206,8 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
   }
 }
 
-// There is a problem with Zoltan where the second time it is called (with the
-// same input) the partitioning is different than the first time. This looks
-// like a problem from Zoltan (we only use it through deal.II and the code looks
-// fine), so we run the Zoltan test only once.
-BOOST_AUTO_TEST_CASE(zoltan)
+BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
+                     mesh_evaluator_type)
 {
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
@@ -219,7 +216,7 @@ BOOST_AUTO_TEST_CASE(zoltan)
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
-    params->put("mesh_evaluator_type", "DealIIMeshEvaluator");
+    params->put("mesh_evaluator_type", mesh_evaluator_type);
 
     params->put("agglomeration.partitioner", "zoltan");
     params->put("agglomeration.n_agglomerates", 4);
