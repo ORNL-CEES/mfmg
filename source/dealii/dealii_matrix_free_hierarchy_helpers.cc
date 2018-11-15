@@ -75,9 +75,9 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
   auto matrix_free_global_operator =
       std::dynamic_pointer_cast<DealIIMatrixFreeOperator<VectorType>>(
           global_operator);
-  // ughhh
+  // FIXME only the diagonal entries are actually needed to compute the
+  // restrictor. See ORNL-CEES/mfmg#97
   auto system_sparse_matrix = matrix_free_global_operator->get_matrix();
-  // why do we pass system matrix to amge?
   amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
                         *dealii_mesh_evaluator, *system_sparse_matrix,
                         *restrictor_matrix);
