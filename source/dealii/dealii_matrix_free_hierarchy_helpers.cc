@@ -18,6 +18,8 @@
 #include <mfmg/dealii/dealii_smoother.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
+#include <deal.II/dofs/dof_tools.h>
+
 namespace mfmg
 {
 // copy/paste from DealIIMatrixFreeHierarchyHelpers::get_global_operator()
@@ -78,8 +80,28 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
   // FIXME only the diagonal entries are actually needed to compute the
   // restrictor. See ORNL-CEES/mfmg#97
   auto system_sparse_matrix = matrix_free_global_operator->get_matrix();
+
+  auto const &dof_handler = dealii_mesh_evaluator->get_dof_handler();
+  // Extract the diagonal of the system sparse matrix. Each processor gets the
+  // locally relevant indices, i.e., owned + ghost
+  dealii::IndexSet locally_owned_dofs =
+      system_sparse_matrix->locally_owned_domain_indices();
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                  locally_relevant_dofs);
+  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+      locally_owned_global_diag(locally_owned_dofs, comm);
+  for (auto const val : locally_owned_dofs)
+    locally_owned_global_diag[val] = system_sparse_matrix->diag_element(val);
+  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+      locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                   comm);
+  locally_relevant_global_diag = locally_owned_global_diag;
+
   amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
-                        *dealii_mesh_evaluator, *system_sparse_matrix,
+                        *dealii_mesh_evaluator, locally_relevant_global_diag,
                         *restrictor_matrix);
 
   std::shared_ptr<Operator<VectorType>> op(
