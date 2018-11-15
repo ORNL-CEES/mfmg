@@ -67,7 +67,6 @@ public:
    */
   void output(std::string const &filename) const;
 
-protected:
   void compute_restriction_sparse_matrix(
       std::vector<dealii::Vector<typename VectorType::value_type>> const
           &eigenvectors,
@@ -81,6 +80,7 @@ protected:
           &locally_relevant_global_diag_dev,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
 
+protected:
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;
 
