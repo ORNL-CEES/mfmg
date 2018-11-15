@@ -58,7 +58,8 @@ public:
       boost::property_tree::ptree const &params,
       unsigned int const n_eigenvectors, double const tolerance,
       MeshEvaluator const &evaluator,
-      dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const &locally_relevant_global_diag,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix);
 
 private:
