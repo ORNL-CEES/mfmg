@@ -49,6 +49,46 @@ DealIIHierarchyHelpers<dim, VectorType>::get_global_operator(
 }
 
 template <int dim, typename VectorType>
+std::shared_ptr<
+    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>>
+DealIIHierarchyHelpers<dim, VectorType>::get_locally_relevant_global_diag(
+    std::shared_ptr<MeshEvaluator> mesh_evaluator)
+{
+  if (_locally_relevant_global_diag == nullptr)
+  {
+    auto system_sparse_matrix =
+        std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType>>(
+            get_global_operator(mesh_evaluator))
+            ->get_matrix();
+    auto comm = system_sparse_matrix->get_mpi_communicator();
+
+    auto const &dof_handler =
+        std::dynamic_pointer_cast<DealIIMeshEvaluator<dim>>(mesh_evaluator)
+            ->get_dof_handler();
+    // Extract the diagonal of the system sparse matrix. Each processor gets the
+    // locally relevant indices, i.e., owned + ghost
+    dealii::IndexSet locally_owned_dofs =
+        system_sparse_matrix->locally_owned_domain_indices();
+    dealii::IndexSet locally_relevant_dofs;
+    dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                    locally_relevant_dofs);
+    dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+        locally_owned_global_diag(locally_owned_dofs, comm);
+    for (auto const val : locally_owned_dofs)
+      locally_owned_global_diag[val] = system_sparse_matrix->diag_element(val);
+    locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+    _locally_relevant_global_diag.reset(
+        new dealii::LinearAlgebra::distributed::Vector<
+            typename VectorType::value_type>(locally_owned_dofs,
+                                             locally_relevant_dofs, comm));
+    *(_locally_relevant_global_diag) = locally_owned_global_diag;
+  }
+
+  return _locally_relevant_global_diag;
+}
+
+template <int dim, typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,

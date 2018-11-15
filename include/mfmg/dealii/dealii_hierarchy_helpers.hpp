@@ -25,6 +25,11 @@ public:
   std::shared_ptr<Operator<vector_type>>
   get_global_operator(std::shared_ptr<MeshEvaluator> mesh_evaluator) override;
 
+  std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
+      typename VectorType::value_type>>
+  get_locally_relevant_global_diag(
+      std::shared_ptr<MeshEvaluator> mesh_evaluator);
+
   std::shared_ptr<Operator<vector_type>> build_restrictor(
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
       std::shared_ptr<boost::property_tree::ptree const> params) override;
@@ -39,6 +44,9 @@ public:
 
 protected:
   std::shared_ptr<Operator<vector_type>> _global_operator;
+  std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
+      typename VectorType::value_type>>
+      _locally_relevant_global_diag;
 };
 } // namespace mfmg
 
