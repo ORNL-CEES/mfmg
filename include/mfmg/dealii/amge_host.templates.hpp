@@ -219,41 +219,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>
-void AMGe_host<dim, MeshEvaluator, VectorType>::
-    compute_restriction_sparse_matrix(
-        std::vector<dealii::Vector<double>> const &eigenvectors,
-        std::vector<std::vector<typename VectorType::value_type>> const
-            &diag_elements,
-        std::vector<std::vector<dealii::types::global_dof_index>> const
-            &dof_indices_maps,
-        std::vector<unsigned int> const &n_local_eigenvectors,
-        dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix,
-        dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const
-{
-  // Extract the diagonal of the system sparse matrix. Each processor gets the
-  // locally relevant indices, i.e., owned + ghost
-  dealii::IndexSet locally_owned_dofs =
-      system_sparse_matrix.locally_owned_domain_indices();
-  dealii::IndexSet locally_relevant_dofs;
-  dealii::DoFTools::extract_locally_relevant_dofs(this->_dof_handler,
-                                                  locally_relevant_dofs);
-  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
-      locally_owned_global_diag(locally_owned_dofs, this->_comm);
-  for (auto const val : locally_owned_dofs)
-    locally_owned_global_diag[val] = system_sparse_matrix.diag_element(val);
-  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
-
-  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
-      locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
-                                   this->_comm);
-  locally_relevant_global_diag = locally_owned_global_diag;
-
-  AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
-      eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
-      locally_relevant_global_diag, restriction_sparse_matrix);
-}
-
-template <int dim, typename MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     boost::property_tree::ptree const &agglomerate_ptree,
     unsigned int const n_eigenvectors, double const tolerance,
