@@ -49,6 +49,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
 }
 
 // copy/paste from DealIIHierarchyHelpers::build_restrictor()
+// only change is downcast of global_operator
 template <int dim, typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
