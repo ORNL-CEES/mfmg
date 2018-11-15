@@ -287,10 +287,27 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
           std::ref(dof_indices_maps), std::ref(n_local_eigenvectors))),
       ScratchData(), copy_data);
 
-  // Return to a serial execution
-  compute_restriction_sparse_matrix(
+  // Extract the diagonal of the system sparse matrix. Each processor gets the
+  // locally relevant indices, i.e., owned + ghost
+  dealii::IndexSet locally_owned_dofs =
+      system_sparse_matrix.locally_owned_domain_indices();
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(this->_dof_handler,
+                                                  locally_relevant_dofs);
+  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+      locally_owned_global_diag(locally_owned_dofs, this->_comm);
+  for (auto const val : locally_owned_dofs)
+    locally_owned_global_diag[val] = system_sparse_matrix.diag_element(val);
+  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+      locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                   this->_comm);
+  locally_relevant_global_diag = locally_owned_global_diag;
+
+  AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
-      system_sparse_matrix, restriction_sparse_matrix);
+      locally_relevant_global_diag, restriction_sparse_matrix);
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>
