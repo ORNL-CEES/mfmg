@@ -23,6 +23,8 @@ public:
   using operator_type = Operator<VectorType>;
   using vector_type = VectorType;
 
+  virtual ~Operator() = default;
+
   virtual void apply(vector_type const &x, vector_type &y) const = 0;
 
   virtual std::shared_ptr<operator_type> transpose() const = 0;

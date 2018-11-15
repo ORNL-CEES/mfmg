@@ -72,25 +72,25 @@ DealIITrilinosMatrixOperator<VectorType>::multiply(
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIITrilinosMatrixOperator<VectorType>::multiply_transpose(
-    std::shared_ptr<Operator<VectorType> const> operator_b) const
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
+  auto downcast_b =
       std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
-          operator_b);
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b->get_matrix();
-  auto c = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-      a->locally_owned_range_indices(), b->locally_owned_range_indices(),
-      a->get_mpi_communicator());
+          b);
+  auto a_mat = this->get_matrix();
+  auto b_mat = downcast_b->get_matrix();
+  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
+      a_mat->locally_owned_range_indices(),
+      b_mat->locally_owned_range_indices(), a_mat->get_mpi_communicator());
   int error_code = EpetraExt::MatrixMatrix::Multiply(
-      a->trilinos_matrix(), false, b->trilinos_matrix(), true,
-      const_cast<Epetra_CrsMatrix &>(c->trilinos_matrix()));
+      a_mat->trilinos_matrix(), false, b_mat->trilinos_matrix(), true,
+      const_cast<Epetra_CrsMatrix &>(c_mat->trilinos_matrix()));
   ASSERT(error_code == 0, "EpetraExt::MatrixMatrix::Multiply() returned "
                           "non-zero error code in "
                           "DealIITrilinosMatrixOperator::multiply_transpose()");
 
-  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c);
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c_mat);
 }
 
 template <typename VectorType>

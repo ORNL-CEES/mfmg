@@ -20,6 +20,7 @@
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
 #include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
+#include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -41,6 +42,18 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
       hierarchy_helpers.reset(new DealIIHierarchyHelpers<2, VectorType>());
     else if (dim == 3)
       hierarchy_helpers.reset(new DealIIHierarchyHelpers<3, VectorType>());
+    else
+      ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+  else if (evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    int const dim = evaluator->get_dim();
+    if (dim == 2)
+      hierarchy_helpers.reset(
+          new DealIIMatrixFreeHierarchyHelpers<2, VectorType>());
+    else if (dim == 3)
+      hierarchy_helpers.reset(
+          new DealIIMatrixFreeHierarchyHelpers<3, VectorType>());
     else
       ASSERT_THROW_NOT_IMPLEMENTED();
   }

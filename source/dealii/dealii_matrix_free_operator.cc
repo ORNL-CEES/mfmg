@@ -9,7 +9,9 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#include <mfmg/dealii_matrix_free_operator.hpp>
+#include <mfmg/common/exceptions.hpp>
+#include <mfmg/common/instantiation.hpp>
+#include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 
 #include <deal.II/lac/la_parallel_vector.h>
 
@@ -38,7 +40,9 @@ extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
 
   dealii::IndexSet ghost_indices(matrix.locally_owned_domain_indices().size());
   for (int k = 0; k < num_entries; ++k)
+  {
     ghost_indices.add_index(matrix.trilinos_matrix().GCID(local_indices[k]));
+  }
   ghost_indices.compress();
   dealii::LinearAlgebra::distributed::Vector<double> ghosted_vector(
       matrix.locally_owned_domain_indices(), ghost_indices,
@@ -98,7 +102,9 @@ void matrix_transpose_matrix_multiply(
       {
         auto const value = dst[i];
         if (std::abs(value) > 1e-14) // is that an appropriate epsilon?
+        {
           C.set(i, j, value);
+        }
       }
     }
   }
@@ -108,51 +114,52 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
-    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> matrix)
-    : DealIITrilinosMatrixOperator<VectorType>(matrix)
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
+    : DealIITrilinosMatrixOperator<VectorType>(sparse_matrix)
 {
 }
 
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
-    std::shared_ptr<Operator<VectorType> const> operator_b) const
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+  auto downcast_b =
+      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
+          b);
 
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b.get_matrix();
+  auto a_mat = this->get_matrix();
+  auto b_mat = downcast_b->get_matrix();
 
-  auto c = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-  a->mmult(*c, *b);
+  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
+  a_mat->mmult(*c_mat, *b_mat);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c);
+  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
 }
 
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
-    std::shared_ptr<Operator<VectorType> const> operator_b) const
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // Downcast to TrilinosMatrixOperator
-  auto downcast_operator_b =
-      static_cast<DealIITrilinosMatrixOperator<VectorType> const &>(operator_b);
+  auto downcast_b =
+      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
+          b);
 
-  auto a = this->get_matrix();
-  auto b = downcast_operator_b.get_matrix();
+  auto a_mat = this->get_matrix();
+  auto b_mat = downcast_b->get_matrix();
 
-  auto c = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-      a->locally_owned_range_indices(), b->locally_owned_range_indices(),
-      a->get_mpi_communicator());
+  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
+      a_mat->locally_owned_range_indices(),
+      b_mat->locally_owned_range_indices(), a_mat->get_mpi_communicator());
 
-  matrix_transpose_matrix_multiply(*c, *b, *a);
+  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *a_mat);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c);
+  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
 }
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::DealIIMatrixFreeOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+INSTANTIATE_VECTORTYPE(TUPLE(DealIIMatrixFreeOperator))

@@ -26,6 +26,17 @@
 #include <map>
 #include <unordered_map>
 
+#ifdef DEAL_II_TRILINOS_WITH_ZOLTAN
+// Zoltan random seed control is in an internal zz_rand.h file which is not
+// installed with Trilinos. Thus, we duplicate the signature and the
+// initialization value here.
+#define ZOLTAN_RAND_INIT 123456789U
+extern "C"
+{
+  extern void Zoltan_Srand(unsigned int, unsigned int *);
+}
+#endif
+
 namespace mfmg
 {
 template <int dim, typename VectorType>
@@ -44,6 +55,10 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
                  partitioner_type.begin(), ::tolower);
   if ((partitioner_type == "zoltan") || (partitioner_type == "metis"))
   {
+#ifdef DEAL_II_TRILINOS_WITH_ZOLTAN
+    // Always use the same seed for Zoltan
+    Zoltan_Srand(ZOLTAN_RAND_INIT, NULL);
+#endif
     unsigned int const n_agglomerates =
         ptree.get<unsigned int>("n_agglomerates");
 

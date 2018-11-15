@@ -9,27 +9,26 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
-#define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
+#ifndef MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
+#define MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
 
-#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
+#include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
 
 namespace mfmg
 {
-template <typename VectorType>
-class DealIIMatrixFreeOperator : public DealIITrilinosMatrixOperator<VectorType>
+template <int dim, typename VectorType>
+class DealIIMatrixFreeHierarchyHelpers
+    : public DealIIHierarchyHelpers<dim, VectorType>
 {
 public:
   using vector_type = VectorType;
 
-  DealIIMatrixFreeOperator(
-      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
+  std::shared_ptr<Operator<vector_type>> get_global_operator(
+      std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
 
-  std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
-
-  std::shared_ptr<Operator<VectorType>> multiply_transpose(
-      std::shared_ptr<Operator<VectorType> const> b) const override final;
+  std::shared_ptr<Operator<vector_type>> build_restrictor(
+      MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
+      std::shared_ptr<boost::property_tree::ptree const> params) override final;
 };
 } // namespace mfmg
 

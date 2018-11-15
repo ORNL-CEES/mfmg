@@ -140,8 +140,10 @@ public:
   TestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                     dealii::AffineConstraints<double> &constraints,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property)
-      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints),
+                    std::shared_ptr<dealii::Function<dim>> material_property,
+                    std::string mesh_evaluator_type)
+      : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints,
+                                       std::move(mesh_evaluator_type)),
         _matrix(matrix), _material_property(material_property)
   {
   }
