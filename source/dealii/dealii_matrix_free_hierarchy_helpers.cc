@@ -18,8 +18,6 @@
 #include <mfmg/dealii/dealii_smoother.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
-#include <deal.II/dofs/dof_tools.h>
-
 namespace mfmg
 {
 // copy/paste from DealIIMatrixFreeHierarchyHelpers::get_global_operator()
