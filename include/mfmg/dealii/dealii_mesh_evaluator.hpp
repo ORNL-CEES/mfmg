@@ -43,6 +43,9 @@ public:
   void set_initial_guess(dealii::AffineConstraints<double> &constraints,
                          dealii::Vector<double> &x) const;
 
+  void get_diagonal(dealii::LinearAlgebra::distributed::Vector<double>
+                        &locally_relevant_global_diag) /*const*/;
+
   virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
                                     dealii::AffineConstraints<double> &,
                                     dealii::SparsityPattern &,

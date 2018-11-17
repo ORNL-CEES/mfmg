@@ -12,6 +12,8 @@
 #include <mfmg/common/instantiation.hpp>
 #include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
+#include <deal.II/dofs/dof_tools.h>
+
 #include <algorithm>
 #include <vector>
 
@@ -60,6 +62,36 @@ void DealIIMeshEvaluator<dim>::set_initial_guess(
   {
     x[i] = (!constraints.is_constrained(i) ? distribution(generator) : 0.);
   }
+}
+
+template <int dim>
+void DealIIMeshEvaluator<dim>::get_diagonal(
+    dealii::LinearAlgebra::distributed::Vector<double>
+        &locally_relevant_global_diag) /*const*/
+{
+  dealii::TrilinosWrappers::SparseMatrix system_matrix;
+  evaluate_global(get_dof_handler(), get_constraints(), system_matrix);
+  auto comm = system_matrix.get_mpi_communicator();
+
+  // Extract the diagonal of the system sparse matrix. Each processor gets the
+  // locally relevant indices, i.e., owned + ghost
+  dealii::IndexSet locally_owned_dofs =
+      system_matrix.locally_owned_domain_indices();
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(get_dof_handler(),
+                                                  locally_relevant_dofs);
+  dealii::LinearAlgebra::distributed::Vector<double> locally_owned_global_diag(
+      locally_owned_dofs, comm);
+  for (auto const val : locally_owned_dofs)
+  {
+    locally_owned_global_diag[val] = system_matrix.diag_element(val);
+  }
+  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+  locally_relevant_global_diag =
+      dealii::LinearAlgebra::distributed::Vector<double>(
+          locally_owned_dofs, locally_relevant_dofs, comm);
+  locally_relevant_global_diag = locally_owned_global_diag;
 }
 
 template <int dim>
