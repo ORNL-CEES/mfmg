@@ -65,9 +65,8 @@ void DealIIMeshEvaluator<dim>::set_initial_guess(
 }
 
 template <int dim>
-void DealIIMeshEvaluator<dim>::get_diagonal(
-    dealii::LinearAlgebra::distributed::Vector<double>
-        &locally_relevant_global_diag) /*const*/
+dealii::LinearAlgebra::distributed::Vector<double>
+DealIIMeshEvaluator<dim>::get_diagonal() /*const*/
 {
   dealii::TrilinosWrappers::SparseMatrix system_matrix;
   evaluate_global(get_dof_handler(), get_constraints(), system_matrix);
@@ -88,10 +87,12 @@ void DealIIMeshEvaluator<dim>::get_diagonal(
   }
   locally_owned_global_diag.compress(dealii::VectorOperation::insert);
 
-  locally_relevant_global_diag =
-      dealii::LinearAlgebra::distributed::Vector<double>(
-          locally_owned_dofs, locally_relevant_dofs, comm);
+  dealii::LinearAlgebra::distributed::Vector<double>
+      locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                   comm);
   locally_relevant_global_diag = locally_owned_global_diag;
+
+  return locally_relevant_global_diag;
 }
 
 template <int dim>
