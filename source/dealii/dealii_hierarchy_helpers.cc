@@ -110,11 +110,10 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
   auto restrictor_matrix =
       std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
 
-  auto locally_relevant_global_diag =
-      get_locally_relevant_global_diag(mesh_evaluator);
+  auto locally_relevant_global_diag = dealii_mesh_evaluator->get_diagonal();
 
   amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
-                        *dealii_mesh_evaluator, *locally_relevant_global_diag,
+                        *dealii_mesh_evaluator, locally_relevant_global_diag,
                         *restrictor_matrix);
 
   std::shared_ptr<Operator<VectorType>> op(
