@@ -128,7 +128,21 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
     system_sparse_matrix.set(index, index, 1.0);
   system_sparse_matrix.compress(dealii::VectorOperation::insert);
 
-  auto locally_relevant_global_diag = evaluator.get_diagonal();
+  // NOTE have to extract diagonal entries from system matrix, cannot rely on
+  // DummyMeshEvaluator::get_diagonal()
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                  locally_relevant_dofs);
+  dealii::LinearAlgebra::distributed::Vector<double> locally_owned_global_diag(
+      locally_owned_dofs, comm);
+  for (auto const val : locally_owned_dofs)
+    locally_owned_global_diag[val] = system_sparse_matrix.diag_element(val);
+  locally_owned_global_diag.compress(dealii::VectorOperation::insert);
+
+  dealii::LinearAlgebra::distributed::Vector<double>
+      locally_relevant_global_diag(locally_owned_dofs, locally_relevant_dofs,
+                                   comm);
+  locally_relevant_global_diag = locally_owned_global_diag;
 
   dealii::TrilinosWrappers::SparseMatrix restriction_sparse_matrix;
   amge.compute_restriction_sparse_matrix(
