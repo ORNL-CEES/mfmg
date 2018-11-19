@@ -66,7 +66,7 @@ void DealIIMeshEvaluator<dim>::set_initial_guess(
 
 template <int dim>
 dealii::LinearAlgebra::distributed::Vector<double>
-DealIIMeshEvaluator<dim>::get_diagonal() /*const*/
+DealIIMeshEvaluator<dim>::get_diagonal()
 {
   dealii::TrilinosWrappers::SparseMatrix system_matrix;
   evaluate_global(get_dof_handler(), get_constraints(), system_matrix);

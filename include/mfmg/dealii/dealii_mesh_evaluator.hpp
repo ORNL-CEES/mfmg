@@ -43,7 +43,7 @@ public:
   void set_initial_guess(dealii::AffineConstraints<double> &constraints,
                          dealii::Vector<double> &x) const;
 
-  dealii::LinearAlgebra::distributed::Vector<double> get_diagonal() /*const*/;
+  dealii::LinearAlgebra::distributed::Vector<double> get_diagonal();
 
   virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
                                     dealii::AffineConstraints<double> &,
