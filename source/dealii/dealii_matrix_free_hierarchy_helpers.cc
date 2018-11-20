@@ -71,15 +71,11 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 
   auto restrictor_matrix =
       std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-  auto global_operator = get_global_operator(mesh_evaluator);
-  auto matrix_free_global_operator =
-      std::dynamic_pointer_cast<DealIIMatrixFreeOperator<VectorType>>(
-          global_operator);
-  // FIXME only the diagonal entries are actually needed to compute the
-  // restrictor. See ORNL-CEES/mfmg#97
-  auto system_sparse_matrix = matrix_free_global_operator->get_matrix();
+
+  auto locally_relevant_global_diag = dealii_mesh_evaluator->get_diagonal();
+
   amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
-                        *dealii_mesh_evaluator, *system_sparse_matrix,
+                        *dealii_mesh_evaluator, locally_relevant_global_diag,
                         *restrictor_matrix);
 
   std::shared_ptr<Operator<VectorType>> op(

@@ -52,30 +52,14 @@ public:
       MeshEvaluator const &evaluator) const;
 
   /**
-   * Compute the restriction sparse matrix. The rows of the matrix are
-   * weighted eigenvectors. \p dof_indices_maps are used to map the indices in
-   * \p eigenvectors to the global dof indices.
-   */
-  // dealii::TrilinosWrappers::SparseMatrix has a private copy constructor and
-  // no move constructor. Thus, we pass the output by reference instead of
-  // returning it.
-  void compute_restriction_sparse_matrix(
-      std::vector<dealii::Vector<double>> const &eigenvectors,
-      std::vector<std::vector<ScalarType>> const &diag_elements,
-      std::vector<std::vector<dealii::types::global_dof_index>> const
-          &dof_indices_map,
-      std::vector<unsigned int> const &n_local_eigenvectors,
-      dealii::TrilinosWrappers::SparseMatrix const &system_sparse_matrix,
-      dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
-
-  /**
    *  Build the agglomerates and their associated triangulations.
    */
   void setup_restrictor(
       boost::property_tree::ptree const &params,
       unsigned int const n_eigenvectors, double const tolerance,
       MeshEvaluator const &evaluator,
-      dealii::TrilinosWrappers::SparseMatrix &system_sparse_matrix,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const &locally_relevant_global_diag,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix);
 
 private:
