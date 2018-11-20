@@ -122,20 +122,11 @@ DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
-    std::shared_ptr<Operator<VectorType> const> b) const
+    std::shared_ptr<Operator<VectorType> const> /*b*/) const
 {
-  // Downcast to TrilinosMatrixOperator
-  auto downcast_b =
-      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
-          b);
+  ASSERT_THROW_NOT_IMPLEMENTED();
 
-  auto a_mat = this->get_matrix();
-  auto b_mat = downcast_b->get_matrix();
-
-  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-  a_mat->mmult(*c_mat, *b_mat);
-
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
+  return nullptr;
 }
 
 template <typename VectorType>
