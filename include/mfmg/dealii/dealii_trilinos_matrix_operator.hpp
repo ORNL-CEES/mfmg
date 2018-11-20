@@ -45,7 +45,8 @@ public:
 
   size_t operator_complexity() const override final;
 
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
+  get_matrix() const;
 
 protected:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;

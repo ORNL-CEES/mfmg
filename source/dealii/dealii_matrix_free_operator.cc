@@ -12,6 +12,7 @@
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/common/instantiation.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
+#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 #include <deal.II/lac/la_parallel_vector.h>
 
@@ -116,7 +117,7 @@ void matrix_transpose_matrix_multiply(
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
     std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
-    : DealIITrilinosMatrixOperator<VectorType>(sparse_matrix)
+    : _sparse_matrix(std::move(sparse_matrix))
 {
 }
 
@@ -124,21 +125,21 @@ template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
                                                  VectorType const &src) const
 {
-  (this->_sparse_matrix)->vmult(dst, src);
+  _sparse_matrix->vmult(dst, src);
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::m() const
 {
-  return (this->_sparse_matrix)->m();
+  return _sparse_matrix->m();
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::n() const
 {
-  return (this->_sparse_matrix)->n();
+  return _sparse_matrix->n();
 }
 
 template <typename VectorType>
@@ -146,8 +147,25 @@ typename DealIIMatrixFreeOperator<VectorType>::value_type
 DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
 {
   ASSERT(i == j, "was intended for accessing diagonal elements only");
-  return (this->_sparse_matrix)->el(i, i);
+  return _sparse_matrix->el(i, i);
 }
+
+template <typename VectorType>
+void DealIIMatrixFreeOperator<VectorType>::apply(VectorType const &x,
+                                                 VectorType &y) const
+{
+  _sparse_matrix->vmult(y, x); // FIXME
+}
+
+template <typename VectorType>
+std::shared_ptr<Operator<VectorType>>
+DealIIMatrixFreeOperator<VectorType>::transpose() const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
+}
+
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
@@ -178,6 +196,43 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
   matrix_transpose_matrix_multiply(*c_mat, *b_mat, *this);
 
   return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+DealIIMatrixFreeOperator<VectorType>::build_domain_vector() const
+{
+  return std::make_shared<vector_type>(
+      _sparse_matrix->locally_owned_domain_indices(),
+      _sparse_matrix->get_mpi_communicator());
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
+{
+  return std::make_shared<vector_type>(
+      _sparse_matrix->locally_owned_range_indices(),
+      _sparse_matrix->get_mpi_communicator());
+}
+
+template <typename VectorType>
+size_t DealIIMatrixFreeOperator<VectorType>::grid_complexity() const
+{
+  return _sparse_matrix->m();
+}
+
+template <typename VectorType>
+size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
+{
+  return _sparse_matrix->n_nonzero_elements();
+}
+
+template <typename VectorType>
+std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+DealIIMatrixFreeOperator<VectorType>::get_matrix() const
+{
+  return _sparse_matrix;
 }
 } // namespace mfmg
 

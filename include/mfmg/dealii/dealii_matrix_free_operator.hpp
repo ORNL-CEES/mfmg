@@ -12,16 +12,16 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 #define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
-#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
+#include <mfmg/common/operator.hpp>
 
 #include <deal.II/base/subscriptor.h>
+#include <deal.II/lac/trilinos_sparse_matrix.h> // FIXME
 
 namespace mfmg
 {
 template <typename VectorType>
-class DealIIMatrixFreeOperator
-    : public DealIITrilinosMatrixOperator<VectorType>,
-      public dealii::Subscriptor
+class DealIIMatrixFreeOperator : public Operator<VectorType>,
+                                 public dealii::Subscriptor
 {
 public:
   using vector_type = VectorType;
@@ -30,6 +30,10 @@ public:
 
   DealIIMatrixFreeOperator(
       std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
+
+  void apply(vector_type const &x, vector_type &y) const override final;
+
+  std::shared_ptr<Operator<VectorType>> transpose() const override final;
 
   std::shared_ptr<Operator<VectorType>>
   multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
@@ -44,6 +48,20 @@ public:
   size_type n() const;
 
   value_type el(size_type i, size_type j) const;
+
+  std::shared_ptr<vector_type> build_domain_vector() const override final;
+
+  std::shared_ptr<vector_type> build_range_vector() const override final;
+
+  size_t grid_complexity() const override final;
+
+  size_t operator_complexity() const override final;
+
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
+  get_matrix() const;
+
+private:
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };
 } // namespace mfmg
 
