@@ -66,10 +66,10 @@ extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
 //
 // Note that it is different from deal.II's SparseMatrix::Tmmult(C, B) which
 // performs C = A^T * B
+template <typename Operator>
 void matrix_transpose_matrix_multiply(
     dealii::TrilinosWrappers::SparseMatrix &C,
-    dealii::TrilinosWrappers::SparseMatrix const &B,
-    dealii::TrilinosWrappers::SparseMatrix const &A)
+    dealii::TrilinosWrappers::SparseMatrix const &B, Operator const &A)
 {
   // C = A * B^T
   // C_ij = A_ik * B^T_kj = A_ik * B_jk
