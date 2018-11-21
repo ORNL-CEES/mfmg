@@ -29,6 +29,9 @@ DealIISmoother<VectorType>::DealIISmoother(
   auto trilinos_operator =
       std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
           this->_operator);
+  ASSERT(
+      trilinos_operator != nullptr,
+      "DealIISmoother must be constructed from a DealIITrilinosMatrixOperator");
   auto sparse_matrix = trilinos_operator->get_matrix();
 
   std::transform(prec_name.begin(), prec_name.end(), prec_name.begin(),
