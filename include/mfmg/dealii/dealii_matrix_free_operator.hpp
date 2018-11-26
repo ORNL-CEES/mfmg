@@ -14,10 +14,14 @@
 
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
+#include <deal.II/base/subscriptor.h>
+
 namespace mfmg
 {
 template <typename VectorType>
-class DealIIMatrixFreeOperator : public DealIITrilinosMatrixOperator<VectorType>
+class DealIIMatrixFreeOperator
+    : public DealIITrilinosMatrixOperator<VectorType>,
+      public dealii::Subscriptor
 {
 public:
   using vector_type = VectorType;
