@@ -36,7 +36,7 @@ std::vector<unsigned int> test(MPI_Comm const &world)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
   mfmg::AMGe_host<dim, DummyMeshEvaluator, Vector> amge(world, dof_handler);
@@ -290,7 +290,7 @@ BOOST_AUTO_TEST_CASE(zoltan_agglomerate_2d)
   triangulation.refine_global(3);
   dof_handler.distribute_dofs(fe);
 
-  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using DummyMeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
   mfmg::AMGe_host<dim, DummyMeshEvaluator, Vector> amge(MPI_COMM_WORLD,

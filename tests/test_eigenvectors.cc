@@ -72,7 +72,7 @@ public:
 BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
 {
   const int dim = 2;
-  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);
@@ -172,7 +172,7 @@ public:
 BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
 {
   const int dim = 2;
-  using Vector = dealii::TrilinosWrappers::MPI::Vector;
+  using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 
   dealii::parallel::distributed::Triangulation<2> triangulation(MPI_COMM_WORLD);

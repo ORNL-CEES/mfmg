@@ -280,7 +280,7 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
 {
   // Check that the weight sum is equal to one
   unsigned int constexpr dim = 2;
-  using DVector = dealii::TrilinosWrappers::MPI::Vector;
+  using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
   MPI_Comm comm = MPI_COMM_WORLD;
@@ -321,13 +321,14 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   restrictor_matrix *= 3.;
   unsigned int const size = restrictor_matrix.n();
   auto domain_dofs = restrictor_matrix.locally_owned_domain_indices();
-  DVector e(domain_dofs);
+  DVector e(domain_dofs, comm);
   auto range_dofs = restrictor_matrix.locally_owned_range_indices();
-  DVector ee(range_dofs);
+  DVector ee(range_dofs, comm);
   for (unsigned int i = 0; i < size; ++i)
   {
     e = 0;
-    e[i] = 1.;
+    if (domain_dofs.is_element(i))
+      e[i] = 1.;
     e.compress(::dealii::VectorOperation::insert);
     restrictor_matrix.vmult(ee, e);
     BOOST_TEST(ee.l1_norm() == 1.);

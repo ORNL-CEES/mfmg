@@ -85,33 +85,6 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 }
 
 template <>
-std::unique_ptr<HierarchyHelpers<dealii::TrilinosWrappers::MPI::Vector>>
-create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
-{
-  std::unique_ptr<HierarchyHelpers<dealii::TrilinosWrappers::MPI::Vector>>
-      hierarchy_helpers;
-  std::string evaluator_type = evaluator->get_mesh_evaluator_type();
-  if (evaluator_type == "DealIIMeshEvaluator")
-  {
-    int const dim = evaluator->get_dim();
-    if (dim == 2)
-      hierarchy_helpers.reset(
-          new DealIIHierarchyHelpers<2,
-                                     dealii::TrilinosWrappers::MPI::Vector>());
-    else if (dim == 3)
-      hierarchy_helpers.reset(
-          new DealIIHierarchyHelpers<3,
-                                     dealii::TrilinosWrappers::MPI::Vector>());
-    else
-      ASSERT_THROW_NOT_IMPLEMENTED();
-  }
-  else
-    ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return hierarchy_helpers;
-}
-
-template <>
 std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
 create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 {
