@@ -42,6 +42,8 @@ public:
   size_type m() const;
 
   size_type n() const;
+
+  value_type el(size_type i, size_type j) const;
 };
 } // namespace mfmg
 

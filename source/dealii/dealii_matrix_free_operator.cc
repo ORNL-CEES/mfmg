@@ -141,6 +141,13 @@ DealIIMatrixFreeOperator<VectorType>::n() const
 }
 
 template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::value_type
+DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
+{
+  ASSERT(i == j, "was intended for accessing diagonal elements only");
+  return (this->_sparse_matrix)->el(i, i);
+}
+template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
     std::shared_ptr<Operator<VectorType> const> /*b*/) const
