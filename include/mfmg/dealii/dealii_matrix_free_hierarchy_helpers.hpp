@@ -29,6 +29,10 @@ public:
   std::shared_ptr<Operator<vector_type>> build_restrictor(
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
+
+  std::shared_ptr<Smoother<vector_type>> build_smoother(
+      std::shared_ptr<Operator<vector_type> const> op,
+      std::shared_ptr<boost::property_tree::ptree const> params) override final;
 };
 } // namespace mfmg
 
