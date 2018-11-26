@@ -327,7 +327,8 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
   for (unsigned int i = 0; i < size; ++i)
   {
     e = 0;
-    e[i] = 1.;
+    if (domain_dofs.is_element(i))
+      e[i] = 1.;
     e.compress(::dealii::VectorOperation::insert);
     restrictor_matrix.vmult(ee, e);
     BOOST_TEST(ee.l1_norm() == 1.);
