@@ -28,9 +28,7 @@
                          0, class_name)
 
 #define SCALAR_TYPE (float)(double)
-#define VECTOR_TYPE                                                            \
-  (dealii::TrilinosWrappers::MPI::Vector)(                                     \
-      dealii::LinearAlgebra::distributed::Vector<double>)
+#define VECTOR_TYPE (dealii::LinearAlgebra::distributed::Vector<double>)
 #define SERIAL_VECTOR_TYPE (dealii::Vector<double>)
 
 //////////////////////////////////////////////
