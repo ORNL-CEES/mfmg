@@ -25,6 +25,8 @@ class DealIIMatrixFreeOperator
 {
 public:
   using vector_type = VectorType;
+  using size_type = typename VectorType::size_type;
+  using value_type = typename VectorType::value_type;
 
   DealIIMatrixFreeOperator(
       std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
