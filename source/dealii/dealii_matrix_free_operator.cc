@@ -127,6 +127,20 @@ void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
 }
 
 template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::size_type
+DealIIMatrixFreeOperator<VectorType>::m() const
+{
+  return (this->_sparse_matrix)->m();
+}
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::size_type
+DealIIMatrixFreeOperator<VectorType>::n() const
+{
+  return (this->_sparse_matrix)->n();
+}
+
+template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
     std::shared_ptr<Operator<VectorType> const> /*b*/) const

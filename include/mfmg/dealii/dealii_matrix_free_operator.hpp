@@ -38,6 +38,10 @@ public:
       std::shared_ptr<Operator<VectorType> const> b) const override final;
 
   void vmult(vector_type &dst, vector_type const &src) const;
+
+  size_type m() const;
+
+  size_type n() const;
 };
 } // namespace mfmg
 
