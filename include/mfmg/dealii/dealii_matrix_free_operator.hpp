@@ -36,6 +36,8 @@ public:
 
   std::shared_ptr<Operator<VectorType>> multiply_transpose(
       std::shared_ptr<Operator<VectorType> const> b) const override final;
+
+  void vmult(vector_type &dst, vector_type const &src) const;
 };
 } // namespace mfmg
 
