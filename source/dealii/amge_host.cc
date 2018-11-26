@@ -11,13 +11,9 @@
 
 #include <mfmg/dealii/amge_host.templates.hpp>
 
-template class mfmg::AMGe_host<2, mfmg::DealIIMeshEvaluator<2>,
-                               dealii::TrilinosWrappers::MPI::Vector>;
 template class mfmg::AMGe_host<
     2, mfmg::DealIIMeshEvaluator<2>,
     dealii::LinearAlgebra::distributed::Vector<double>>;
-template class mfmg::AMGe_host<3, mfmg::DealIIMeshEvaluator<3>,
-                               dealii::TrilinosWrappers::MPI::Vector>;
 template class mfmg::AMGe_host<
     3, mfmg::DealIIMeshEvaluator<3>,
     dealii::LinearAlgebra::distributed::Vector<double>>;
