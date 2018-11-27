@@ -121,6 +121,10 @@ BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("mesh_evaluator_type", mesh_evaluator_type);
+  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    params->put("smoother.type", "Chebyshev");
+  }
 
   test<dim>(params);
 }
@@ -132,6 +136,10 @@ BOOST_DATA_TEST_CASE(ml, bdata::make(mesh_evaluator_types), mesh_evaluator_type)
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("mesh_evaluator_type", mesh_evaluator_type);
+  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    params->put("smoother.type", "Chebyshev");
+  }
 
   double gold_rate = test<dim>(params);
 
@@ -167,6 +175,10 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
     params->put("mesh_evaluator_type", mesh_evaluator_type);
+    if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+    {
+      params->put("smoother.type", "Chebyshev");
+    }
 
     params->put("eigensolver.type", "lapack");
     params->put("agglomeration.nz", 2);
@@ -217,6 +229,10 @@ BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
     params->put("mesh_evaluator_type", mesh_evaluator_type);
+    if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+    {
+      params->put("smoother.type", "Chebyshev");
+    }
 
     params->put("agglomeration.partitioner", "zoltan");
     params->put("agglomeration.n_agglomerates", 4);
