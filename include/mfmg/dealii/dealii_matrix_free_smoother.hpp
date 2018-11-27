@@ -1,0 +1,46 @@
+/*************************************************************************
+ * Copyright (c) 2017-2018 by the mfmg authors                           *
+ * All rights reserved.                                                  *
+ *                                                                       *
+ * This file is part of the mfmg libary. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the *
+ * top-level directory                                                   *
+ *                                                                       *
+ * SPDX-License-Identifier: BSD-3-Clause                                 *
+ *************************************************************************/
+
+#ifndef MFMG_DEALII_MATRIX_FREE_SMOOTHER_HPP
+#define MFMG_DEALII_MATRIX_FREE_SMOOTHER_HPP
+
+#include <mfmg/common/smoother.hpp>
+#include <mfmg/dealii/dealii_matrix_free_operator.hpp>
+
+#include <deal.II/lac/precondition.h>
+
+#include <boost/property_tree/ptree.hpp>
+
+#include <memory>
+
+namespace mfmg
+{
+template <typename VectorType>
+class DealIIMatrixFreeSmoother : public Smoother<VectorType>
+{
+public:
+  using vector_type = VectorType;
+  using operator_type = DealIIMatrixFreeOperator<VectorType>;
+  using preconditioner_type =
+      dealii::PreconditionChebyshev<operator_type, vector_type>;
+
+  DealIIMatrixFreeSmoother(
+      std::shared_ptr<Operator<vector_type> const> op,
+      std::shared_ptr<boost::property_tree::ptree const> params);
+
+  void apply(vector_type const &b, vector_type &x) const override final;
+
+private:
+  std::unique_ptr<preconditioner_type> _smoother;
+};
+} // namespace mfmg
+
+#endif
