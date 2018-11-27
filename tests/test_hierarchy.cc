@@ -111,8 +111,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-char const *mesh_evaluator_types[] = {"DealIIMeshEvaluator",
-                                      "DealIIMatrixFreeMeshEvaluator"};
+std::string const mesh_evaluator_types[] = {"DealIIMeshEvaluator",
+                                            "DealIIMatrixFreeMeshEvaluator"};
 BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
                      mesh_evaluator_type)
 {
