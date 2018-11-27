@@ -34,7 +34,22 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
   if (prec_name == "chebyshev")
   {
     _smoother.reset(new preconditioner_type());
-    _smoother->initialize(*matrix_free_operator);
+    typename preconditioner_type::AdditionalData data;
+    if (auto degree = params->get_optional<int>("smoother.degree"))
+    {
+      data.degree = *degree;
+    }
+    if (auto smoothing_range =
+            params->get_optional<double>("smoother.smoothing_range"))
+    {
+      data.smoothing_range = *smoothing_range;
+    }
+    if (auto max_eigenvalue =
+            params->get_optional<double>("smoother.max_eigenvalue"))
+    {
+      data.max_eigenvalue = *max_eigenvalue;
+    }
+    _smoother->initialize(*matrix_free_operator, data);
   }
   else
   {
