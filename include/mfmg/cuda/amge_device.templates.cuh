@@ -18,6 +18,8 @@
 
 #include <deal.II/dofs/dof_accessor.h>
 
+#include <omp.h>
+
 namespace mfmg
 {
 namespace internal
@@ -84,6 +86,12 @@ void compute_local_eigenvectors<float>(cusolverDnHandle_t handle, int n,
                                        float *A, float *B, float *W)
 {
   // See https://docs.nvidia.com/cuda/cusolver/index.html#sygvd-example1
+
+  // NOTE: we add this code to make our library depend on gomp. Otherwise,
+  // as we have not explicit references to OpenMP, we don't depend on it, which
+  // results in linking errors with cuSolver as that also does not depend on it
+  // for an unknown reason.
+  std::ignore = omp_get_num_threads();
 
   // Query working space of sygvd
   cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;
