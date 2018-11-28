@@ -62,10 +62,10 @@ dealii::VectorizedArray<ScalarType> Source<dim>::value(
   dealii::VectorizedArray<ScalarType> val = zero;
   for (unsigned int d = 0; d < dim; ++d)
   {
-    dealii::VectorizedArray<ScalarType> tmp = zero;
+    dealii::VectorizedArray<ScalarType> tmp = one;
     for (unsigned int i = 0; i < dim; ++i)
       if (i != d)
-        tmp += p[i] * (p[i] - one);
+        tmp *= (p[i] - one) * p[i];
 
     val -= two * tmp;
   }
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
 
   // The exact solution is quadratic so the error should be zero.
   ExactSolution<dim> exact_solution;
-  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
+  BOOST_TEST(laplace.compute_error(exact_solution) == 0., tt::tolerance(1e-14));
 }
 
 BOOST_AUTO_TEST_CASE(laplace_3d)
@@ -129,5 +129,5 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
 
   // The exact solution is quadratic so the error should be zero.
   ExactSolution<dim> exact_solution;
-  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
+  BOOST_TEST(laplace.compute_error(exact_solution) == 0., tt::tolerance(1e-14));
 }

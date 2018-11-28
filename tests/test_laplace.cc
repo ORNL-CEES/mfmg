@@ -57,10 +57,10 @@ double Source<dim>::value(dealii::Point<dim> const &p, unsigned int const) const
   double val = 0.;
   for (unsigned int d = 0; d < dim; ++d)
   {
-    double tmp = 0.;
+    double tmp = 1.;
     for (unsigned int i = 0; i < dim; ++i)
       if (i != d)
-        tmp += p[i] * (p[i] - 1.);
+        tmp *= (p[i] - 1.) * p[i];
 
     val += -2. * tmp;
   }
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
 
   // The exact solution is quadratic so the error should be zero.
   ExactSolution<2> exact_solution;
-  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
+  BOOST_TEST(laplace.compute_error(exact_solution) == 0., tt::tolerance(1e-14));
 
   laplace.output_results();
   // Remove output file
@@ -130,5 +130,5 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
 
   // The exact solution is quadratic so the error should be zero.
   ExactSolution<3> exact_solution;
-  BOOST_TEST(laplace.compute_error(exact_solution), tt::tolerance(1e-14));
+  BOOST_TEST(laplace.compute_error(exact_solution) == 0., tt::tolerance(1e-14));
 }

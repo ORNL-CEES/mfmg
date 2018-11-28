@@ -262,6 +262,7 @@ void Laplace<dim, VectorType>::output_results() const
     std::ofstream master_output("solution.pvtu");
     data_out.write_pvtu_record(master_output, filenames);
   }
+  MPI_Barrier(_comm);
 }
 
 template <int dim, typename VectorType>
