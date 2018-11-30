@@ -120,22 +120,41 @@ DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
 }
 
 template <typename VectorType>
+void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
+                                                 VectorType const &src) const
+{
+  (this->_sparse_matrix)->vmult(dst, src);
+}
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::size_type
+DealIIMatrixFreeOperator<VectorType>::m() const
+{
+  return (this->_sparse_matrix)->m();
+}
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::size_type
+DealIIMatrixFreeOperator<VectorType>::n() const
+{
+  return (this->_sparse_matrix)->n();
+}
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::value_type
+DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
+{
+  ASSERT(i == j, "was intended for accessing diagonal elements only");
+  return (this->_sparse_matrix)->el(i, i);
+}
+template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
-    std::shared_ptr<Operator<VectorType> const> b) const
+    std::shared_ptr<Operator<VectorType> const> /*b*/) const
 {
-  // Downcast to TrilinosMatrixOperator
-  auto downcast_b =
-      std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
-          b);
+  ASSERT_THROW_NOT_IMPLEMENTED();
 
-  auto a_mat = this->get_matrix();
-  auto b_mat = downcast_b->get_matrix();
-
-  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-  a_mat->mmult(*c_mat, *b_mat);
-
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
+  return nullptr;
 }
 
 template <typename VectorType>

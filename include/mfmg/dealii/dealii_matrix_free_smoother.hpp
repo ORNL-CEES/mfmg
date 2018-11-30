@@ -9,30 +9,37 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
-#define MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
+#ifndef MFMG_DEALII_MATRIX_FREE_SMOOTHER_HPP
+#define MFMG_DEALII_MATRIX_FREE_SMOOTHER_HPP
 
-#include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
+#include <mfmg/common/smoother.hpp>
+#include <mfmg/dealii/dealii_matrix_free_operator.hpp>
+
+#include <deal.II/lac/precondition.h>
+
+#include <boost/property_tree/ptree.hpp>
+
+#include <memory>
 
 namespace mfmg
 {
-template <int dim, typename VectorType>
-class DealIIMatrixFreeHierarchyHelpers
-    : public DealIIHierarchyHelpers<dim, VectorType>
+template <typename VectorType>
+class DealIIMatrixFreeSmoother : public Smoother<VectorType>
 {
 public:
   using vector_type = VectorType;
+  using operator_type = DealIIMatrixFreeOperator<VectorType>;
+  using preconditioner_type =
+      dealii::PreconditionChebyshev<operator_type, vector_type>;
 
-  std::shared_ptr<Operator<vector_type>> get_global_operator(
-      std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
-
-  std::shared_ptr<Operator<vector_type>> build_restrictor(
-      MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
-
-  std::shared_ptr<Smoother<vector_type>> build_smoother(
+  DealIIMatrixFreeSmoother(
       std::shared_ptr<Operator<vector_type> const> op,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+      std::shared_ptr<boost::property_tree::ptree const> params);
+
+  void apply(vector_type const &b, vector_type &x) const override final;
+
+private:
+  std::unique_ptr<preconditioner_type> _smoother;
 };
 } // namespace mfmg
 

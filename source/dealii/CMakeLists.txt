@@ -9,6 +9,7 @@ SET(MFMG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_trilinos_matrix_operator.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_operator.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_hierarchy_helpers.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_smoother.cc
   )
 
 SET(MFMG_SOURCES ${MFMG_SOURCES} PARENT_SCOPE)

@@ -47,7 +47,7 @@ public:
 
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
 
-private:
+protected:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };
 } // namespace mfmg

@@ -111,8 +111,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-char const *mesh_evaluator_types[] = {"DealIIMeshEvaluator",
-                                      "DealIIMatrixFreeMeshEvaluator"};
+std::string const mesh_evaluator_types[] = {"DealIIMeshEvaluator",
+                                            "DealIIMatrixFreeMeshEvaluator"};
 BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
                      mesh_evaluator_type)
 {
@@ -121,6 +121,10 @@ BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("mesh_evaluator_type", mesh_evaluator_type);
+  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    params->put("smoother.type", "Chebyshev");
+  }
 
   test<dim>(params);
 }
@@ -132,6 +136,10 @@ BOOST_DATA_TEST_CASE(ml, bdata::make(mesh_evaluator_types), mesh_evaluator_type)
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("mesh_evaluator_type", mesh_evaluator_type);
+  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  {
+    params->put("smoother.type", "Chebyshev");
+  }
 
   double gold_rate = test<dim>(params);
 
@@ -167,6 +175,12 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
     params->put("mesh_evaluator_type", mesh_evaluator_type);
+    bool const is_matrix_free =
+        mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator";
+    if (is_matrix_free)
+    {
+      params->put("smoother.type", "Chebyshev");
+    }
 
     params->put("eigensolver.type", "lapack");
     params->put("agglomeration.nz", 2);
@@ -180,18 +194,24 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
     std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
-    ref_solution[std::make_tuple("hyper_cube", false, "None")] = 0.0425111106;
+    ref_solution[std::make_tuple("hyper_cube", false, "None")] =
+        is_matrix_free ? 0.1606059764 : 0.0425111106;
     ref_solution[std::make_tuple("hyper_cube", false,
-                                 "Reverse Cuthill_McKee")] = 0.0425111106;
-    ref_solution[std::make_tuple("hyper_cube", true, "None")] = 0.0398672044;
+                                 "Reverse Cuthill_McKee")] =
+        is_matrix_free ? 0.1606059764 : 0.0425111106;
+    ref_solution[std::make_tuple("hyper_cube", true, "None")] =
+        is_matrix_free ? 0.1617008736 : 0.0398672044;
     ref_solution[std::make_tuple("hyper_cube", true, "Reverse Cuthill_McKee")] =
-        0.0398672044;
-    ref_solution[std::make_tuple("hyper_ball", false, "None")] = 0.1303442282;
+        is_matrix_free ? 0.1617008736 : 0.0398672044;
+    ref_solution[std::make_tuple("hyper_ball", false, "None")] =
+        is_matrix_free ? 0.3157576610 : 0.1303442282;
     ref_solution[std::make_tuple("hyper_ball", false,
-                                 "Reverse Cuthill_McKee")] = 0.1303442282;
-    ref_solution[std::make_tuple("hyper_ball", true, "None")] = 0.1431096468;
+                                 "Reverse Cuthill_McKee")] =
+        is_matrix_free ? 0.3157576610 : 0.1303442282;
+    ref_solution[std::make_tuple("hyper_ball", true, "None")] =
+        is_matrix_free ? 0.3253460593 : 0.1431096468;
     ref_solution[std::make_tuple("hyper_ball", true, "Reverse Cuthill_McKee")] =
-        0.1431096468;
+        is_matrix_free ? 0.3253460593 : 0.1431096468;
 
     if (mesh == std::string("hyper_cube"))
       BOOST_TEST(
@@ -217,13 +237,19 @@ BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
     params->put("mesh_evaluator_type", mesh_evaluator_type);
+    bool const is_matrix_free =
+        mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator";
+    if (is_matrix_free)
+    {
+      params->put("smoother.type", "Chebyshev");
+    }
 
     params->put("agglomeration.partitioner", "zoltan");
     params->put("agglomeration.n_agglomerates", 4);
 
     // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
-    double const ref_solution = 0.903284598;
+    double const ref_solution = is_matrix_free ? 0.918915720 : 0.903284598;
     double const conv_rate = test<dim>(params);
     BOOST_TEST(conv_rate == ref_solution, tt::tolerance(1e-6));
   }

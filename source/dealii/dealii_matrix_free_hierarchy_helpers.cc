@@ -14,8 +14,8 @@
 #include <mfmg/dealii/amge_host.hpp>
 #include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
+#include <mfmg/dealii/dealii_matrix_free_smoother.hpp>
 #include <mfmg/dealii/dealii_mesh_evaluator.hpp>
-#include <mfmg/dealii/dealii_smoother.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 namespace mfmg
@@ -82,6 +82,15 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
       new DealIITrilinosMatrixOperator<VectorType>(restrictor_matrix));
 
   return op;
+}
+
+template <int dim, typename VectorType>
+std::shared_ptr<Smoother<VectorType>>
+DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_smoother(
+    std::shared_ptr<Operator<VectorType> const> op,
+    std::shared_ptr<boost::property_tree::ptree const> params)
+{
+  return std::make_shared<DealIIMatrixFreeSmoother<VectorType>>(op, params);
 }
 } // namespace mfmg
 
