@@ -57,9 +57,6 @@ public:
 
   size_t operator_complexity() const override final;
 
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
-  get_matrix() const;
-
   vector_type get_diagonal_inverse() const;
 
 private:

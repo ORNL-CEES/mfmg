@@ -229,13 +229,6 @@ size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
 }
 
 template <typename VectorType>
-std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
-DealIIMatrixFreeOperator<VectorType>::get_matrix() const
-{
-  return _sparse_matrix;
-}
-
-template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::vector_type
 DealIIMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
 {
