@@ -21,7 +21,7 @@ namespace mfmg
 template <typename VectorType>
 DealIITrilinosMatrixOperator<VectorType>::DealIITrilinosMatrixOperator(
     std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
-    : _sparse_matrix(sparse_matrix)
+    : _sparse_matrix(std::move(sparse_matrix))
 {
 }
 
