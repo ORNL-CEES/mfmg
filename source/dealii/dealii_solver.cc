@@ -67,8 +67,10 @@ DealIISolver<VectorType>::DealIISolver(
           ->initialize(*sparse_matrix, ml_params);
     }
     else
+    {
       ASSERT_THROW(false,
                    "Unknown coarse solver name: \"" + coarse_type_lower + "\"");
+    }
   }
 }
 
@@ -76,9 +78,13 @@ template <typename VectorType>
 void DealIISolver<VectorType>::apply(VectorType const &b, VectorType &x) const
 {
   if (_solver)
+  {
     _solver->solve(x, b);
+  }
   else
+  {
     _smoother->vmult(x, b);
+  }
 }
 } // namespace mfmg
 
