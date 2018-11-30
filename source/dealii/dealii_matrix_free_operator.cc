@@ -195,7 +195,7 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
 
   matrix_transpose_matrix_multiply(*c_mat, *b_mat, *this);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c_mat);
 }
 
 template <typename VectorType>
