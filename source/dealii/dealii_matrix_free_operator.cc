@@ -74,19 +74,20 @@ void matrix_transpose_matrix_multiply(
   // C = A * B^T
   // C_ij = A_ik * B^T_kj = A_ik * B_jk
 
+  auto tmp = A.build_range_vector();
   std::vector<dealii::types::global_dof_index> i_indices;
-  A.locally_owned_range_indices().fill_index_vector(i_indices);
+  tmp->locally_owned_elements().fill_index_vector(i_indices);
   std::vector<dealii::types::global_dof_index> j_indices;
   B.locally_owned_range_indices().fill_index_vector(j_indices);
 
-  int const global_n_rows = A.row_partitioner().NumGlobalElements();
+  int const global_n_rows = tmp->size();
   int const global_n_columns = B.row_partitioner().NumGlobalElements();
   for (int j = 0; j < global_n_columns; ++j)
   {
     auto const src = extract_row(B, j);
 
-    std::remove_const<decltype(src)>::type dst(A.locally_owned_range_indices(),
-                                               A.get_mpi_communicator());
+    std::remove_const<decltype(src)>::type dst(tmp->locally_owned_elements(),
+                                               tmp->get_mpi_communicator());
     A.vmult(dst, src);
 
     // NOTE: getting an error that the index set is not compressed when calling
@@ -167,14 +168,14 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
       std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
           b);
 
-  auto a_mat = this->get_matrix();
+  auto tmp = this->build_range_vector();
   auto b_mat = downcast_b->get_matrix();
 
   auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-      a_mat->locally_owned_range_indices(),
-      b_mat->locally_owned_range_indices(), a_mat->get_mpi_communicator());
+      tmp->locally_owned_elements(), b_mat->locally_owned_range_indices(),
+      tmp->get_mpi_communicator());
 
-  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *a_mat);
+  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *this);
 
   return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
 }
