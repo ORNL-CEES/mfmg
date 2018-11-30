@@ -234,6 +234,22 @@ DealIIMatrixFreeOperator<VectorType>::get_matrix() const
 {
   return _sparse_matrix;
 }
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::vector_type
+DealIIMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
+{
+  dealii::IndexSet locally_owned_dofs =
+      _sparse_matrix->locally_owned_domain_indices();
+  vector_type diagonal_inverse(locally_owned_dofs,
+                               _sparse_matrix->get_mpi_communicator());
+  for (auto const index : locally_owned_dofs)
+  {
+    diagonal_inverse[index] = 1. / _sparse_matrix->diag_element(index);
+  }
+  diagonal_inverse.compress(dealii::VectorOperation::insert);
+  return diagonal_inverse;
+}
 } // namespace mfmg
 
 // Explicit Instantiation
