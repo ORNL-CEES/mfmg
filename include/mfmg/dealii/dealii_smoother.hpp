@@ -32,7 +32,7 @@ public:
   DealIISmoother(std::shared_ptr<Operator<vector_type> const> op,
                  std::shared_ptr<boost::property_tree::ptree const> params);
 
-  void apply(vector_type const &x, vector_type &y) const override final;
+  void apply(vector_type const &b, vector_type &x) const override final;
 
 private:
   std::unique_ptr<dealii::TrilinosWrappers::PreconditionBase> _smoother;
