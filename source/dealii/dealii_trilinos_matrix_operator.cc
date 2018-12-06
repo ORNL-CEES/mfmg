@@ -27,9 +27,11 @@ DealIITrilinosMatrixOperator<VectorType>::DealIITrilinosMatrixOperator(
 
 template <typename VectorType>
 void DealIITrilinosMatrixOperator<VectorType>::apply(VectorType const &x,
-                                                     VectorType &y) const
+                                                     VectorType &y,
+                                                     OperatorMode mode) const
 {
-  _sparse_matrix->vmult(y, x);
+  (mode == OperatorMode::NO_TRANS ? _sparse_matrix->vmult(y, x)
+                                  : _sparse_matrix->Tvmult(y, x));
 }
 
 template <typename VectorType>

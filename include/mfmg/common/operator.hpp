@@ -16,6 +16,12 @@
 
 namespace mfmg
 {
+enum class OperatorMode
+{
+  NO_TRANS,
+  TRANS
+};
+
 template <typename VectorType>
 class Operator
 {
@@ -25,7 +31,8 @@ public:
 
   virtual ~Operator() = default;
 
-  virtual void apply(vector_type const &x, vector_type &y) const = 0;
+  virtual void apply(vector_type const &x, vector_type &y,
+                     OperatorMode mode = OperatorMode::NO_TRANS) const = 0;
 
   virtual std::shared_ptr<operator_type> transpose() const = 0;
 

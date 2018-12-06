@@ -29,7 +29,8 @@ public:
   CudaMatrixOperator(
       std::shared_ptr<SparseMatrixDevice<value_type>> sparse_matrix);
 
-  void apply(vector_type const &x, vector_type &y) const override final;
+  void apply(vector_type const &x, vector_type &y,
+             OperatorMode mode = OperatorMode::NO_TRANS) const override final;
 
   std::shared_ptr<Operator<VectorType>> transpose() const override final;
 
@@ -50,7 +51,8 @@ public:
   std::shared_ptr<SparseMatrixDevice<value_type>> get_matrix() const;
 
 private:
-  std::shared_ptr<SparseMatrixDevice<value_type>> _matrix;
+  mutable std::shared_ptr<SparseMatrixDevice<value_type>> _matrix;
+  mutable std::shared_ptr<SparseMatrixDevice<value_type>> _transposed_matrix;
 };
 } // namespace mfmg
 

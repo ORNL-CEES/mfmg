@@ -70,42 +70,55 @@ CudaMatrixOperator<VectorType>::CudaMatrixOperator(
 }
 
 template <typename VectorType>
-void CudaMatrixOperator<VectorType>::apply(VectorType const &x,
-                                           VectorType &y) const
+void CudaMatrixOperator<VectorType>::apply(VectorType const &x, VectorType &y,
+                                           OperatorMode mode) const
 {
-  MatrixOperator<VectorType>::apply(_matrix, x, y);
+  if (mode == OperatorMode::TRANS && !_transposed_matrix)
+  {
+    // Initialize transposed matrix
+    std::ignore = transpose();
+  }
+  MatrixOperator<VectorType>::apply(
+      (mode == OperatorMode::NO_TRANS ? _matrix : _transposed_matrix), x, y);
 }
 
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 CudaMatrixOperator<VectorType>::transpose() const
 {
-  // Copy the data to the cpu and then, use trilinos to compute the
-  // transpose. This is not the most efficient way to do this but it is the
-  // easiest.
-  auto sparse_matrix = convert_to_trilinos_matrix(*_matrix);
+  if (!_transposed_matrix)
+  {
+    // Copy the data to the cpu and then, use trilinos to compute the
+    // transpose. This is not the most efficient way to do this but it is the
+    // easiest.
+    auto sparse_matrix = convert_to_trilinos_matrix(*_matrix);
 
-  // Transpose the sparse matrix
-  auto epetra_matrix = sparse_matrix.trilinos_matrix();
+    // Transpose the sparse matrix
+    auto epetra_matrix = sparse_matrix.trilinos_matrix();
 
-  EpetraExt::RowMatrix_Transpose transposer;
-  auto transposed_epetra_matrix =
-      dynamic_cast<Epetra_CrsMatrix &>(transposer(epetra_matrix));
+    EpetraExt::RowMatrix_Transpose transposer;
+    auto transposed_epetra_matrix =
+        dynamic_cast<Epetra_CrsMatrix &>(transposer(epetra_matrix));
 
-  auto transposed_matrix = std::make_shared<SparseMatrixDevice<double>>(
-      convert_matrix(transposed_epetra_matrix));
-  transposed_matrix->cusparse_handle = _matrix->cusparse_handle;
-  cusparseStatus_t cusparse_error_code;
-  cusparse_error_code = cusparseCreateMatDescr(&transposed_matrix->descr);
-  ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_error_code = cusparseSetMatType(transposed_matrix->descr,
-                                           CUSPARSE_MATRIX_TYPE_GENERAL);
-  ASSERT_CUSPARSE(cusparse_error_code);
-  cusparse_error_code = cusparseSetMatIndexBase(transposed_matrix->descr,
-                                                CUSPARSE_INDEX_BASE_ZERO);
-  ASSERT_CUSPARSE(cusparse_error_code);
+    _transposed_matrix = std::make_shared<SparseMatrixDevice<double>>(
+        convert_matrix(transposed_epetra_matrix));
+    _transposed_matrix->cusparse_handle = _matrix->cusparse_handle;
+    cusparseStatus_t cusparse_error_code;
+    cusparse_error_code = cusparseCreateMatDescr(&_transposed_matrix->descr);
+    ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code = cusparseSetMatType(_transposed_matrix->descr,
+                                             CUSPARSE_MATRIX_TYPE_GENERAL);
+    ASSERT_CUSPARSE(cusparse_error_code);
+    cusparse_error_code = cusparseSetMatIndexBase(_transposed_matrix->descr,
+                                                  CUSPARSE_INDEX_BASE_ZERO);
+    ASSERT_CUSPARSE(cusparse_error_code);
+  }
+  else
+  {
+    _matrix.swap(_transposed_matrix);
+  }
 
-  return std::make_shared<CudaMatrixOperator<VectorType>>(transposed_matrix);
+  return std::make_shared<CudaMatrixOperator<VectorType>>(_transposed_matrix);
 }
 
 template <typename VectorType>
