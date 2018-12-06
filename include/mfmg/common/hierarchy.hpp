@@ -163,12 +163,7 @@ public:
           hierarchy_helpers->build_restrictor(comm, evaluator, params);
       level_coarse.set_restrictor(restrictor);
 
-      // TODO is this useless or is it used in multigrid?
-      auto prolongator = restrictor->transpose();
-      level_coarse.set_prolongator(prolongator);
-
       auto ap = a->multiply_transpose(restrictor);
-      // auto ap = a->multiply(prolongator);
       auto a_coarse = restrictor->multiply(ap);
 
       level_coarse.set_operator(a_coarse);
@@ -202,7 +197,6 @@ public:
     {
       auto &level_coarse = _levels[level_index + 1];
 
-      auto prolongator = level_coarse.get_prolongator();
       auto restrictor = level_coarse.get_restrictor();
 
       // apply pre-smoother
@@ -213,21 +207,21 @@ public:
       // compute residual
       // NOTE: we compute negative residual -r = Ax-b, so that we can avoid
       // using sadd and can just use add
-      auto res = a->build_range_vector();
+      auto res = level_fine.build_vector();
       a->apply(x, *res);
       res->add(-1., b);
 
       // restrict residual
-      auto b_coarse = restrictor->build_range_vector();
+      auto b_coarse = level_coarse.build_vector();
       restrictor->apply(*res, *b_coarse);
 
       // compute coarse grid correction
-      auto x_coarse = prolongator->build_domain_vector();
+      auto x_coarse = level_coarse.build_vector();
       apply(*b_coarse, *x_coarse, level_index + 1);
 
       // update solution
-      auto x_correction = prolongator->build_range_vector();
-      prolongator->apply(*x_coarse, *x_correction);
+      auto x_correction = level_fine.build_vector();
+      restrictor->apply(*x_coarse, *x_correction, OperatorMode::TRANS);
 
       // NOTE: as we used negative residual, we subtract instead of adding
       // here

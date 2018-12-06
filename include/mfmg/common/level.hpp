@@ -36,11 +36,6 @@ public:
     return _restrictor;
   }
 
-  std::shared_ptr<operator_type const> get_prolongator() const
-  {
-    return _prolongator;
-  }
-
   std::shared_ptr<Smoother<vector_type> const> get_smoother() const
   {
     return _smoother;
@@ -58,11 +53,6 @@ public:
     _restrictor = r;
   }
 
-  void set_prolongator(std::shared_ptr<operator_type const> p)
-  {
-    _prolongator = p;
-  }
-
   void set_smoother(std::shared_ptr<Smoother<vector_type> const> s)
   {
     _smoother = s;
@@ -70,8 +60,17 @@ public:
 
   void set_solver(std::shared_ptr<Solver<vector_type> const> s) { _solver = s; }
 
+  std::shared_ptr<vector_type> build_vector() const
+  {
+    auto a = get_operator();
+    ASSERT(
+        a != nullptr,
+        "build_vector() can only be called after the level operator was set.");
+    return a->build_domain_vector();
+  }
+
 private:
-  std::shared_ptr<operator_type const> _operator, _prolongator, _restrictor;
+  std::shared_ptr<operator_type const> _operator, _restrictor;
   std::shared_ptr<Smoother<vector_type> const> _smoother;
   std::shared_ptr<Solver<vector_type> const> _solver;
 };
