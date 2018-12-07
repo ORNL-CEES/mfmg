@@ -79,9 +79,12 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
     }
     else
       ASSERT_THROW_NOT_IMPLEMENTED();
-
-    return hierarchy_helpers;
   }
+  else
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+  return hierarchy_helpers;
 }
 
 template <>
