@@ -17,3 +17,9 @@ template class mfmg::AMGe_host<
 template class mfmg::AMGe_host<
     3, mfmg::DealIIMeshEvaluator<3>,
     dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::AMGe_host<
+    2, mfmg::DealIIMatrixFreeMeshEvaluator<2>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::AMGe_host<
+    3, mfmg::DealIIMatrixFreeMeshEvaluator<3>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
