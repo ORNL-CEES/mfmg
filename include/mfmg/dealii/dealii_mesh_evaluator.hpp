@@ -29,6 +29,7 @@ public:
                       dealii::AffineConstraints<double> &constraints,
                       std::string mesh_evaluator_type = "DealIIMeshEvaluator");
 
+  static int constexpr _dim = dim;
   int get_dim() const override final;
 
   std::string get_mesh_evaluator_type() const override final;
