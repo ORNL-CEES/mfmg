@@ -13,6 +13,7 @@
 #define MFMG_TEST_HIERARCHY_HELPERS_HPP
 
 #include <mfmg/common/hierarchy.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
@@ -141,10 +142,9 @@ public:
   TestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                     dealii::AffineConstraints<double> &constraints,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property,
-                    std::string mesh_evaluator_type)
-      : MeshEvaluator(dof_handler, constraints, std::move(mesh_evaluator_type)),
-        _matrix(matrix), _material_property(material_property)
+                    std::shared_ptr<dealii::Function<dim>> material_property)
+      : MeshEvaluator(dof_handler, constraints), _matrix(matrix),
+        _material_property(material_property)
   {
   }
 

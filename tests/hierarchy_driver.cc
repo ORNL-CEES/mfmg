@@ -36,12 +36,9 @@ void main_(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  std::string const mesh_evaluator_type = "DealIIMeshEvaluator";
-
   std::shared_ptr<MeshEvaluator> evaluator(
       new TestMeshEvaluator<mfmg::DealIIMeshEvaluator<dim>>(
-          laplace._dof_handler, laplace._constraints, a, material_property,
-          mesh_evaluator_type));
+          laplace._dof_handler, laplace._constraints, a, material_property));
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
