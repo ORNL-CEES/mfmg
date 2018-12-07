@@ -13,9 +13,9 @@
 #include <mfmg/common/operator.hpp>
 #include <mfmg/dealii/amge_host.hpp>
 #include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_smoother.hpp>
-#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 namespace mfmg
@@ -29,9 +29,10 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
 {
   if (this->_global_operator == nullptr)
   {
-    // Downcast to DealIIMeshEvaluator
+    // Downcast to DealIIMatrixFreeMeshEvaluator
     auto dealii_mesh_evaluator =
-        std::dynamic_pointer_cast<DealIIMeshEvaluator<dim>>(mesh_evaluator);
+        std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
+            mesh_evaluator);
 
     auto system_matrix =
         std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
@@ -56,12 +57,13 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
     MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
     std::shared_ptr<boost::property_tree::ptree const> params)
 {
-  // Downcast to DealIIMeshEvaluator
+  // Downcast to DealIIMatrixFreeMeshEvaluator
   auto dealii_mesh_evaluator =
-      std::dynamic_pointer_cast<DealIIMeshEvaluator<dim>>(mesh_evaluator);
+      std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
+          mesh_evaluator);
 
   auto eigensolver_params = params->get_child("eigensolver");
-  AMGe_host<dim, DealIIMeshEvaluator<dim>, VectorType> amge(
+  AMGe_host<dim, DealIIMatrixFreeMeshEvaluator<dim>, VectorType> amge(
       comm, dealii_mesh_evaluator->get_dof_handler(),
       eigensolver_params.get("type", "arpack"));
 
