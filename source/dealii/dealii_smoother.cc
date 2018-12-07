@@ -61,7 +61,9 @@ DealIISmoother<VectorType>::DealIISmoother(
         ->initialize(*sparse_matrix);
   }
   else
+  {
     ASSERT_THROW(false, "Unknown smoother name: \"" + prec_name + "\"");
+  }
 }
 
 template <typename VectorType>

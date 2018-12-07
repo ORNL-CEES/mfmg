@@ -65,13 +65,21 @@ ptree2plist_internal(boost::property_tree::ptree const &node, std::ostream &os)
       std::string value_type;
 
       if (item.second.get_value_optional<int>())
+      {
         value_type = "int";
+      }
       else if (item.second.get_value_optional<double>())
+      {
         value_type = "double";
+      }
       else if (item.second.get_value_optional<bool>())
+      {
         value_type = "bool";
+      }
       else
+      {
         value_type = "string";
+      }
 
       os << "<Parameter name=\"" << item.first << "\" type=\"" << value_type
          << "\" value=\"" << value << "\"/>" << std::endl;
@@ -80,10 +88,10 @@ ptree2plist_internal(boost::property_tree::ptree const &node, std::ostream &os)
   return os;
 }
 
-void ptree2plist(boost::property_tree::ptree const &node,
+void ptree2plist(boost::property_tree::ptree const &ptree,
                  Teuchos::ParameterList &plist)
 {
-  if (node.empty())
+  if (ptree.empty())
   {
     plist = Teuchos::ParameterList();
     return;
@@ -92,7 +100,7 @@ void ptree2plist(boost::property_tree::ptree const &node,
   std::ostringstream ss;
 
   ss << "<ParameterList name=\"ANONYMOUS\">\n";
-  ptree2plist_internal(node, ss);
+  ptree2plist_internal(ptree, ss);
   ss << "</ParameterList>";
 
   plist = *Teuchos::getParametersFromXmlString(ss.str());

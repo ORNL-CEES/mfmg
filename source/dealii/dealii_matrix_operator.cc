@@ -22,12 +22,13 @@ DealIIMatrixOperator<VectorType>::DealIIMatrixOperator(
     std::shared_ptr<dealii::SparsityPattern> sparsity_pattern,
     std::shared_ptr<dealii::SparseMatrix<typename VectorType::value_type>>
         sparse_matrix)
-    : _sparsity_pattern(sparsity_pattern), _sparse_matrix(sparse_matrix)
+    : _sparsity_pattern(std::move(sparsity_pattern)),
+      _sparse_matrix(std::move(sparse_matrix))
 {
-  ASSERT(sparsity_pattern != nullptr,
+  ASSERT(_sparsity_pattern != nullptr,
          "deal.II matrices require a sparsity pattern");
 
-  ASSERT(sparse_matrix != nullptr, "The matrix must exist");
+  ASSERT(_sparse_matrix != nullptr, "The matrix must exist");
 }
 
 template <typename VectorType>
@@ -40,7 +41,7 @@ void DealIIMatrixOperator<VectorType>::apply(VectorType const &x,
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixOperator<VectorType>::multiply_transpose(
-    std::shared_ptr<Operator<VectorType> const>) const
+    std::shared_ptr<Operator<VectorType> const> /*b*/) const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
