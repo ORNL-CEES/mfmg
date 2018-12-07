@@ -71,9 +71,10 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto const mesh_evaluator_type =
       params->get<std::string>("mesh_evaluator_type", "DealIIMeshEvaluator");
 
-  auto evaluator = std::make_shared<TestMeshEvaluator<dim>>(
-      laplace._dof_handler, laplace._constraints, a, material_property,
-      mesh_evaluator_type);
+  auto evaluator =
+      std::make_shared<TestMeshEvaluator<mfmg::DealIIMeshEvaluator<dim>>>(
+          laplace._dof_handler, laplace._constraints, a, material_property,
+          mesh_evaluator_type);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
