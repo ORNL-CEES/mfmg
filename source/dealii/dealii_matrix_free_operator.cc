@@ -143,25 +143,37 @@ DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
   }
 }
 
+std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+get_matrix(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
+{
+  return mesh_evaluator->get_dim() == 2
+             ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                   mesh_evaluator)
+                   ->get_matrix()
+             : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                   mesh_evaluator)
+                   ->get_matrix();
+}
+
 template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
                                                  VectorType const &src) const
 {
-  _sparse_matrix->vmult(dst, src);
+  get_matrix(_mesh_evaluator)->vmult(dst, src);
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::m() const
 {
-  return _sparse_matrix->m();
+  return get_matrix(_mesh_evaluator)->m();
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::n() const
 {
-  return _sparse_matrix->n();
+  return get_matrix(_mesh_evaluator)->n();
 }
 
 template <typename VectorType>
@@ -169,14 +181,14 @@ typename DealIIMatrixFreeOperator<VectorType>::value_type
 DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
 {
   ASSERT(i == j, "was intended for accessing diagonal elements only");
-  return _sparse_matrix->el(i, i);
+  return get_matrix(_mesh_evaluator)->el(i, i);
 }
 
 template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::apply(VectorType const &x,
                                                  VectorType &y) const
 {
-  _sparse_matrix->vmult(y, x); // FIXME
+  get_matrix(_mesh_evaluator)->vmult(y, x);
 }
 
 template <typename VectorType>
@@ -224,43 +236,43 @@ template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<VectorType>::build_domain_vector() const
 {
-  return std::make_shared<vector_type>(
-      _sparse_matrix->locally_owned_domain_indices(),
-      _sparse_matrix->get_mpi_communicator());
+  auto matrix = get_matrix(_mesh_evaluator);
+  return std::make_shared<vector_type>(matrix->locally_owned_domain_indices(),
+                                       matrix->get_mpi_communicator());
 }
 
 template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
 {
-  return std::make_shared<vector_type>(
-      _sparse_matrix->locally_owned_range_indices(),
-      _sparse_matrix->get_mpi_communicator());
+  auto matrix = get_matrix(_mesh_evaluator);
+  return std::make_shared<vector_type>(matrix->locally_owned_range_indices(),
+                                       matrix->get_mpi_communicator());
 }
 
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::grid_complexity() const
 {
-  return _sparse_matrix->m();
+  return get_matrix(_mesh_evaluator)->m();
 }
 
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
 {
-  return _sparse_matrix->n_nonzero_elements();
+  return get_matrix(_mesh_evaluator)->n_nonzero_elements();
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::vector_type
 DealIIMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
 {
-  dealii::IndexSet locally_owned_dofs =
-      _sparse_matrix->locally_owned_domain_indices();
+  auto matrix = get_matrix(_mesh_evaluator);
+  dealii::IndexSet locally_owned_dofs = matrix->locally_owned_domain_indices();
   vector_type diagonal_inverse(locally_owned_dofs,
-                               _sparse_matrix->get_mpi_communicator());
+                               matrix->get_mpi_communicator());
   for (auto const index : locally_owned_dofs)
   {
-    diagonal_inverse[index] = 1. / _sparse_matrix->diag_element(index);
+    diagonal_inverse[index] = 1. / matrix->diag_element(index);
   }
   diagonal_inverse.compress(dealii::VectorOperation::insert);
   return diagonal_inverse;
