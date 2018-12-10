@@ -42,8 +42,8 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
         dealii_mesh_evaluator->get_dof_handler(),
         dealii_mesh_evaluator->get_constraints(), *system_matrix);
 
-    this->_global_operator.reset(
-        new DealIIMatrixFreeOperator<VectorType>(system_matrix));
+    this->_global_operator.reset(new DealIIMatrixFreeOperator<VectorType>(
+        system_matrix, dealii_mesh_evaluator));
   }
 
   return this->_global_operator;

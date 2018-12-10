@@ -11,6 +11,7 @@
 
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/common/instantiation.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
@@ -116,9 +117,30 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
-    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
-    : _sparse_matrix(std::move(sparse_matrix))
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix,
+    std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
+    : _sparse_matrix(std::move(sparse_matrix)),
+      _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
 {
+  int const dim = _mesh_evaluator->get_dim();
+  std::string const downcasting_failure_error_message =
+      "Must pass a matrix free mesh evaluator to create an operator";
+  if (dim == 2)
+  {
+    ASSERT(std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+               _mesh_evaluator) != nullptr,
+           downcasting_failure_error_message);
+  }
+  else if (dim == 3)
+  {
+    ASSERT(std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+               _mesh_evaluator) != nullptr,
+           downcasting_failure_error_message);
+  }
+  else
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
 }
 
 template <typename VectorType>

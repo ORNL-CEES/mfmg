@@ -12,6 +12,7 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 #define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
+#include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/operator.hpp>
 
 #include <deal.II/base/subscriptor.h>
@@ -29,7 +30,8 @@ public:
   using value_type = typename VectorType::value_type;
 
   DealIIMatrixFreeOperator(
-      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
+      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix,
+      std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
 
   void apply(vector_type const &x, vector_type &y) const override final;
 
@@ -61,6 +63,7 @@ public:
 
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
+  std::shared_ptr<MeshEvaluator> _mesh_evaluator;
 };
 } // namespace mfmg
 
