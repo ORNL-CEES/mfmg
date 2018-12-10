@@ -16,7 +16,6 @@
 #include <mfmg/common/operator.hpp>
 
 #include <deal.II/base/subscriptor.h>
-#include <deal.II/lac/trilinos_sparse_matrix.h> // FIXME
 
 namespace mfmg
 {
@@ -30,7 +29,6 @@ public:
   using value_type = typename VectorType::value_type;
 
   DealIIMatrixFreeOperator(
-      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix,
       std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
 
   void apply(vector_type const &x, vector_type &y) const override final;
@@ -62,7 +60,6 @@ public:
   vector_type get_diagonal_inverse() const;
 
 private:
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
   std::shared_ptr<MeshEvaluator> _mesh_evaluator;
 };
 } // namespace mfmg

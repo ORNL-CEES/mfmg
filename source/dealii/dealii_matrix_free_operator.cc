@@ -117,10 +117,8 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
-    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix,
     std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
-    : _sparse_matrix(std::move(sparse_matrix)),
-      _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
+    : _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
 {
   int const dim = _mesh_evaluator->get_dim();
   std::string const downcasting_failure_error_message =

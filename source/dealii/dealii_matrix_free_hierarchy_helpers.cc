@@ -34,16 +34,8 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
         std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
             mesh_evaluator);
 
-    auto system_matrix =
-        std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
-
-    // Call user function to fill in the system matrix
-    dealii_mesh_evaluator->evaluate_global(
-        dealii_mesh_evaluator->get_dof_handler(),
-        dealii_mesh_evaluator->get_constraints(), *system_matrix);
-
-    this->_global_operator.reset(new DealIIMatrixFreeOperator<VectorType>(
-        system_matrix, dealii_mesh_evaluator));
+    this->_global_operator.reset(
+        new DealIIMatrixFreeOperator<VectorType>(dealii_mesh_evaluator));
   }
 
   return this->_global_operator;
