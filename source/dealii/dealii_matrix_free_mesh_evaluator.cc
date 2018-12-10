@@ -22,6 +22,20 @@ DealIIMatrixFreeMeshEvaluator<dim>::DealIIMatrixFreeMeshEvaluator(
                                "DealIIMatrixFreeMeshEvaluator")
 {
 }
+
+template <int dim>
+std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+DealIIMatrixFreeMeshEvaluator<dim>::get_matrix()
+{
+  if (!_sparse_matrix)
+  {
+    _sparse_matrix = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
+
+    this->evaluate_global(this->get_dof_handler(), this->get_constraints(),
+                          *_sparse_matrix);
+  }
+  return _sparse_matrix;
+}
 } // namespace mfmg
 
 // Explicit Instantiation

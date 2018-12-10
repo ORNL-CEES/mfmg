@@ -16,6 +16,7 @@
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/trilinos_sparse_matrix.h>
 
 namespace mfmg
 {
@@ -25,6 +26,11 @@ class DealIIMatrixFreeMeshEvaluator : public DealIIMeshEvaluator<dim>
 public:
   DealIIMatrixFreeMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                                 dealii::AffineConstraints<double> &constraints);
+
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix();
+
+private:
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };
 } // namespace mfmg
 
