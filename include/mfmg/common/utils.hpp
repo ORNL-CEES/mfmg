@@ -22,6 +22,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <algorithm>
+#include <numeric>
 #include <vector>
 
 namespace mfmg

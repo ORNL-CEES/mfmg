@@ -24,6 +24,8 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
+#include <random>
+
 #include "main.cc"
 
 template <int dim>
