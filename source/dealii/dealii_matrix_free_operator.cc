@@ -157,7 +157,13 @@ template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
                                                  VectorType const &src) const
 {
-  get_matrix(_mesh_evaluator)->vmult(dst, src);
+  _mesh_evaluator->get_dim() == 2
+      ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+            _mesh_evaluator)
+            ->vmult(dst, src)
+      : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+            _mesh_evaluator)
+            ->vmult(dst, src);
 }
 
 template <typename VectorType>
@@ -186,7 +192,7 @@ template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::apply(VectorType const &x,
                                                  VectorType &y) const
 {
-  get_matrix(_mesh_evaluator)->vmult(y, x);
+  this->vmult(y, x);
 }
 
 template <typename VectorType>
