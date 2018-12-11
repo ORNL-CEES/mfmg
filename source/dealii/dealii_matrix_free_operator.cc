@@ -182,10 +182,12 @@ DealIIMatrixFreeOperator<VectorType>::n() const
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::value_type
-DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
+    DealIIMatrixFreeOperator<VectorType>::el(size_type /*i*/,
+                                             size_type /*j*/) const
 {
-  ASSERT(i == j, "was intended for accessing diagonal elements only");
-  return get_matrix(_mesh_evaluator)->el(i, i);
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
 
 template <typename VectorType>
