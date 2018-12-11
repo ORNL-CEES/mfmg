@@ -17,6 +17,8 @@
 
 #include <boost/property_tree/info_parser.hpp>
 
+#include <random>
+
 #include "laplace.hpp"
 #include "main.cc"
 

@@ -21,6 +21,8 @@
 
 #include <boost/property_tree/ptree.hpp>
 
+#include <random>
+
 #include <cusolverDn.h>
 #include <cusolverSp.h>
 
