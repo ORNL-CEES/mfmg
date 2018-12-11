@@ -16,6 +16,7 @@
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 
 namespace mfmg
@@ -28,6 +29,10 @@ public:
                                 dealii::AffineConstraints<double> &constraints);
 
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix();
+
+  void
+  vmult(dealii::LinearAlgebra::distributed::Vector<double> &dst,
+        dealii::LinearAlgebra::distributed::Vector<double> const &src) const;
 
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;

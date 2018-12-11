@@ -36,6 +36,14 @@ DealIIMatrixFreeMeshEvaluator<dim>::get_matrix()
   }
   return _sparse_matrix;
 }
+
+template <int dim>
+void DealIIMatrixFreeMeshEvaluator<dim>::vmult(
+    dealii::LinearAlgebra::distributed::Vector<double> &dst,
+    dealii::LinearAlgebra::distributed::Vector<double> const &src) const
+{
+  _sparse_matrix->vmult(dst, src);
+}
 } // namespace mfmg
 
 // Explicit Instantiation
