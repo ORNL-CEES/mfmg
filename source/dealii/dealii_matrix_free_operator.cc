@@ -183,7 +183,9 @@ template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::n() const
 {
-  return get_matrix(_mesh_evaluator)->n();
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::size_type{};
 }
 
 template <typename VectorType>
