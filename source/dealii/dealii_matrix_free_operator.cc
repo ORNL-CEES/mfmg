@@ -242,9 +242,9 @@ template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<VectorType>::build_domain_vector() const
 {
-  auto matrix = get_matrix(_mesh_evaluator);
-  return std::make_shared<vector_type>(matrix->locally_owned_domain_indices(),
-                                       matrix->get_mpi_communicator());
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
 }
 
 template <typename VectorType>
