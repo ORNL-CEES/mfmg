@@ -290,15 +290,14 @@ template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::vector_type
 DealIIMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
 {
-  auto matrix = get_matrix(_mesh_evaluator);
-  dealii::IndexSet locally_owned_dofs = matrix->locally_owned_domain_indices();
-  vector_type diagonal_inverse(locally_owned_dofs,
-                               matrix->get_mpi_communicator());
-  for (auto const index : locally_owned_dofs)
-  {
-    diagonal_inverse[index] = 1. / matrix->diag_element(index);
-  }
-  diagonal_inverse.compress(dealii::VectorOperation::insert);
+  auto diagonal_inverse =
+      _mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse()
+          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse();
   return diagonal_inverse;
 }
 } // namespace mfmg
