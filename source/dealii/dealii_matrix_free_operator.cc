@@ -273,13 +273,17 @@ DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::grid_complexity() const
 {
-  return get_matrix(_mesh_evaluator)->m();
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
 
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
 {
-  return get_matrix(_mesh_evaluator)->n_nonzero_elements();
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
 
 template <typename VectorType>
