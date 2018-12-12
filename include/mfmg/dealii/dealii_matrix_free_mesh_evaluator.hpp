@@ -34,6 +34,9 @@ public:
   vmult(dealii::LinearAlgebra::distributed::Vector<double> &dst,
         dealii::LinearAlgebra::distributed::Vector<double> const &src) const;
 
+  std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
+  build_range_vector() const;
+
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };

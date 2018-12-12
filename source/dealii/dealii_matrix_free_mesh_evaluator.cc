@@ -44,6 +44,15 @@ void DealIIMatrixFreeMeshEvaluator<dim>::vmult(
 {
   _sparse_matrix->vmult(dst, src);
 }
+
+template <int dim>
+std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
+DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
+{
+  return std::make_shared<dealii::LinearAlgebra::distributed::Vector<double>>(
+      _sparse_matrix->locally_owned_range_indices(),
+      _sparse_matrix->get_mpi_communicator());
+}
 } // namespace mfmg
 
 // Explicit Instantiation
