@@ -141,18 +141,6 @@ DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
   }
 }
 
-std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
-get_matrix(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
-{
-  return mesh_evaluator->get_dim() == 2
-             ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
-                   mesh_evaluator)
-                   ->get_matrix()
-             : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
-                   mesh_evaluator)
-                   ->get_matrix();
-}
-
 template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
                                                  VectorType const &src) const
