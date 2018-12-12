@@ -53,6 +53,12 @@ DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
       _sparse_matrix->locally_owned_range_indices(),
       _sparse_matrix->get_mpi_communicator());
 }
+
+template <int dim>
+dealii::types::global_dof_index DealIIMatrixFreeMeshEvaluator<dim>::m() const
+{
+  return _sparse_matrix->m();
+}
 } // namespace mfmg
 
 // Explicit Instantiation

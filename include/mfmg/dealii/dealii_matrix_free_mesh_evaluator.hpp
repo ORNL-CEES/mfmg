@@ -37,6 +37,8 @@ public:
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
 
+  dealii::types::global_dof_index m() const;
+
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };
