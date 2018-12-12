@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-devel
+FROM nvidia/cuda:9.0-devel
 
 ENV N_PROCS=1
 
@@ -50,9 +50,9 @@ RUN export CMAKE_VERSION=3.11.4 && \
 ENV PATH=${INSTALL_DIR}/cmake/bin:$PATH
 
 # Install OpenMPI
-RUN export OPENMPI_VERSION=3.1.2 && \
+RUN export OPENMPI_VERSION=3.1.3 && \
     export OPENMPI_VERSION_SHORT=3.1 && \
-    export OPENMPI_SHA1=b93c3b6ece16064e95578ec104f0c695c47a9fc8 && \
+    export OPENMPI_SHA1=b3c60e2bdd5a8a8e758fd741f9a5bebb84da5e81 && \
     export OPENMPI_URL=https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_SHORT}/downloads/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_ARCHIVE=${ARCHIVE_DIR}/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_SOURCE_DIR=${SOURCE_DIR}/openmpi && \
@@ -64,7 +64,7 @@ RUN export OPENMPI_VERSION=3.1.2 && \
     tar -xf ${OPENMPI_ARCHIVE} -C ${OPENMPI_SOURCE_DIR} --strip-components=1 && \
     mkdir -p ${OPENMPI_BUILD_DIR} && \
     cd ${OPENMPI_BUILD_DIR} && \
-    ${OPENMPI_SOURCE_DIR}/configure --prefix=${OPENMPI_INSTALL_DIR} && \
+    ${OPENMPI_SOURCE_DIR}/configure --with-cuda --prefix=${OPENMPI_INSTALL_DIR} && \
     make -j${N_PROCS} install && \
     rm -rf ${OPENMPI_ARCHIVE} && \
     rm -rf ${OPENMPI_BUILD_DIR} && \
@@ -110,7 +110,7 @@ RUN export BOOST_VERSION=1.67.0 && \
         --prefix=${BOOST_INSTALL_DIR} \
         && \
     echo "using mpi ;" >> project-config.jam && \
-    ./b2 \
+    ./b2 -j${N_PROCS}\
         --build-dir=${BOOST_BUILD_DIR} \
         hardcode-dll-paths=true dll-path=${BOOST_INSTALL_DIR}/lib \
         link=shared \
@@ -182,7 +182,7 @@ RUN export P4EST_VERSION=2.0 && \
 ENV P4EST_DIR=${INSTALL_DIR}/p4est
 
 # Install Arpack-NG
-RUN export ARPACK_VERSION=3.5.0 && \
+RUN export ARPACK_VERSION=3.6.3 && \
     export ARPACK_URL=https://github.com/opencollab/arpack-ng/archive/${ARPACK_VERSION}.tar.gz && \
     export ARPACK_ARCHIVE=${ARCHIVE_DIR}/arpack-${ARPACK_VERSION}.tar.gz && \
     export ARPACK_SOURCE_DIR=${SOURCE_DIR}/arpack && \
@@ -204,7 +204,7 @@ RUN export ARPACK_VERSION=3.5.0 && \
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
 # Install deal.II
-RUN export DEAL_II_HASH=1a364b58c4a5e2235c1282544d55486d41bead96 && \
+RUN export DEAL_II_HASH=169fded235af93b045bab77315781e121bcd1765 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
@@ -223,7 +223,8 @@ RUN export DEAL_II_HASH=1a364b58c4a5e2235c1282544d55486d41bead96 && \
         -DDEAL_II_WITH_ARPACK=ON \
         -DARPACK_DIR=${ARPACK_DIR} \
         -DDEAL_II_WITH_CUDA=ON \
-        -DDEAL_II_WITH_CXX14=OFF \
+        -DDEAL_II_WITH_CXX14=ON \
+        -DDEAL_II_WITH_CXX17=OFF \
         -DCMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
         ${DEAL_II_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
