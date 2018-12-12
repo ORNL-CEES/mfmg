@@ -170,7 +170,13 @@ template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::m() const
 {
-  return get_matrix(_mesh_evaluator)->m();
+  return _mesh_evaluator->get_dim() == 2
+             ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                   _mesh_evaluator)
+                   ->m()
+             : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                   _mesh_evaluator)
+                   ->m();
 }
 
 template <typename VectorType>
