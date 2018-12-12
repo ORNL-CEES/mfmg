@@ -18,9 +18,14 @@ template <int dim>
 DealIIMatrixFreeMeshEvaluator<dim>::DealIIMatrixFreeMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
     dealii::AffineConstraints<double> &constraints)
-    : DealIIMeshEvaluator<dim>(dof_handler, constraints,
-                               "DealIIMatrixFreeMeshEvaluator")
+    : DealIIMeshEvaluator<dim>(dof_handler, constraints)
 {
+}
+
+template <int dim>
+std::string DealIIMatrixFreeMeshEvaluator<dim>::get_mesh_evaluator_type() const
+{
+  return "DealIIMatrixFreeMeshEvaluator";
 }
 
 template <int dim>

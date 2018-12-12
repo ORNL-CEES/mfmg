@@ -28,6 +28,8 @@ public:
   DealIIMatrixFreeMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                                 dealii::AffineConstraints<double> &constraints);
 
+  std::string get_mesh_evaluator_type() const override final;
+
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix();
 
   void
