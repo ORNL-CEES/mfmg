@@ -23,19 +23,9 @@ namespace mfmg
 template <int dim>
 DealIIMeshEvaluator<dim>::DealIIMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
-    dealii::AffineConstraints<double> &constraints,
-    std::string mesh_evaluator_type)
-    : _dof_handler(dof_handler), _constraints(constraints),
-      _mesh_evaluator_type(std::move(mesh_evaluator_type))
+    dealii::AffineConstraints<double> &constraints)
+    : _dof_handler(dof_handler), _constraints(constraints)
 {
-  std::vector<std::string> const valid_mesh_evaluator_types = {
-      "DealIIMeshEvaluator", "DealIIMatrixFreeMeshEvaluator"};
-  ASSERT(std::find(std::begin(valid_mesh_evaluator_types),
-                   std::end(valid_mesh_evaluator_types),
-                   _mesh_evaluator_type) !=
-             std::end(valid_mesh_evaluator_types),
-         "mesh_evaluator_type string argument passed to DealIIMeshEvaluator "
-         "constructor is not valid");
 }
 
 template <int dim>
@@ -47,7 +37,7 @@ int DealIIMeshEvaluator<dim>::get_dim() const
 template <int dim>
 std::string DealIIMeshEvaluator<dim>::get_mesh_evaluator_type() const
 {
-  return _mesh_evaluator_type;
+  return "DealIIMeshEvaluator";
 }
 
 template <int dim>
