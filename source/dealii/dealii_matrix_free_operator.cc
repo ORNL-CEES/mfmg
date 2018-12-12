@@ -251,9 +251,15 @@ template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
 {
-  auto matrix = get_matrix(_mesh_evaluator);
-  return std::make_shared<vector_type>(matrix->locally_owned_range_indices(),
-                                       matrix->get_mpi_communicator());
+  auto range_vector =
+      _mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                _mesh_evaluator)
+                ->build_range_vector()
+          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                _mesh_evaluator)
+                ->build_range_vector();
+  return range_vector;
 }
 
 template <typename VectorType>
