@@ -32,7 +32,7 @@ public:
   static int constexpr _dim = dim;
   int get_dim() const override final;
 
-  std::string get_mesh_evaluator_type() const override final;
+  std::string get_mesh_evaluator_type() const override /*final*/;
 
   // For deal.II, because of the way it deals with hanging nodes and
   // Dirichlet b.c., we need to zero out the initial guess values
