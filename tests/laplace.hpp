@@ -109,7 +109,7 @@ void Laplace<dim, VectorType>::setup_system(
   }
 
   if (ptree.get("distort_random", false))
-    dealii::GridTools::distort_random(0.2, _triangulation);
+    dealii::GridTools::distort_random(0.1, _triangulation);
 
   _dof_handler.distribute_dofs(_fe);
 
