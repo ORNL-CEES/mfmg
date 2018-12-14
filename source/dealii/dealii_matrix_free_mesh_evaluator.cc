@@ -54,6 +54,18 @@ template <int dim>
 std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
 DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
 {
+  // Get the MPI communicator from the dof handler
+  auto const &triangulation = (this->_dof_handler).get_triangulation();
+  using Triangulation =
+      typename std::remove_reference<decltype(triangulation)>::type;
+  auto comm = static_cast<dealii::parallel::Triangulation<
+      Triangulation::dimension, Triangulation::space_dimension> const &>(
+                  triangulation)
+                  .get_communicator();
+
+  // Get the set of locally owned DoFs
+  auto const &locally_owned_dofs = (this->_dof_handler).locally_owned_dofs();
+
   return std::make_shared<dealii::LinearAlgebra::distributed::Vector<double>>(
       _sparse_matrix->locally_owned_range_indices(),
       _sparse_matrix->get_mpi_communicator());
