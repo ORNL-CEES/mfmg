@@ -67,14 +67,13 @@ DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
   auto const &locally_owned_dofs = (this->_dof_handler).locally_owned_dofs();
 
   return std::make_shared<dealii::LinearAlgebra::distributed::Vector<double>>(
-      _sparse_matrix->locally_owned_range_indices(),
-      _sparse_matrix->get_mpi_communicator());
+      locally_owned_dofs, comm);
 }
 
 template <int dim>
 dealii::types::global_dof_index DealIIMatrixFreeMeshEvaluator<dim>::m() const
 {
-  return _sparse_matrix->m();
+  return (this->_dof_handler).n_dofs();
 }
 
 template <int dim>
