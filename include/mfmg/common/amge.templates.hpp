@@ -91,16 +91,52 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
+  // Map between the cells on the boundary and the faces on the boundary and the
+  // associated boundary id.
+  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
+           std::vector<std::pair<unsigned int, unsigned int>>>
+      boundary_ids;
   for (auto cell : _dof_handler.active_cell_iterators())
     if (cell->user_index() == agglomerate_id)
+    {
       agglomerate.push_back(cell);
+      if (cell->at_boundary())
+      {
+        for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
+             ++f)
+        {
+          if (cell->face(f)->at_boundary())
+          {
+            boundary_ids[cell].push_back(
+                std::make_pair(f, cell->face(f)->boundary_id()));
+          }
+        }
+      }
+    }
 
   // If the agglomerate has hanging nodes, the patch is bigger than
-  // what we may expect because we cannot a create a coarse triangulation with
+  // what we may expect because we cannot create a coarse triangulation with
   // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
   // cells.
   dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
       agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+
+  // Copy the boundary IDs to the agglomerate triangulation
+  for (auto const &boundary : boundary_ids)
+  {
+    auto const boundary_cell = boundary.first;
+    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
+    {
+      if (agglomerate_cell.second == boundary_cell)
+      {
+        for (auto &boundary_face : boundary.second)
+          agglomerate_cell.first->face(boundary_face.first)
+              ->set_boundary_id(boundary_face.second);
+
+        break;
+      }
+    }
+  }
 }
 
 template <int dim, typename VectorType>
@@ -231,6 +267,30 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
   restriction_sparse_matrix.compress(dealii::VectorOperation::add);
 
 #if MFMG_DEBUG
+  // Check that the locally_relevant_global_diag is the sum of the agglomerates
+  // diagonal
+  // TODO do not ask user for the locally_relevant_global_diag
+  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
+      new_global_diag(locally_relevant_global_diag.get_partitioner());
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    // Get the size of the eigenvectors in agglomerate i
+    unsigned int offset = std::accumulate(n_local_eigenvectors.begin(),
+                                          n_local_eigenvectors.begin() + i, 0);
+    unsigned int const n_elem = eigenvectors[offset].size();
+
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      new_global_diag[global_pos] += diag_elements[i][j];
+    }
+  }
+  new_global_diag.compress(dealii::VectorOperation::add);
+  new_global_diag -= locally_relevant_global_diag;
+  ASSERT((new_global_diag.linfty_norm() /
+          locally_relevant_global_diag.linfty_norm()) < 1e-14,
+         "Sum of agglomerate diagonals is not equal to the global diagonal");
+
   // Check that the sum of the weight matrices is the identity
   auto locally_owned_dofs =
       locally_relevant_global_diag.locally_owned_elements();

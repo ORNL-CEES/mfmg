@@ -54,7 +54,7 @@ public:
   }
 };
 
-BOOST_AUTO_TEST_CASE(restriction_matrix)
+BOOST_AUTO_TEST_CASE(restriction_matrix, *utf::tolerance(1e-14))
 {
   unsigned int constexpr dim = 2;
 
@@ -230,6 +230,9 @@ public:
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
     dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+    // The test requires us not to put boundary conditions
+    // dealii::VectorTools::interpolate_boundary_values(
+    //     dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), constraints);
     constraints.close();
 
     // Build the system sparsity pattern and reinitialize the system sparse

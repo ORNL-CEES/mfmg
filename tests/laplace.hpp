@@ -96,6 +96,18 @@ void Laplace<dim, VectorType>::setup_system(
 
   _triangulation.refine_global(ptree.get("n_refinements", 3));
 
+  // Set the boundary id to one
+  auto boundary_cells =
+      dealii::filter_iterators(_triangulation.active_cell_iterators(),
+                               dealii::IteratorFilters::LocallyOwnedCell(),
+                               dealii::IteratorFilters::AtBoundary());
+  for (auto &cell : boundary_cells)
+  {
+    for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell; ++f)
+      if (cell->face(f)->at_boundary())
+        cell->face(f)->set_boundary_id(1);
+  }
+
   if (ptree.get("distort_random", false))
     dealii::GridTools::distort_random(0.2, _triangulation);
 
@@ -126,7 +138,7 @@ void Laplace<dim, VectorType>::setup_system(
   _constraints.reinit(_locally_relevant_dofs);
   dealii::DoFTools::make_hanging_node_constraints(_dof_handler, _constraints);
   dealii::VectorTools::interpolate_boundary_values(
-      _dof_handler, 0, dealii::Functions::ZeroFunction<dim>(), _constraints);
+      _dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), _constraints);
   _constraints.close();
 
   // Build the sparsity pattern

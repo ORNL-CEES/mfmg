@@ -175,6 +175,8 @@ public:
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
     dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+    dealii::VectorTools::interpolate_boundary_values(
+        dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), constraints);
     constraints.close();
 
     // Build the system sparsity pattern and reinitialize the system sparse
