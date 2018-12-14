@@ -28,31 +28,6 @@
 
 #include "main.cc"
 
-template <int dim>
-class DummyMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
-{
-public:
-  DummyMeshEvaluator(mfmg::CudaHandle &cuda_handle,
-                     dealii::DoFHandler<dim> &dof_handler,
-                     dealii::AffineConstraints<double> &constraints)
-      : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints)
-  {
-  }
-
-  void
-  evaluate_agglomerate(dealii::DoFHandler<dim> &,
-                       dealii::AffineConstraints<double> &,
-                       mfmg::SparseMatrixDevice<double> &) const override final
-  {
-  }
-
-  void evaluate_global(dealii::DoFHandler<dim> &,
-                       dealii::AffineConstraints<double> &,
-                       mfmg::SparseMatrixDevice<double> &) const override final
-  {
-  }
-};
-
 BOOST_AUTO_TEST_CASE(restriction_matrix)
 {
   unsigned int constexpr dim = 2;
@@ -68,8 +43,6 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   dealii::FE_Q<dim> fe(1);
   dealii::DoFHandler<dim> dof_handler(triangulation);
   dof_handler.distribute_dofs(fe);
-  dealii::AffineConstraints<double> constraints;
-  DummyMeshEvaluator<dim> evaluator(cuda_handle, dof_handler, constraints);
   mfmg::AMGe_device<dim, mfmg::CudaMeshEvaluator<dim>, Vector> amge(
       comm, dof_handler, cuda_handle);
 
@@ -164,8 +137,8 @@ BOOST_AUTO_TEST_CASE(restriction_matrix)
   {
     for (unsigned int j = 0; j < eigenvectors_size; ++j)
     {
-      BOOST_CHECK_EQUAL(restriction_matrix_host[pos],
-                        diag_elements[i][j] * eigenvectors[i][j]);
+      BOOST_CHECK_CLOSE(restriction_matrix_host[pos],
+                        diag_elements[i][j] * eigenvectors[i][j], 1e-13);
       ++pos;
     }
   }
