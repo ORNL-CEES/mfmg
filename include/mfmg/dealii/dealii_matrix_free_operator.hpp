@@ -35,7 +35,8 @@ public:
   DealIIMatrixFreeOperator(
       std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
 
-  void apply(vector_type const &x, vector_type &y) const override final;
+  void apply(vector_type const &x, vector_type &y,
+             OperatorMode mode = OperatorMode::NO_TRANS) const override final;
 
   std::shared_ptr<Operator<VectorType>> transpose() const override final;
 

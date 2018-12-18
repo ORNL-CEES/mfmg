@@ -188,8 +188,13 @@ typename DealIIMatrixFreeOperator<VectorType>::value_type
 
 template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::apply(VectorType const &x,
-                                                 VectorType &y) const
+                                                 VectorType &y,
+                                                 OperatorMode mode) const
 {
+  if (mode != OperatorMode::NO_TRANS)
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
   this->vmult(y, x);
 }
 
