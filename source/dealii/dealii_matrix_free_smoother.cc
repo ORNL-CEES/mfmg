@@ -33,8 +33,8 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
                  ::tolower);
   if (prec_name == "chebyshev")
   {
-    _smoother.reset(new preconditioner_type());
-    typename preconditioner_type::AdditionalData data;
+    _smoother.reset(new chebyshev_preconditioner());
+    typename chebyshev_preconditioner::AdditionalData data;
     if (auto degree = params->get_optional<int>("smoother.degree"))
     {
       data.degree = *degree;
