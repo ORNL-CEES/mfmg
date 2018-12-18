@@ -266,16 +266,14 @@ DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::grid_complexity() const
 {
-  //  ASSERT_THROW_NOT_IMPLEMENTED();
-
+  // FIXME Returns garbage since throwing not implemented was not an option
   return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
 
 template <typename VectorType>
 size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
 {
-  //  ASSERT_THROW_NOT_IMPLEMENTED();
-
+  // FIXME Returns garbage since throwing not implemented was not an option
   return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
 
