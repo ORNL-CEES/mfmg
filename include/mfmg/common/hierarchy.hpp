@@ -16,11 +16,13 @@
 #include <mfmg/common/level.hpp>
 #include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/utils.hpp>
+#include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
+#include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
+#ifdef MFMG_WITH_CUDA
 #include <mfmg/cuda/cuda_hierarchy_helpers.cuh>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
-#include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
-#include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
+#endif
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -57,6 +59,7 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
     else
       ASSERT_THROW_NOT_IMPLEMENTED();
   }
+#ifdef MFMG_WITH_CUDA
   else if (evaluator_type == "CudaMeshEvaluator")
   {
     int const dim = evaluator->get_dim();
@@ -80,6 +83,7 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
     else
       ASSERT_THROW_NOT_IMPLEMENTED();
   }
+#endif
   else
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
@@ -87,6 +91,7 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
   return hierarchy_helpers;
 }
 
+#ifdef MFMG_WITH_CUDA
 template <>
 std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
 create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
@@ -124,6 +129,7 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 
   return hierarchy_helpers;
 }
+#endif
 
 template <typename VectorType>
 class Hierarchy
