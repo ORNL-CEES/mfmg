@@ -42,7 +42,7 @@ public:
   dealii::types::global_dof_index m() const;
 
   dealii::LinearAlgebra::distributed::Vector<double>
-  get_diagonal_inverse() /*const*/;
+  get_diagonal_inverse() const;
 
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;

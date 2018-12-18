@@ -78,7 +78,7 @@ dealii::types::global_dof_index DealIIMatrixFreeMeshEvaluator<dim>::m() const
 
 template <int dim>
 dealii::LinearAlgebra::distributed::Vector<double>
-DealIIMatrixFreeMeshEvaluator<dim>::get_diagonal_inverse() /*const*/
+DealIIMatrixFreeMeshEvaluator<dim>::get_diagonal_inverse() const
 {
   auto matrix = this->get_matrix();
   dealii::IndexSet locally_owned_dofs = matrix->locally_owned_domain_indices();
