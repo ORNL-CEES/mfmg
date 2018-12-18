@@ -19,6 +19,10 @@
 
 namespace mfmg
 {
+// NOTE Must derive from dealii::Subscriptor and provide vmult(dst, src), m(),
+// n(), and el(i, j) to be used as the MatrixType template argument of
+// dealii::PreconditionerChebyshev.  The methods n() and el() aren't actually
+// called, they throw a not implemented exception.
 template <typename VectorType>
 class DealIIMatrixFreeOperator : public Operator<VectorType>,
                                  public dealii::Subscriptor
@@ -41,10 +45,6 @@ public:
   std::shared_ptr<Operator<VectorType>> multiply_transpose(
       std::shared_ptr<Operator<VectorType> const> b) const override final;
 
-  // NOTE Must provide vmult(dst, src), m(), n(), and el(i, j) to be used as the
-  // MatrixType template argument of dealii::PreconditionerChebyshev.  The
-  // methods n() and el() aren't actually called, they throw a not implemented
-  // exception.
   void vmult(vector_type &dst, vector_type const &src) const;
 
   size_type m() const;
