@@ -243,9 +243,9 @@ template <typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<VectorType>::build_domain_vector() const
 {
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
+  auto domain_vector =
+      this->build_range_vector(); // what could possibly go wrong...
+  return domain_vector;
 }
 
 template <typename VectorType>
