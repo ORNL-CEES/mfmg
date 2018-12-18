@@ -33,10 +33,10 @@ public:
   std::shared_ptr<Operator<VectorType>> transpose() const override final;
 
   std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const> b) const override;
+  multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
 
   std::shared_ptr<Operator<VectorType>> multiply_transpose(
-      std::shared_ptr<Operator<VectorType> const> b) const override;
+      std::shared_ptr<Operator<VectorType> const> b) const override final;
 
   std::shared_ptr<vector_type> build_domain_vector() const override final;
 
@@ -46,9 +46,10 @@ public:
 
   size_t operator_complexity() const override final;
 
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
+  get_matrix() const;
 
-protected:
+private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
 };
 } // namespace mfmg

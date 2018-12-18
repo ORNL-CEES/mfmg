@@ -37,10 +37,11 @@
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
-template <int dim>
+template <typename MeshEvaluator>
 double test(std::shared_ptr<boost::property_tree::ptree> params)
 {
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
+  int constexpr dim = MeshEvaluator::_dim;
 
   MPI_Comm comm = MPI_COMM_WORLD;
 
@@ -68,12 +69,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   for (auto const index : locally_owned_dofs)
     solution[index] = distribution(generator);
 
-  auto const mesh_evaluator_type =
-      params->get<std::string>("mesh_evaluator_type", "DealIIMeshEvaluator");
-
-  auto evaluator = std::make_shared<TestMeshEvaluator<dim>>(
-      laplace._dof_handler, laplace._constraints, a, material_property,
-      mesh_evaluator_type);
+  auto evaluator = std::make_shared<TestMeshEvaluator<MeshEvaluator>>(
+      laplace._dof_handler, laplace._constraints, a, material_property);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
@@ -111,70 +108,71 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-std::string const mesh_evaluator_types[] = {"DealIIMeshEvaluator",
-                                            "DealIIMatrixFreeMeshEvaluator"};
-BOOST_DATA_TEST_CASE(benchmark, bdata::make(mesh_evaluator_types),
-                     mesh_evaluator_type)
+typedef std::tuple<mfmg::DealIIMeshEvaluator<2>,
+                   mfmg::DealIIMatrixFreeMeshEvaluator<2>>
+    mesh_evaluator_types;
+BOOST_AUTO_TEST_CASE_TEMPLATE(benchmark, MeshEvaluator, mesh_evaluator_types)
 {
-  unsigned int constexpr dim = 2;
+  int constexpr dim = MeshEvaluator::_dim;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  params->put("mesh_evaluator_type", mesh_evaluator_type);
-  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  if (std::is_same<MeshEvaluator,
+                   mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value)
   {
     params->put("smoother.type", "Chebyshev");
   }
 
-  test<dim>(params);
+  test<MeshEvaluator>(params);
 }
 
-BOOST_DATA_TEST_CASE(ml, bdata::make(mesh_evaluator_types), mesh_evaluator_type)
+BOOST_AUTO_TEST_CASE_TEMPLATE(ml, MeshEvaluator, mesh_evaluator_types)
 {
-  unsigned int constexpr dim = 2;
+  int constexpr dim = MeshEvaluator::_dim;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  params->put("mesh_evaluator_type", mesh_evaluator_type);
-  if (mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator")
+  if (std::is_same<MeshEvaluator,
+                   mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value)
   {
     params->put("smoother.type", "Chebyshev");
   }
 
-  double gold_rate = test<dim>(params);
+  double gold_rate = test<MeshEvaluator>(params);
 
   params->put("coarse.type", "ml");
   params->put("coarse.params.smoother: type", "symmetric Gauss-Seidel");
   params->put("coarse.params.max levels", 1);
   params->put("coarse.params.coarse: type", "Amesos-KLU");
 
-  double ml_rate = test<dim>(params);
+  double ml_rate = test<MeshEvaluator>(params);
 
   BOOST_TEST(ml_rate == gold_rate, tt::tolerance(1e-9));
 
   params->put("coarse.params.max levels", 2);
 
-  ml_rate = test<dim>(params);
+  ml_rate = test<MeshEvaluator>(params);
 
   BOOST_TEST(ml_rate > gold_rate);
 }
 
-BOOST_DATA_TEST_CASE(hierarchy_3d,
-                     bdata::make({"hyper_cube", "hyper_ball"}) *
-                         bdata::make({false, true}) *
-                         bdata::make({"None", "Reverse Cuthill_McKee"}) *
-                         bdata::make(mesh_evaluator_types),
-                     mesh, distort_random, reordering, mesh_evaluator_type)
+BOOST_DATA_TEST_CASE(
+    hierarchy_3d,
+    bdata::make({"hyper_cube", "hyper_ball"}) * bdata::make({false, true}) *
+        bdata::make({"None", "Reverse Cuthill_McKee"}) *
+        bdata::make<std::string>({"DealIIMeshEvaluator",
+                                  "DealIIMatrixFreeMeshEvaluator"}),
+    mesh, distort_random, reordering, mesh_evaluator_type)
 {
   // TODO investigate why there is large difference in convergence rate when
   // running in parallel.
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
-    unsigned int constexpr dim = 3;
+    int constexpr dim = 3;
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
-    params->put("mesh_evaluator_type", mesh_evaluator_type);
+
     bool const is_matrix_free =
         mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator";
     if (is_matrix_free)
@@ -189,7 +187,9 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
     params->put("laplace.distort_random", distort_random);
     params->put("laplace.reordering", reordering);
 
-    double const conv_rate = test<dim>(params);
+    double const conv_rate =
+        is_matrix_free ? test<mfmg::DealIIMatrixFreeMeshEvaluator<dim>>(params)
+                       : test<mfmg::DealIIMeshEvaluator<dim>>(params);
 
     // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
@@ -226,19 +226,19 @@ BOOST_DATA_TEST_CASE(hierarchy_3d,
   }
 }
 
-BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
-                     mesh_evaluator_type)
+BOOST_AUTO_TEST_CASE_TEMPLATE(zoltan, MeshEvaluator, mesh_evaluator_types)
 {
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
-    unsigned int constexpr dim = 2;
+    int constexpr dim = MeshEvaluator::_dim;
 
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
-    params->put("mesh_evaluator_type", mesh_evaluator_type);
+
     bool const is_matrix_free =
-        mesh_evaluator_type == "DealIIMatrixFreeMeshEvaluator";
+        std::is_same<MeshEvaluator,
+                     mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value;
     if (is_matrix_free)
     {
       params->put("smoother.type", "Chebyshev");
@@ -250,7 +250,7 @@ BOOST_DATA_TEST_CASE(zoltan, bdata::make(mesh_evaluator_types),
     // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
     double const ref_solution = is_matrix_free ? 0.918915720 : 0.903284598;
-    double const conv_rate = test<dim>(params);
+    double const conv_rate = test<MeshEvaluator>(params);
     BOOST_TEST(conv_rate == ref_solution, tt::tolerance(1e-6));
   }
 }

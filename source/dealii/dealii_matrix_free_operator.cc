@@ -11,7 +11,9 @@
 
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/common/instantiation.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
+#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 #include <deal.II/lac/la_parallel_vector.h>
 
@@ -66,27 +68,28 @@ extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
 //
 // Note that it is different from deal.II's SparseMatrix::Tmmult(C, B) which
 // performs C = A^T * B
+template <typename Operator>
 void matrix_transpose_matrix_multiply(
     dealii::TrilinosWrappers::SparseMatrix &C,
-    dealii::TrilinosWrappers::SparseMatrix const &B,
-    dealii::TrilinosWrappers::SparseMatrix const &A)
+    dealii::TrilinosWrappers::SparseMatrix const &B, Operator const &A)
 {
   // C = A * B^T
   // C_ij = A_ik * B^T_kj = A_ik * B_jk
 
+  auto tmp = A.build_range_vector();
   std::vector<dealii::types::global_dof_index> i_indices;
-  A.locally_owned_range_indices().fill_index_vector(i_indices);
+  tmp->locally_owned_elements().fill_index_vector(i_indices);
   std::vector<dealii::types::global_dof_index> j_indices;
   B.locally_owned_range_indices().fill_index_vector(j_indices);
 
-  int const global_n_rows = A.row_partitioner().NumGlobalElements();
+  int const global_n_rows = tmp->size();
   int const global_n_columns = B.row_partitioner().NumGlobalElements();
   for (int j = 0; j < global_n_columns; ++j)
   {
     auto const src = extract_row(B, j);
 
-    std::remove_const<decltype(src)>::type dst(A.locally_owned_range_indices(),
-                                               A.get_mpi_communicator());
+    std::remove_const<decltype(src)>::type dst(tmp->locally_owned_elements(),
+                                               tmp->get_mpi_communicator());
     A.vmult(dst, src);
 
     // NOTE: getting an error that the index set is not compressed when calling
@@ -114,39 +117,91 @@ void matrix_transpose_matrix_multiply(
 
 template <typename VectorType>
 DealIIMatrixFreeOperator<VectorType>::DealIIMatrixFreeOperator(
-    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix)
-    : DealIITrilinosMatrixOperator<VectorType>(sparse_matrix)
+    std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
+    : _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
 {
+  int const dim = _mesh_evaluator->get_dim();
+  std::string const downcasting_failure_error_message =
+      "Must pass a matrix free mesh evaluator to create an operator";
+  if (dim == 2)
+  {
+    ASSERT(std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+               _mesh_evaluator) != nullptr,
+           downcasting_failure_error_message);
+  }
+  else if (dim == 3)
+  {
+    ASSERT(std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+               _mesh_evaluator) != nullptr,
+           downcasting_failure_error_message);
+  }
+  else
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
 }
 
 template <typename VectorType>
 void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
                                                  VectorType const &src) const
 {
-  (this->_sparse_matrix)->vmult(dst, src);
+  _mesh_evaluator->get_dim() == 2
+      ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+            _mesh_evaluator)
+            ->vmult(dst, src)
+      : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+            _mesh_evaluator)
+            ->vmult(dst, src);
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::m() const
 {
-  return (this->_sparse_matrix)->m();
+  return _mesh_evaluator->get_dim() == 2
+             ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                   _mesh_evaluator)
+                   ->m()
+             : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                   _mesh_evaluator)
+                   ->m();
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::size_type
 DealIIMatrixFreeOperator<VectorType>::n() const
 {
-  return (this->_sparse_matrix)->n();
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::size_type{};
 }
 
 template <typename VectorType>
 typename DealIIMatrixFreeOperator<VectorType>::value_type
-DealIIMatrixFreeOperator<VectorType>::el(size_type i, size_type j) const
+    DealIIMatrixFreeOperator<VectorType>::el(size_type /*i*/,
+                                             size_type /*j*/) const
 {
-  ASSERT(i == j, "was intended for accessing diagonal elements only");
-  return (this->_sparse_matrix)->el(i, i);
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
 }
+
+template <typename VectorType>
+void DealIIMatrixFreeOperator<VectorType>::apply(VectorType const &x,
+                                                 VectorType &y) const
+{
+  this->vmult(y, x);
+}
+
+template <typename VectorType>
+std::shared_ptr<Operator<VectorType>>
+DealIIMatrixFreeOperator<VectorType>::transpose() const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
+}
+
 template <typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeOperator<VectorType>::multiply(
@@ -167,16 +222,71 @@ DealIIMatrixFreeOperator<VectorType>::multiply_transpose(
       std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
           b);
 
-  auto a_mat = this->get_matrix();
+  auto tmp = this->build_range_vector();
   auto b_mat = downcast_b->get_matrix();
 
   auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-      a_mat->locally_owned_range_indices(),
-      b_mat->locally_owned_range_indices(), a_mat->get_mpi_communicator());
+      tmp->locally_owned_elements(), b_mat->locally_owned_range_indices(),
+      tmp->get_mpi_communicator());
 
-  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *a_mat);
+  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *this);
 
-  return std::make_shared<DealIIMatrixFreeOperator<VectorType>>(c_mat);
+  return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c_mat);
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+DealIIMatrixFreeOperator<VectorType>::build_domain_vector() const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
+}
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+DealIIMatrixFreeOperator<VectorType>::build_range_vector() const
+{
+  auto range_vector =
+      _mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                _mesh_evaluator)
+                ->build_range_vector()
+          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                _mesh_evaluator)
+                ->build_range_vector();
+  return range_vector;
+}
+
+template <typename VectorType>
+size_t DealIIMatrixFreeOperator<VectorType>::grid_complexity() const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
+}
+
+template <typename VectorType>
+size_t DealIIMatrixFreeOperator<VectorType>::operator_complexity() const
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return typename DealIIMatrixFreeOperator<VectorType>::value_type{};
+}
+
+template <typename VectorType>
+typename DealIIMatrixFreeOperator<VectorType>::vector_type
+DealIIMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
+{
+  auto diagonal_inverse =
+      _mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse()
+          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse();
+  return diagonal_inverse;
 }
 } // namespace mfmg
 

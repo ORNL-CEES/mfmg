@@ -10,10 +10,20 @@
  *************************************************************************/
 
 #include <mfmg/dealii/amge_host.templates.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
+
+#include <deal.II/lac/la_parallel_vector.h>
 
 template class mfmg::AMGe_host<
     2, mfmg::DealIIMeshEvaluator<2>,
     dealii::LinearAlgebra::distributed::Vector<double>>;
 template class mfmg::AMGe_host<
     3, mfmg::DealIIMeshEvaluator<3>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::AMGe_host<
+    2, mfmg::DealIIMatrixFreeMeshEvaluator<2>,
+    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::AMGe_host<
+    3, mfmg::DealIIMatrixFreeMeshEvaluator<3>,
     dealii::LinearAlgebra::distributed::Vector<double>>;

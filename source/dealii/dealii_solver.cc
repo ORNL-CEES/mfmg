@@ -34,8 +34,7 @@ DealIISolver<VectorType>::DealIISolver(
   auto trilinos_operator =
       std::dynamic_pointer_cast<DealIITrilinosMatrixOperator<VectorType> const>(
           this->_operator);
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix =
-      trilinos_operator->get_matrix();
+  auto sparse_matrix = trilinos_operator->get_matrix();
   // Make parameters case-insensitive
   std::string coarse_type_lower = coarse_type;
   std::transform(coarse_type_lower.begin(), coarse_type_lower.end(),

@@ -26,12 +26,12 @@ class DealIIMeshEvaluator : public MeshEvaluator
 {
 public:
   DealIIMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
-                      dealii::AffineConstraints<double> &constraints,
-                      std::string mesh_evaluator_type = "DealIIMeshEvaluator");
+                      dealii::AffineConstraints<double> &constraints);
 
+  static int constexpr _dim = dim;
   int get_dim() const override final;
 
-  std::string get_mesh_evaluator_type() const override final;
+  std::string get_mesh_evaluator_type() const override /*final*/;
 
   // For deal.II, because of the way it deals with hanging nodes and
   // Dirichlet b.c., we need to zero out the initial guess values
@@ -67,7 +67,6 @@ public:
 protected:
   dealii::DoFHandler<dim> &_dof_handler;
   dealii::AffineConstraints<double> &_constraints;
-  std::string const _mesh_evaluator_type;
 };
 } // namespace mfmg
 

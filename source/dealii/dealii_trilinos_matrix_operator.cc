@@ -126,7 +126,7 @@ size_t DealIITrilinosMatrixOperator<VectorType>::operator_complexity() const
 }
 
 template <typename VectorType>
-std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
 DealIITrilinosMatrixOperator<VectorType>::get_matrix() const
 {
   return _sparse_matrix;

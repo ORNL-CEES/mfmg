@@ -12,16 +12,20 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 #define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
-#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
+#include <mfmg/common/mesh_evaluator.hpp>
+#include <mfmg/common/operator.hpp>
 
 #include <deal.II/base/subscriptor.h>
 
 namespace mfmg
 {
+// NOTE Must derive from dealii::Subscriptor and provide vmult(dst, src), m(),
+// n(), and el(i, j) to be used as the MatrixType template argument of
+// dealii::PreconditionerChebyshev.  The methods n() and el() aren't actually
+// called, they throw a not implemented exception.
 template <typename VectorType>
-class DealIIMatrixFreeOperator
-    : public DealIITrilinosMatrixOperator<VectorType>,
-      public dealii::Subscriptor
+class DealIIMatrixFreeOperator : public Operator<VectorType>,
+                                 public dealii::Subscriptor
 {
 public:
   using vector_type = VectorType;
@@ -29,7 +33,11 @@ public:
   using value_type = typename VectorType::value_type;
 
   DealIIMatrixFreeOperator(
-      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
+      std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
+
+  void apply(vector_type const &x, vector_type &y) const override final;
+
+  std::shared_ptr<Operator<VectorType>> transpose() const override final;
 
   std::shared_ptr<Operator<VectorType>>
   multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
@@ -44,6 +52,19 @@ public:
   size_type n() const;
 
   value_type el(size_type i, size_type j) const;
+
+  std::shared_ptr<vector_type> build_domain_vector() const override final;
+
+  std::shared_ptr<vector_type> build_range_vector() const override final;
+
+  size_t grid_complexity() const override final;
+
+  size_t operator_complexity() const override final;
+
+  vector_type get_diagonal_inverse() const;
+
+private:
+  std::shared_ptr<MeshEvaluator> _mesh_evaluator;
 };
 } // namespace mfmg
 

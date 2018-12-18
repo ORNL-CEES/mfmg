@@ -50,17 +50,7 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
       data.max_eigenvalue = *max_eigenvalue;
     }
 
-    auto system_matrix = matrix_free_operator->get_matrix(); // sigh...
-    dealii::IndexSet locally_owned_dofs =
-        system_matrix->locally_owned_domain_indices();
-    dealii::LinearAlgebra::distributed::Vector<double> diag_inv(
-        locally_owned_dofs, system_matrix->get_mpi_communicator());
-    for (auto const index : locally_owned_dofs)
-    {
-      diag_inv[index] = 1. / system_matrix->diag_element(index);
-    }
-    diag_inv.compress(dealii::VectorOperation::insert);
-    data.matrix_diagonal_inverse = diag_inv;
+    data.matrix_diagonal_inverse = matrix_free_operator->get_diagonal_inverse();
 
     _smoother->initialize(*matrix_free_operator, data);
   }
