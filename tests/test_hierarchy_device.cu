@@ -158,7 +158,7 @@ public:
   }
 
   void evaluate_global(
-      dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+      dealii::DoFHandler<dim> &, dealii::AffineConstraints<double> &,
       mfmg::SparseMatrixDevice<double> &system_matrix) const override final
   {
     system_matrix = std::move(mfmg::convert_matrix(_matrix));
@@ -176,7 +176,7 @@ public:
 
   void evaluate_agglomerate(
       dealii::DoFHandler<dim> &dof_handler,
-      dealii::ConstraintMatrix &constraints,
+      dealii::AffineConstraints<double> &constraints,
       mfmg::SparseMatrixDevice<double> &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;

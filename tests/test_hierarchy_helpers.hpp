@@ -148,7 +148,8 @@ public:
   {
   }
 
-  void evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+  void evaluate_global(dealii::DoFHandler<dim> &,
+                       dealii::AffineConstraints<double> &,
                        dealii::TrilinosWrappers::SparseMatrix &system_matrix)
       const override final
   {
@@ -158,7 +159,7 @@ public:
 
   void evaluate_agglomerate(
       dealii::DoFHandler<dim> &dof_handler,
-      dealii::ConstraintMatrix &constraints,
+      dealii::AffineConstraints<double> &constraints,
       dealii::SparsityPattern &system_sparsity_pattern,
       dealii::SparseMatrix<double> &system_matrix) const override final
   {

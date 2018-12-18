@@ -105,7 +105,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   using value_type = typename VectorType::value_type;
 
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
-  dealii::ConstraintMatrix agglomerate_constraints;
+  dealii::AffineConstraints<double> agglomerate_constraints;
   dealii::SparsityPattern agglomerate_sparsity_pattern;
   dealii::SparseMatrix<value_type> agglomerate_system_matrix;
 

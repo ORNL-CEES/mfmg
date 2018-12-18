@@ -215,7 +215,7 @@ public:
   dealii::DoFHandler<dim> _dof_handler;
   dealii::IndexSet _locally_owned_dofs;
   dealii::IndexSet _locally_relevant_dofs;
-  dealii::ConstraintMatrix _constraints;
+  dealii::AffineConstraints<double> _constraints;
   LaplaceOperator<dim, fe_degree, ScalarType> _laplace_operator;
   dealii::LinearAlgebra::distributed::Vector<ScalarType> _solution;
   dealii::LinearAlgebra::distributed::Vector<ScalarType> _system_rhs;

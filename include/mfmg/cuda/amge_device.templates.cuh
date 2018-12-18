@@ -226,7 +226,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     MeshEvaluator const &evaluator)
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
-  dealii::ConstraintMatrix agglomerate_constraints;
+  dealii::AffineConstraints<double> agglomerate_constraints;
 
   // Call user function to build the system matrix
   using value_type = typename VectorType::value_type;

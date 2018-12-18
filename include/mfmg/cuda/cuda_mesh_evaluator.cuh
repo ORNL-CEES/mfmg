@@ -37,14 +37,14 @@ public:
   std::string get_mesh_evaluator_type() const final;
 
   virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
-                                    dealii::ConstraintMatrix &,
+                                    dealii::AffineConstraints<double> &,
                                     SparseMatrixDevice<double> &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
   virtual void evaluate_global(dealii::DoFHandler<dim> &,
-                               dealii::ConstraintMatrix &,
+                               dealii::AffineConstraints<double> &,
                                SparseMatrixDevice<double> &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
