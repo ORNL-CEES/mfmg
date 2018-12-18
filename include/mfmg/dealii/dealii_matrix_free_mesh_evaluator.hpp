@@ -30,7 +30,7 @@ public:
 
   std::string get_mesh_evaluator_type() const override final;
 
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix();
+  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
 
   void
   vmult(dealii::LinearAlgebra::distributed::Vector<double> &dst,
@@ -46,6 +46,7 @@ public:
 
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
+  mutable bool _matrix_initialized = false;
 };
 } // namespace mfmg
 
