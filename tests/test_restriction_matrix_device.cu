@@ -40,12 +40,14 @@ public:
   }
 
   void
-  evaluate_agglomerate(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+  evaluate_agglomerate(dealii::DoFHandler<dim> &,
+                       dealii::AffineConstraints<double> &,
                        mfmg::SparseMatrixDevice<double> &) const override final
   {
   }
 
-  void evaluate_global(dealii::DoFHandler<dim> &, dealii::ConstraintMatrix &,
+  void evaluate_global(dealii::DoFHandler<dim> &,
+                       dealii::AffineConstraints<double> &,
                        mfmg::SparseMatrixDevice<double> &) const override final
   {
   }

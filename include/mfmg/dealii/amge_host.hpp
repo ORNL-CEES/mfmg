@@ -33,8 +33,8 @@ public:
    *  - the triangulation of the agglomerate
    *  - the map between the local cells and the global cells
    *  - an object that can evaluates the local DoFHandler, the local
-   *    ConstraintMatrix, and the local system sparse matrix with its sparsity
-   *    pattern.
+   *    AffineConstraints<double>, and the local system sparse matrix with its
+   *    sparsity pattern.
    *
    * The function returns the complex eigenvalues, the associated eigenvectors,
    * the diagonal elements of the local system matrix, and a vector that maps

@@ -33,8 +33,8 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
                  ::tolower);
   if (prec_name == "chebyshev")
   {
-    _smoother.reset(new preconditioner_type());
-    typename preconditioner_type::AdditionalData data;
+    _smoother.reset(new chebyshev_preconditioner());
+    typename chebyshev_preconditioner::AdditionalData data;
     if (auto degree = params->get_optional<int>("smoother.degree"))
     {
       data.degree = *degree;
@@ -50,7 +50,9 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
       data.max_eigenvalue = *max_eigenvalue;
     }
 
-    data.matrix_diagonal_inverse = matrix_free_operator->get_diagonal_inverse();
+    auto diagonal_inverse = std::make_shared<preconditioner_type>();
+    diagonal_inverse->reinit(matrix_free_operator->get_diagonal_inverse());
+    data.preconditioner = diagonal_inverse;
 
     _smoother->initialize(*matrix_free_operator, data);
   }

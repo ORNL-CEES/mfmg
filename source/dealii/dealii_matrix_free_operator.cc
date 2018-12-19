@@ -83,7 +83,7 @@ void matrix_transpose_matrix_multiply(
   B.locally_owned_range_indices().fill_index_vector(j_indices);
 
   int const global_n_rows = tmp->size();
-  int const global_n_columns = B.row_partitioner().NumGlobalElements();
+  int const global_n_columns = B.m(); //< number of rows in B
   for (int j = 0; j < global_n_columns; ++j)
   {
     auto const src = extract_row(B, j);

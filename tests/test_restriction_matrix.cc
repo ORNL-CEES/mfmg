@@ -214,7 +214,7 @@ public:
 
   void evaluate_agglomerate(
       dealii::DoFHandler<dim> &dof_handler,
-      dealii::ConstraintMatrix &constraints,
+      dealii::AffineConstraints<double> &constraints,
       dealii::SparsityPattern &system_sparsity_pattern,
       dealii::SparseMatrix<double> &system_matrix) const override final
   {

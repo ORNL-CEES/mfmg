@@ -15,6 +15,7 @@
 #include <mfmg/common/smoother.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 
+#include <deal.II/lac/diagonal_matrix.h>
 #include <deal.II/lac/precondition.h>
 
 #include <boost/property_tree/ptree.hpp>
@@ -29,8 +30,10 @@ class DealIIMatrixFreeSmoother : public Smoother<VectorType>
 public:
   using vector_type = VectorType;
   using operator_type = DealIIMatrixFreeOperator<VectorType>;
-  using preconditioner_type =
-      dealii::PreconditionChebyshev<operator_type, vector_type>;
+  using preconditioner_type = dealii::DiagonalMatrix<VectorType>;
+  using chebyshev_preconditioner =
+      dealii::PreconditionChebyshev<operator_type, vector_type,
+                                    preconditioner_type>;
 
   DealIIMatrixFreeSmoother(
       std::shared_ptr<Operator<vector_type> const> op,
@@ -39,7 +42,7 @@ public:
   void apply(vector_type const &b, vector_type &x) const override final;
 
 private:
-  std::unique_ptr<preconditioner_type> _smoother;
+  std::unique_ptr<chebyshev_preconditioner> _smoother;
 };
 } // namespace mfmg
 

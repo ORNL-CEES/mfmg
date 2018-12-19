@@ -37,7 +37,7 @@ public:
 
   void evaluate_agglomerate(
       dealii::DoFHandler<2> &dof_handler,
-      dealii::ConstraintMatrix &constraint_matrix,
+      dealii::AffineConstraints<double> &constraint_matrix,
       mfmg::SparseMatrixDevice<double> &system_matrix_dev) const override final
   {
     // Build the matrix on the host
@@ -66,7 +66,7 @@ public:
 
   void evaluate_global(
       dealii::DoFHandler<2> &dof_handler,
-      dealii::ConstraintMatrix &constraint_matrix,
+      dealii::AffineConstraints<double> &constraint_matrix,
       mfmg::SparseMatrixDevice<double> &system_matrix_dev) const override final
   {
   }
