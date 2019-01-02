@@ -108,7 +108,9 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
       dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD);
   if (rank == 0)
   {
-    BOOST_TEST(std::remove("solution.pvtu") == 0);
+    BOOST_TEST(
+        std::remove(
+            ("solution-" + std::to_string(world_size) + ".pvtu").c_str()) == 0);
     for (unsigned int i = 0; i < world_size; ++i)
       BOOST_TEST(std::remove(("solution-" + std::to_string(i) + "-" +
                               std::to_string(world_size) + ".vtu")

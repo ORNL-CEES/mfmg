@@ -271,7 +271,8 @@ void Laplace<dim, VectorType>::output_results() const
     for (unsigned int i = 0; i < comm_size; ++i)
       filenames.push_back("solution-" + std::to_string(i) + "-" +
                           std::to_string(comm_size) + ".vtu");
-    std::ofstream master_output("solution.pvtu");
+    std::ofstream master_output("solution-" + std::to_string(comm_size) +
+                                ".pvtu");
     data_out.write_pvtu_record(master_output, filenames);
   }
   MPI_Barrier(_comm);
