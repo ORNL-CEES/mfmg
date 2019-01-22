@@ -11,6 +11,7 @@ SET(MFMG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_hierarchy_helpers.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_smoother.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_matrix_free_mesh_evaluator.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/dealii_utils.cc
   )
 
 SET(MFMG_SOURCES ${MFMG_SOURCES} PARENT_SCOPE)

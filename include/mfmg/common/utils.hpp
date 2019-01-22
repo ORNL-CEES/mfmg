@@ -14,9 +14,6 @@
 
 #include <mfmg/common/exceptions.hpp>
 
-#include <deal.II/lac/trilinos_sparse_matrix.h>
-#include <deal.II/lac/trilinos_vector.h>
-
 #include <Teuchos_ParameterList.hpp>
 
 #include <boost/property_tree/ptree.hpp>
@@ -27,15 +24,6 @@
 
 namespace mfmg
 {
-
-void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::SparseMatrix &matrix);
-
-void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::MPI::Vector &vector);
-
 void ptree2plist(boost::property_tree::ptree const &ptree,
                  Teuchos::ParameterList &plist);
 
