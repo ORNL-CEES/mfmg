@@ -45,3 +45,9 @@ IF(${MFMG_ENABLE_CUDA})
     SET(AMGX_LIBRARY amgx)
   ENDIF()
 ENDIF()
+
+#### OPENBLAS ################################################################
+
+SET(OPENBLAS_INCLUDE_DIR "${OPENBLAS_DIR}/include")
+SET(OPENBLAS_LIBRARIES "-L${OPENBLAS_DIR}/lib -lopenblas")
+

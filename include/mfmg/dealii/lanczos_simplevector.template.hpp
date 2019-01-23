@@ -1,0 +1,187 @@
+/*************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                           *
+ * All rights reserved.                                                  *
+ *                                                                       *
+ * This file is part of the mfmg libary. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the *
+ * top-level directory                                                   *
+ *                                                                       *
+ * SPDX-License-Identifier: BSD-3-Clause                                 *
+ *************************************************************************/
+
+#ifndef _LANCZOS_SIMPLEVECTOR_TEMPLATE_HPP_
+#define _LANCZOS_SIMPLEVECTOR_TEMPLATE_HPP_
+
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <random>
+#include <algorithm>
+
+#include "lanczos_simplevector.hpp"
+
+namespace mfmg::lanczos
+{
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+SimpleVector<Scalar_t>::SimpleVector(size_t dim) : dim_(dim) {
+  //assert(dim_ >= 0);
+
+  // NOTE: we are implementing basic operations, e.g., BLAS-1, on an
+  // STL standard vector here.  This can be replaced if desired, e.g.,
+  // something that lives on a GPU.
+
+  // ISSUE: performance and memory management behaviors are
+  // dependent on the specifics of the std::vector implementation.
+
+  data_.resize(dim_);
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+SimpleVector<Scalar_t>::~SimpleVector() {
+
+  data_.resize(0);
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+Scalar_t& SimpleVector<Scalar_t>::elt(size_t i) {
+  //assert(i >= 0);
+  assert(i < this->dim_);
+
+  return data_.data()[i];
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+Scalar_t SimpleVector<Scalar_t>::const_elt(size_t i) const {
+  //assert(i >= 0);
+  assert(i < this->dim_);
+
+  return data_[i];
+}
+
+#if 0
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+SimpleVector<Scalar_t> SimpleVector<Scalar_t>::copy() const {
+
+  SimpleVector<Scalar_t> v(this->dim());
+  v.copy(*this);
+  return v;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::copy(const SimpleVector& x) {
+
+  for (int i=0; i<this->dim_; ++i) {
+    this->elt(i) = x.const_elt(i);
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::axpy(Scalar_t a, const SimpleVector& x) {
+
+  for (int i=0; i<this->dim_; ++i) {
+    this->elt(i) += a * x.const_elt(i);
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::scal(Scalar_t a) {
+
+  for (int i=0; i<this->dim_; ++i) {
+    this->elt(i) *= a;
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+Scalar_t SimpleVector<Scalar_t>::dot(const SimpleVector& x) const {
+
+  Scalar_t sum = (Scalar_t)0;
+
+  for (int i=0; i<this->dim_; ++i) {
+    sum += this->const_elt(i) * x.const_elt(i);
+  }
+
+  return sum;
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+Scalar_t SimpleVector<Scalar_t>::nrm2() const {
+
+  Scalar_t vdotv = this->dot(*this);
+
+  return (Scalar_t)sqrt((double)vdotv);
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::set_zero() {
+
+  //for (int i=0; i<this->dim_; ++i) {
+  //  this->elt(i) = (Scalar_t)0;
+  //}
+  std::generate(data_.begin(), data_.end(), [&](){return (Scalar_t)0;});
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::set_random(int seed, double multiplier,
+                                        double cmultiplier) {
+
+  // Compute a x + b y where x has uniformly distributed random entries
+  // in [0,1] and y entries are all 1.
+
+  //std::random_device rd;
+  //std::mt19937 gen(rd());
+  std::mt19937 gen(seed);
+
+  std::uniform_real_distribution<double> dis(0, 1);
+  std::generate(data_.begin(), data_.end(),
+                [&](){return (Scalar_t)(multiplier*dis(gen)+cmultiplier);});
+  //std::generate(this->data_.begin(), this->data_.end(), [&](){
+  //  const int v = dis(gen);
+  //  std::cout << v << "\n";
+  //  return (Scalar_t)v;
+  //});
+}
+
+//-----------------------------------------------------------------------------
+
+template<typename Scalar_t>
+void SimpleVector<Scalar_t>::print() const {
+
+  for (int i=0; i<dim_; ++i) {
+    std::cout << data_[i] << " ";
+  }
+  std::cout << std::endl;
+}
+
+//-----------------------------------------------------------------------------
+
+} // namespace mfmg::lanczos
+
+#endif // _LANCZOS_SIMPLEVECTOR_TEMPLATE_HPP_
+
+//=============================================================================
