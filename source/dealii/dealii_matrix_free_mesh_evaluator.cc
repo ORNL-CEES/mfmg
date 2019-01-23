@@ -43,9 +43,9 @@ DealIIMatrixFreeMeshEvaluator<dim>::get_matrix() const
 }
 
 template <int dim>
-void DealIIMatrixFreeMeshEvaluator<dim>::vmult(
-    dealii::LinearAlgebra::distributed::Vector<double> &dst,
-    dealii::LinearAlgebra::distributed::Vector<double> const &src) const
+void DealIIMatrixFreeMeshEvaluator<dim>::apply(
+    dealii::LinearAlgebra::distributed::Vector<double> const &src,
+    dealii::LinearAlgebra::distributed::Vector<double> &dst) const
 {
   _sparse_matrix->vmult(dst, src);
 }

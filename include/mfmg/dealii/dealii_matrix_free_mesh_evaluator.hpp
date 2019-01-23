@@ -32,9 +32,8 @@ public:
 
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
 
-  void
-  vmult(dealii::LinearAlgebra::distributed::Vector<double> &dst,
-        dealii::LinearAlgebra::distributed::Vector<double> const &src) const;
+  void apply(dealii::LinearAlgebra::distributed::Vector<double> const &src,
+             dealii::LinearAlgebra::distributed::Vector<double> &dst) const;
 
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;

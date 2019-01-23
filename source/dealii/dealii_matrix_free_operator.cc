@@ -148,10 +148,10 @@ void DealIIMatrixFreeOperator<VectorType>::vmult(VectorType &dst,
   _mesh_evaluator->get_dim() == 2
       ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
             _mesh_evaluator)
-            ->vmult(dst, src)
+            ->apply(src, dst)
       : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
             _mesh_evaluator)
-            ->vmult(dst, src);
+            ->apply(src, dst);
 }
 
 template <typename VectorType>
