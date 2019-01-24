@@ -188,6 +188,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
                  inv_system_matrix, eigenvalues, eigenvectors);
   }
+  else if (_eigensolver_type == "lanczos")
+  {
+
+    // Insert code here.
+
+  }
   else
   {
     // Use Lapack to compute the eigenvalues

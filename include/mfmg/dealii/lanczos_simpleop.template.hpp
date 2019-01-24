@@ -20,6 +20,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Simple test operator: constructor
 
 template<typename Vector_t>
 SimpleOp<Vector_t>::SimpleOp(size_t dim, size_t multiplicity)
@@ -30,12 +31,14 @@ SimpleOp<Vector_t>::SimpleOp(size_t dim, size_t multiplicity)
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple test operator: destructor
 
 template<typename Vector_t>
 SimpleOp<Vector_t>::~SimpleOp() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple test operator: apply operator to a vector
 
 template<typename Vector_t>
 void SimpleOp<Vector_t>::apply(Vector_t& vout, const Vector_t& vin) const {

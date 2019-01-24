@@ -19,6 +19,10 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector
+///
+///        Implements a simple vector with elements stored in contiguous
+///        memory locations in (CPU) memory.
 
 template<typename Scalar_t_>
 class SimpleVector {

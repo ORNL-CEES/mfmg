@@ -24,6 +24,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: constructor
 
 template<typename Scalar_t>
 SimpleVector<Scalar_t>::SimpleVector(size_t dim) : dim_(dim) {
@@ -40,6 +41,7 @@ SimpleVector<Scalar_t>::SimpleVector(size_t dim) : dim_(dim) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: destructor
 
 template<typename Scalar_t>
 SimpleVector<Scalar_t>::~SimpleVector() {
@@ -48,6 +50,7 @@ SimpleVector<Scalar_t>::~SimpleVector() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: element accessor
 
 template<typename Scalar_t>
 Scalar_t& SimpleVector<Scalar_t>::elt(size_t i) {
@@ -58,6 +61,7 @@ Scalar_t& SimpleVector<Scalar_t>::elt(size_t i) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: (const) element accessor
 
 template<typename Scalar_t>
 Scalar_t SimpleVector<Scalar_t>::const_elt(size_t i) const {
@@ -80,6 +84,7 @@ SimpleVector<Scalar_t> SimpleVector<Scalar_t>::copy() const {
 #endif
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: copy contents of one vector into another
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::copy(const SimpleVector& x) {
@@ -90,6 +95,7 @@ void SimpleVector<Scalar_t>::copy(const SimpleVector& x) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: axpy operation
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::axpy(Scalar_t a, const SimpleVector& x) {
@@ -100,6 +106,7 @@ void SimpleVector<Scalar_t>::axpy(Scalar_t a, const SimpleVector& x) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: scale operation
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::scal(Scalar_t a) {
@@ -110,6 +117,7 @@ void SimpleVector<Scalar_t>::scal(Scalar_t a) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: dot product operation
 
 template<typename Scalar_t>
 Scalar_t SimpleVector<Scalar_t>::dot(const SimpleVector& x) const {
@@ -124,6 +132,7 @@ Scalar_t SimpleVector<Scalar_t>::dot(const SimpleVector& x) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: 2-norm product operation
 
 template<typename Scalar_t>
 Scalar_t SimpleVector<Scalar_t>::nrm2() const {
@@ -134,6 +143,7 @@ Scalar_t SimpleVector<Scalar_t>::nrm2() const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: set elements to zero
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::set_zero() {
@@ -145,6 +155,7 @@ void SimpleVector<Scalar_t>::set_zero() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: set elements to random numbers
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::set_random(int seed, double multiplier,
@@ -168,6 +179,7 @@ void SimpleVector<Scalar_t>::set_random(int seed, double multiplier,
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Simple vector: print to cout
 
 template<typename Scalar_t>
 void SimpleVector<Scalar_t>::print() const {

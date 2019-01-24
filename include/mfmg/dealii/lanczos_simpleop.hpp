@@ -19,6 +19,10 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Simple test operator
+///
+///        A diagonal matrix with equally spaced eigenvalues of some
+///        multiplicity.
 
 template<typename Vector_t_>
 class SimpleOp {

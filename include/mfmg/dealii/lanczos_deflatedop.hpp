@@ -19,6 +19,10 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator
+///
+///        Given an undeflated operator, a new operator is constructed
+///        with a subspace represented by a set of vectors projected out.
 
 template<typename BaseOp_t_>
 class DeflatedOp {
@@ -39,7 +43,7 @@ class DeflatedOp {
 
     // Accessors
 
-    size_t dim() const {return dim_;}
+    size_t dim() const {return dim_;}  // operator and vector dimension
 
     // Operations
 
@@ -51,11 +55,11 @@ class DeflatedOp {
 
   private:
 
-    const BaseOp_t_& base_op_;
+    const BaseOp_t_& base_op_; // reference to the base operator object
 
-    size_t dim_;
+    size_t dim_;  // operator and vector dimension
 
-    Vectors_t deflation_vecs_;
+    Vectors_t deflation_vecs_;  // vectors to deflate out
 
     // Disallowed methods
 

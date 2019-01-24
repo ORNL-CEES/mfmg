@@ -20,6 +20,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator: constructor
 
 template<typename BaseOp_t>
 DeflatedOp<BaseOp_t>::DeflatedOp(const BaseOp_t& base_op)
@@ -28,6 +29,7 @@ DeflatedOp<BaseOp_t>::DeflatedOp(const BaseOp_t& base_op)
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator: destructor
 
 template<typename BaseOp_t>
 DeflatedOp<BaseOp_t>::~DeflatedOp() {
@@ -38,6 +40,7 @@ DeflatedOp<BaseOp_t>::~DeflatedOp() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator: apply operator to a vector
 
 template<typename BaseOp_t>
 void DeflatedOp<BaseOp_t>::apply(Vector_t& vout, const Vector_t& vin) const {
@@ -57,6 +60,7 @@ void DeflatedOp<BaseOp_t>::apply(Vector_t& vout, const Vector_t& vin) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator: add more vectors to the set of deflation vectors
 
 template<typename BaseOp_t>
 void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs) {
@@ -134,6 +138,7 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated operator: apply the deflation (projection) to a vector
 
 template<typename BaseOp_t>
 void DeflatedOp<BaseOp_t>::deflate(Vector_t& vec) const {

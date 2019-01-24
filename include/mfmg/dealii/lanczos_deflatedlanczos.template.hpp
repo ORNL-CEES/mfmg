@@ -28,6 +28,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated Lanczos solver: constructor
 
 template<typename Op_t>
 DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t& op, int num_evecs_per_cycle,
@@ -50,6 +51,7 @@ DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t& op, int num_evecs_per_cycle,
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated Lanczos solver: destructor
 
 template<typename Op_t>
 DeflatedLanczos<Op_t>::~DeflatedLanczos() {
@@ -59,6 +61,7 @@ DeflatedLanczos<Op_t>::~DeflatedLanczos() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
 template<typename Op_t>
 typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const {
@@ -69,6 +72,7 @@ typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: accessor for (approximate) eigenvector
 
 template<typename Op_t>
 typename Op_t::Vector_t* DeflatedLanczos<Op_t>::get_evec(int i) const {
@@ -80,6 +84,7 @@ typename Op_t::Vector_t* DeflatedLanczos<Op_t>::get_evec(int i) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: perform deflated Lanczos solve
 
 template<typename Op_t>
 void DeflatedLanczos<Op_t>::solve() {

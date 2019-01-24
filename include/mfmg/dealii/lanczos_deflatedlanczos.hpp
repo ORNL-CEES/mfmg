@@ -18,6 +18,12 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Deflated Lanczos solver
+///
+///        The Lanczos solver is called multiple times.  After each Lanczos
+///        solve, the operator is modified to deflate out all previously
+///        computed (approximate) eigenvectors.  This is meant to deal with
+///        possible eigenvalue multiplicities.
 
 template<typename Op_t_>
 class DeflatedLanczos {
@@ -54,17 +60,19 @@ class DeflatedLanczos {
   private:
 
     const Op_t& op_;
-    const int num_evecs_per_cycle_;
-    const int num_cycles_;
-    const int maxit_;
-    const double tol_;
+    const int num_evecs_per_cycle_; // number of eigs to calc per lanc solve
+    const int num_cycles_;          // number of lanczos solves
+    const int maxit_;               // maximum number of lanc interations
+    const double tol_;              // convergence tolerance for eigenvalue
     const unsigned int percent_overshoot_;
-    const unsigned int verbosity_;
+                                    // allowed iteration count overshoot from
+                                    // less frequent stopping tests
+    const unsigned int verbosity_;  // verbosity of output
 
-    size_t dim_;
+    size_t dim_;                    // operator and vector dimension
 
-    std::vector<Scalar_t> evals_;
-    Vectors_t evecs_;
+    std::vector<Scalar_t> evals_;   // (approximate) eigenvals of full operator
+    Vectors_t evecs_;               // (approximate) eigenvecs of full operator
 
     // Disallowed methods
 

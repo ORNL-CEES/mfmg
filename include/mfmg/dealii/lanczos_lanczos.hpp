@@ -18,6 +18,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver
 
 template<typename Op_t_>
 class Lanczos {
@@ -54,22 +55,26 @@ class Lanczos {
 
   private:
 
-    const Op_t& op_;
-    const int num_requested_;
-    const int maxit_;
-    const double tol_;
+    const Op_t& op_;                // reference to operator object to use
+    const int num_requested_;       // number of eigenpairs to calculate
+    const int maxit_;               // maximum number of lanc interations
+    const double tol_;              // convergence tolerance for eigenvalue
     const unsigned int percent_overshoot_;
-    const unsigned int verbosity_;
+                                    // allowed iteration count overshoot from
+                                    // less frequent stopping tests
+    const unsigned int verbosity_;  // verbosity of output
 
-    size_t dim_;
-    size_t dim_tridiag_;
+    size_t dim_;                    // operator and vector dimension
+    size_t dim_tridiag_;            // dimension of tridiag matrix
 
-    Vectors_t lanc_vectors_;
+    Vectors_t lanc_vectors_;        // lanczos vectors
 
-    std::vector<Scalar_t> evals_;
+    std::vector<Scalar_t> evals_;   // (approximate) eigenvals
     std::vector<Scalar_t> evecs_tridiag_;
+                                    // eigenvecs of tridiag matrix,
+                                    // stored in flat array
 
-    Vectors_t evecs_;
+    Vectors_t evecs_;               // (approximate) eigenvecs of full operator
 
     void calc_tridiag_epairs_(int it, Scalars_t& t_maindiag,
                               Scalars_t& t_offdiag);

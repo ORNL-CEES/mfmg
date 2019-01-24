@@ -26,6 +26,7 @@ namespace mfmg::lanczos
 {
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: constructor
 
 template<typename Op_t>
 Lanczos<Op_t>::Lanczos(const Op_t& op, int num_requested, int maxit, double tol,
@@ -46,6 +47,7 @@ Lanczos<Op_t>::Lanczos(const Op_t& op, int num_requested, int maxit, double tol,
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: destructor
 
 template<typename Op_t>
 Lanczos<Op_t>::~Lanczos() {
@@ -60,6 +62,7 @@ Lanczos<Op_t>::~Lanczos() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
 template<typename Op_t>
 typename Op_t::Scalar_t Lanczos<Op_t>::get_eval(int i) const {
@@ -70,6 +73,7 @@ typename Op_t::Scalar_t Lanczos<Op_t>::get_eval(int i) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: accessor for (approximate) eigenvector
 
 template<typename Op_t>
 typename Op_t::Vector_t* Lanczos<Op_t>::get_evec(int i) const {
@@ -81,6 +85,7 @@ typename Op_t::Vector_t* Lanczos<Op_t>::get_evec(int i) const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: accessor for (approximate) eigenvectors
 
 template<typename Op_t>
 typename Op_t::Vectors_t Lanczos<Op_t>::get_evecs() const {
@@ -90,6 +95,7 @@ typename Op_t::Vectors_t Lanczos<Op_t>::get_evecs() const {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: perform Lanczos solve, use random initial guess
 
 template<typename Op_t>
 void Lanczos<Op_t>::solve() {
@@ -102,6 +108,7 @@ void Lanczos<Op_t>::solve() {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: perform Lanczos solve
 
 template<typename Op_t>
 void Lanczos<Op_t>::solve(const typename Op_t::Vector_t& guess) {
@@ -192,6 +199,7 @@ void Lanczos<Op_t>::solve(const typename Op_t::Vector_t& guess) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: calculate eigenpairs from tridiag of lanczos coeffs
 
 template<typename Op_t>
 void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t& t_maindiag,
@@ -317,6 +325,7 @@ http://www.netlib.org/lapack/explore-html/d9/d8e/group__double_g_eeigen_ga66e192
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: perform convergence check
 
 template<typename Op_t>
 bool Lanczos<Op_t>::check_convergence_(typename Op_t::Scalar_t beta) {
@@ -358,6 +367,7 @@ bool Lanczos<Op_t>::check_convergence_(typename Op_t::Scalar_t beta) {
 }
 
 //-----------------------------------------------------------------------------
+/// \brief Lanczos solver: calculate full (approx) evecs from tridiag evecs
 
 template<typename Op_t>
 void Lanczos<Op_t>::calc_evecs_() {
