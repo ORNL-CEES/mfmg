@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'mfmg'
-copyright = u'2017-2018, Wayne Joubert, Andrey Prokopenko, Bruno Turcksin, Damien Lebrun-Grandie'
+copyright = u'2017-2019, Wayne Joubert, Andrey Prokopenko, Bruno Turcksin, Damien Lebrun-Grandie'
 author = u'Wayne Joubert, Andrey Prokopenko, Bruno Turcksin, Damien Lebrun-Grandie'
 
 # The version info for the project you're documenting, acts as replacement for
