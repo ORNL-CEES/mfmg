@@ -204,7 +204,7 @@ RUN export ARPACK_VERSION=3.6.3 && \
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
 # Install deal.II
-RUN export DEAL_II_HASH=169fded235af93b045bab77315781e121bcd1765 && \
+RUN export DEAL_II_HASH=9cd42e465767c5a8ceffddbbc17f6737503337ac && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
@@ -213,6 +213,8 @@ RUN export DEAL_II_HASH=169fded235af93b045bab77315781e121bcd1765 && \
     wget --quiet ${DEAL_II_URL} --output-document=${DEAL_II_ARCHIVE} && \
     mkdir -p ${DEAL_II_SOURCE_DIR} && \
     tar -xf ${DEAL_II_ARCHIVE} -C ${DEAL_II_SOURCE_DIR} --strip-components=1 && \
+    cd ${DEAL_II_SOURCE_DIR} && wget --quiet https://raw.githubusercontent.com/ORNL-CEES/mfmg/master/scripts/0001-Enable-ARPACK-in-regular-mode.patch && \
+    git apply 0001-Enable-ARPACK-in-regular-mode.patch && \
     mkdir -p ${DEAL_II_BUILD_DIR} && cd ${DEAL_II_BUILD_DIR} && \
     cmake -DCMAKE_BUILD_TYPE=DebugRelease \
         -DDEAL_II_WITH_MPI=ON \
@@ -231,7 +233,7 @@ RUN export DEAL_II_HASH=169fded235af93b045bab77315781e121bcd1765 && \
     rm -rf ${DEAL_II_ARCHIVE} && \
     rm -rf ${DEAL_II_BUILD_DIR} && \
     rm -rf ${DEAL_II_SOURCE_DIR}
-ENV DEAL_II_DIR=${INSTALL_DIR}/dealii    
+ENV DEAL_II_DIR=${INSTALL_DIR}/dealii
 
 # Append the option flag --allow-run-as-root to mpiexec
 RUN echo '#!/usr/bin/env bash' > /usr/local/bin/mpiexec && \
