@@ -30,7 +30,7 @@
 // APPROACH3: do not need invert, use ARPACK regular mode instead of
 //            shift-and-invert mode
 
-#define APPROACH1
+#define APPROACH3
 
 namespace mfmg
 {
