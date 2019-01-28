@@ -31,6 +31,15 @@
 namespace mfmg
 {
 
+struct Identity
+{
+  template <typename VectorType>
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    dst = src;
+  }
+};
+
 #if MATRIX_FREE
 struct NoOp
 {
@@ -97,17 +106,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   if (eigensolver_type == "arpack")
   {
     // Make Identity mass matrix
-    dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
-    dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
-    std::vector<std::vector<unsigned int>> column_indices(
-        size, std::vector<unsigned int>(1));
-    for (unsigned int i = 0; i < size; ++i)
-      column_indices[i][0] = i;
-    agglomerate_mass_sparsity_pattern.copy_from(
-        size, size, column_indices.begin(), column_indices.end());
-    agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
-    for (unsigned int i = 0; i < size; ++i)
-      agglomerate_mass_matrix.diag_element(i) = 1.;
+    Identity agglomerate_mass_matrix;
 
 #if MATRIX_FREE
     NoOp inv_system_matrix;
