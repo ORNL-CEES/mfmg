@@ -126,7 +126,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     dealii::ArpackSolver::WhichEigenvalueProblem problem_type =
         dealii::ArpackSolver::WhichEigenvalueProblem::standard;
     // We want to use ARPACK's regular mode to avoid having to compute inverses.
-    int const arpack_mode = 1;
+    auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
         problem_type);
