@@ -112,13 +112,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
-  dealii::SparsityPattern agglomerate_sparsity_pattern;
-  dealii::SparseMatrix<value_type> agglomerate_system_matrix;
+  dealii::TrilinosWrappers::SparseMatrix agglomerate_system_matrix;
 
   // Call user function to build the system matrix
-  evaluator.evaluate_agglomerate(
-      agglomerate_dof_handler, agglomerate_constraints,
-      agglomerate_sparsity_pattern, agglomerate_system_matrix);
+  evaluator.evaluate_agglomerate(agglomerate_dof_handler,
+                                 agglomerate_constraints,
+                                 agglomerate_system_matrix);
 
   // Get the diagonal elements
   unsigned int const size = agglomerate_system_matrix.m();

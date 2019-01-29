@@ -157,11 +157,10 @@ public:
     system_matrix.copy_from(_matrix);
   }
 
-  void evaluate_agglomerate(
-      dealii::DoFHandler<dim> &dof_handler,
-      dealii::AffineConstraints<double> &constraints,
-      dealii::SparsityPattern &system_sparsity_pattern,
-      dealii::SparseMatrix<double> &system_matrix) const override final
+  void evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                            dealii::AffineConstraints<double> &constraints,
+                            dealii::TrilinosWrappers::SparseMatrix
+                                &system_matrix) const override final
   {
     unsigned int const fe_degree = 1;
     dealii::FE_Q<dim> fe(fe_degree);
@@ -179,10 +178,12 @@ public:
 
     // Build the system sparsity pattern and reinitialize the system sparse
     // matrix
-    dealii::DynamicSparsityPattern dsp(dof_handler.n_dofs());
-    dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, constraints);
-    system_sparsity_pattern.copy_from(dsp);
-    system_matrix.reinit(system_sparsity_pattern);
+    auto const n_dofs = dof_handler.n_dofs();
+    dealii::DynamicSparsityPattern system_sparsity_pattern(n_dofs);
+    dealii::DoFTools::make_sparsity_pattern(
+        dof_handler, system_sparsity_pattern, constraints);
+    system_matrix.reinit(dealii::complete_index_set(n_dofs),
+                         system_sparsity_pattern, MPI_COMM_SELF);
 
     // Fill the system matrix
     dealii::QGauss<dim> const quadrature(fe_degree + 1);

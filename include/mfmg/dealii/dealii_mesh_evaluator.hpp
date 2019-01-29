@@ -46,10 +46,10 @@ public:
 
   dealii::LinearAlgebra::distributed::Vector<double> get_diagonal();
 
-  virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
-                                    dealii::AffineConstraints<double> &,
-                                    dealii::SparsityPattern &,
-                                    dealii::SparseMatrix<double> &) const
+  virtual void
+  evaluate_agglomerate(dealii::DoFHandler<dim> &,
+                       dealii::AffineConstraints<double> &,
+                       dealii::TrilinosWrappers::SparseMatrix &) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }

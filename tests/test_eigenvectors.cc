@@ -18,6 +18,7 @@
 #include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/grid/grid_generator.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/trilinos_vector.h>
 
 #include <algorithm>
@@ -38,27 +39,30 @@ public:
   }
 
   // Diagonal matrices. We only need local evaluate function.
-  void evaluate_agglomerate(
-      dealii::DoFHandler<dim> &dof_handler,
-      dealii::AffineConstraints<double> &constraints,
-      dealii::SparsityPattern &system_sparsity_pattern,
-      dealii::SparseMatrix<double> &system_matrix) const override final
+  void evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                            dealii::AffineConstraints<double> &constraints,
+                            dealii::TrilinosWrappers::SparseMatrix
+                                &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
 
     constraints.clear();
 
-    unsigned int const size = dof_handler.n_dofs();
-    std::vector<std::vector<unsigned int>> column_indices(
-        size, std::vector<unsigned int>(1));
-    for (unsigned int i = 0; i < size; ++i)
-      column_indices[i][0] = i;
-    system_sparsity_pattern.copy_from(size, size, column_indices.begin(),
-                                      column_indices.end());
-    system_matrix.reinit(system_sparsity_pattern);
-    for (unsigned int i = 0; i < size; ++i)
-      system_matrix.diag_element(i) = static_cast<double>(i + 1);
+    unsigned int const n_dofs = dof_handler.n_dofs();
+    dealii::DynamicSparsityPattern system_sparsity_pattern(n_dofs);
+    for (unsigned int i = 0; i < n_dofs; ++i)
+    {
+      system_sparsity_pattern.add(i, i);
+    }
+    system_sparsity_pattern.compress();
+    system_matrix.reinit(dealii::complete_index_set(n_dofs),
+                         system_sparsity_pattern, MPI_COMM_SELF);
+    for (unsigned int i = 0; i < n_dofs; ++i)
+    {
+      system_matrix.set(i, i, static_cast<double>(i + 1));
+    }
+    system_matrix.compress(dealii::VectorOperation::insert);
   }
 
   void
@@ -137,11 +141,10 @@ public:
   }
 
   // Diagonal matrices. We only need local evaluate function.
-  void evaluate_agglomerate(
-      dealii::DoFHandler<dim> &dof_handler,
-      dealii::AffineConstraints<double> &constraints,
-      dealii::SparsityPattern &system_sparsity_pattern,
-      dealii::SparseMatrix<double> &system_matrix) const override final
+  void evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                            dealii::AffineConstraints<double> &constraints,
+                            dealii::TrilinosWrappers::SparseMatrix
+                                &system_matrix) const override final
   {
     dealii::FE_Q<2> fe(1);
     dof_handler.distribute_dofs(fe);
@@ -150,16 +153,20 @@ public:
     constraints.add_line(0);
     constraints.close();
 
-    unsigned int const size = dof_handler.n_dofs();
-    std::vector<std::vector<unsigned int>> column_indices(
-        size, std::vector<unsigned int>(1));
-    for (unsigned int i = 0; i < size; ++i)
-      column_indices[i][0] = i;
-    system_sparsity_pattern.copy_from(size, size, column_indices.begin(),
-                                      column_indices.end());
-    system_matrix.reinit(system_sparsity_pattern);
-    for (unsigned int i = 0; i < size; ++i)
-      system_matrix.diag_element(i) = static_cast<double>(i + 1);
+    unsigned int const n_dofs = dof_handler.n_dofs();
+    dealii::DynamicSparsityPattern system_sparsity_pattern(n_dofs);
+    for (unsigned int i = 0; i < n_dofs; ++i)
+    {
+      system_sparsity_pattern.add(i, i);
+    }
+    system_sparsity_pattern.compress();
+    system_matrix.reinit(dealii::complete_index_set(n_dofs),
+                         system_sparsity_pattern, MPI_COMM_SELF);
+    for (unsigned int i = 0; i < n_dofs; ++i)
+    {
+      system_matrix.set(i, i, static_cast<double>(i + 1));
+    }
+    system_matrix.compress(dealii::VectorOperation::insert);
   }
 
   void
