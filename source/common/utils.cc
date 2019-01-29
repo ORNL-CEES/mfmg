@@ -29,7 +29,7 @@ void matrix_market_output_file(
 {
   int rv = EpetraExt::RowMatrixToMatrixMarketFile(filename.c_str(),
                                                   matrix.trilinos_matrix());
-  ASSERT(rv != 0, "EpetraExt::RowMatrixToMatrixMarketFile return value is " +
+  ASSERT(rv == 0, "EpetraExt::RowMatrixToMatrixMarketFile return value is " +
                       std::to_string(rv));
 }
 
@@ -40,7 +40,7 @@ void matrix_market_output_file(
 {
   int rv = EpetraExt::MultiVectorToMatrixMarketFile(filename.c_str(),
                                                     vector.trilinos_vector());
-  ASSERT(rv != 0, "EpetraExt::RowMatrixToMatrixMarketFile return value is " +
+  ASSERT(rv == 0, "EpetraExt::RowMatrixToMatrixMarketFile return value is " +
                       std::to_string(rv));
 }
 
