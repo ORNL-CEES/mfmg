@@ -139,7 +139,13 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
 #if defined(APPROACH1)
     dealii::SparseDirectUMFPACK inv_system_matrix;
-    inv_system_matrix.initialize(agglomerate_system_matrix);
+    { // SparseDirectUMFPACK is only explicitly instantiated for deal.II native
+      // sparse matrice types so we make a copy to perform the factorization
+      // and let it go out of scope to free memory.
+      dealii::SparseMatrix<double> tmp_matrix;
+      tmp_matrix.copy_from(agglomerate_system_matrix);
+      inv_system_matrix.initialize(tmp_matrix);
+    }
 #elif defined(APPROACH2)
     WrapInverse<dealii::SparseMatrix<value_type>> inv_system_matrix(
         agglomerate_system_matrix, 1000 * n_dofs_agglomerate, .1 * tolerance);
