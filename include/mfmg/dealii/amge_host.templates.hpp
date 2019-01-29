@@ -142,7 +142,25 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     { // SparseDirectUMFPACK is only explicitly instantiated for deal.II native
       // sparse matrice types so we make a copy to perform the factorization
       // and let it go out of scope to free memory.
-      dealii::SparseMatrix<double> tmp_matrix;
+      using size_type = dealii::types::global_dof_index;
+      using const_iterator =
+          dealii::TrilinosWrappers::SparseMatrix::const_iterator;
+      size_type const n_rows = agglomerate_system_matrix.m();
+      size_type const n_cols = agglomerate_system_matrix.n();
+      dealii::DynamicSparsityPattern dsp(n_rows, n_cols);
+      for (size_type row = 0; row < n_rows; ++row)
+      {
+        const_iterator end_row = agglomerate_system_matrix.end(row);
+        for (const_iterator entry = agglomerate_system_matrix.begin(row);
+             entry != end_row; ++entry)
+        {
+          dsp.add(row, entry->column());
+        }
+      }
+      dsp.compress();
+      dealii::SparsityPattern agglomerate_sparsity_pattern;
+      agglomerate_sparsity_pattern.copy_from(dsp);
+      dealii::SparseMatrix<double> tmp_matrix(agglomerate_sparsity_pattern);
       tmp_matrix.copy_from(agglomerate_system_matrix);
       inv_system_matrix.initialize(tmp_matrix);
     }
