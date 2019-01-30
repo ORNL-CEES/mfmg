@@ -96,8 +96,20 @@ void Laplace<dim, VectorType>::setup_system(
 
   _triangulation.refine_global(ptree.get("n_refinements", 3));
 
+  // Set the boundary id to one
+  auto boundary_cells =
+      dealii::filter_iterators(_triangulation.active_cell_iterators(),
+                               dealii::IteratorFilters::LocallyOwnedCell(),
+                               dealii::IteratorFilters::AtBoundary());
+  for (auto &cell : boundary_cells)
+  {
+    for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell; ++f)
+      if (cell->face(f)->at_boundary())
+        cell->face(f)->set_boundary_id(1);
+  }
+
   if (ptree.get("distort_random", false))
-    dealii::GridTools::distort_random(0.2, _triangulation);
+    dealii::GridTools::distort_random(0.1, _triangulation);
 
   _dof_handler.distribute_dofs(_fe);
 
@@ -126,7 +138,7 @@ void Laplace<dim, VectorType>::setup_system(
   _constraints.reinit(_locally_relevant_dofs);
   dealii::DoFTools::make_hanging_node_constraints(_dof_handler, _constraints);
   dealii::VectorTools::interpolate_boundary_values(
-      _dof_handler, 0, dealii::Functions::ZeroFunction<dim>(), _constraints);
+      _dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), _constraints);
   _constraints.close();
 
   // Build the sparsity pattern
@@ -259,7 +271,8 @@ void Laplace<dim, VectorType>::output_results() const
     for (unsigned int i = 0; i < comm_size; ++i)
       filenames.push_back("solution-" + std::to_string(i) + "-" +
                           std::to_string(comm_size) + ".vtu");
-    std::ofstream master_output("solution.pvtu");
+    std::ofstream master_output("solution-" + std::to_string(comm_size) +
+                                ".pvtu");
     data_out.write_pvtu_record(master_output, filenames);
   }
   MPI_Barrier(_comm);

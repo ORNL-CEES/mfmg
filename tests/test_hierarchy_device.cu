@@ -191,6 +191,8 @@ public:
     constraints.clear();
     constraints.reinit(locally_relevant_dofs);
     dealii::DoFTools::make_hanging_node_constraints(dof_handler, constraints);
+    dealii::VectorTools::interpolate_boundary_values(
+        dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), constraints);
     constraints.close();
 
     // Build the system sparsity pattern and reinitialize the system sparse
@@ -345,21 +347,21 @@ BOOST_AUTO_TEST_CASE(hierarchy_3d)
     // don't break the code
     std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
     ref_solution[std::make_tuple("hyper_cube", false, "None")] =
-        0.16193365416298541;
+        0.14933479171507894;
     ref_solution[std::make_tuple(
-        "hyper_cube", false, "Reverse Cuthill_McKee")] = 0.16193365416298544;
+        "hyper_cube", false, "Reverse Cuthill_McKee")] = 0.14933479171507894;
     ref_solution[std::make_tuple("hyper_cube", true, "None")] =
-        0.1486537142879813;
+        0.15334169107506268;
     ref_solution[std::make_tuple("hyper_cube", true, "Reverse Cuthill_McKee")] =
-        0.14865371428798133;
+        0.15334169107506268;
     ref_solution[std::make_tuple("hyper_ball", false, "None")] =
-        0.5708404747197412;
+        0.5953407021456707;
     ref_solution[std::make_tuple(
-        "hyper_ball", false, "Reverse Cuthill_McKee")] = 0.57084047471973909;
+        "hyper_ball", false, "Reverse Cuthill_McKee")] = 0.59534070214567336;
     ref_solution[std::make_tuple("hyper_ball", true, "None")] =
-        0.6601100828832337;
+        0.62020418011247469;
     ref_solution[std::make_tuple("hyper_ball", true, "Reverse Cuthill_McKee")] =
-        0.6601100828832337;
+        0.62020418011247469;
 
     for (auto mesh : {"hyper_cube", "hyper_ball"})
       for (auto distort_random : {false, true})
