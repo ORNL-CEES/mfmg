@@ -20,7 +20,9 @@
 
 #include "lanczos_simplevector.hpp"
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -190,10 +192,8 @@ void SimpleVector<Scalar_t>::print() const {
   std::cout << std::endl;
 }
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_SIMPLEVECTOR_TEMPLATE_HPP_
-
-//=============================================================================
+#endif

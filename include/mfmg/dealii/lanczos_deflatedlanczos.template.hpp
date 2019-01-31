@@ -24,7 +24,9 @@
 #include "lanczos_lanczos.template.hpp"
 #include "lanczos_deflatedlanczos.hpp"
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -135,17 +137,16 @@ void DeflatedLanczos<Op_t>::solve() {
 
     // Add eigenvectors to the set of vectors being deflated out.
 
-    if (cycle != num_cycles_ - 1) {
+    if (cycle != num_cycles_ - 1)
+    {
       deflated_op.add_deflation_vecs(solver.get_evecs());
     }
 
   } // cycle
 }
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_DEFLATEDLANCZOS_TEMPLATE_HPP_
-
-//=============================================================================
+#endif

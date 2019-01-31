@@ -15,7 +15,9 @@
 #include <cstddef>
 #include <vector>
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -69,8 +71,8 @@ class SimpleOp {
 
 //-----------------------------------------------------------------------------
 
-} // namespace mfmg::lanczos
+} // namespace lanczos
 
-#endif // _LANCZOS_SIMPLEOP_HPP_
+} // namespace mfmg
 
-//=============================================================================
+#endif

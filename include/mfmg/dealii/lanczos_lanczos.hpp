@@ -14,7 +14,9 @@
 
 #include <vector>
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -89,10 +91,8 @@ class Lanczos {
     void operator=(const Lanczos<Op_t>&);
 };
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_LANCZOS_HPP_
-
-//=============================================================================
+#endif

@@ -15,7 +15,9 @@
 #include <cstddef>
 #include <vector>
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -79,10 +81,8 @@ class SimpleVector {
 
 };
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_SIMPLEVECTOR_HPP_
-
-//=============================================================================
+#endif

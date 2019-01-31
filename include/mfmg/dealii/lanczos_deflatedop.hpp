@@ -15,7 +15,9 @@
 #include <cstddef>
 #include <vector>
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -67,10 +69,8 @@ class DeflatedOp {
     void operator=(const DeflatedOp<BaseOp_t>&);
 };
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_DEFLATEDOP_HPP_
-
-//=============================================================================
+#endif

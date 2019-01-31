@@ -22,7 +22,9 @@
 
 #include "lanczos_lanczos.hpp"
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -389,10 +391,8 @@ void Lanczos<Op_t>::calc_evecs_() {
   }
 }
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_LANCZOS_TEMPLATE_HPP_
-
-//=============================================================================
+#endif

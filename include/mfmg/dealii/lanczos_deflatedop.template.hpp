@@ -16,7 +16,9 @@
 
 #include "lanczos_deflatedop.hpp"
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -153,8 +155,8 @@ void DeflatedOp<BaseOp_t>::deflate(Vector_t& vec) const {
 
 //-----------------------------------------------------------------------------
 
-} // namespace mfmg::lanczos
+} // namespace lanczos
 
-#endif // _LANCZOS_DEFLATEDOP_TEMPLATE_HPP_
+} // namespace mfmg
 
-//=============================================================================
+#endif

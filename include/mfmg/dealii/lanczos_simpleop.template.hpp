@@ -16,7 +16,9 @@
 
 #include "lanczos_simpleop.hpp"
 
-namespace mfmg::lanczos
+namespace mfmg
+{
+namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -48,10 +50,8 @@ void SimpleOp<Vector_t>::apply(Vector_t& vout, const Vector_t& vin) const {
   }
 }
 
-//-----------------------------------------------------------------------------
+} // namespace lanczos
 
-} // namespace mfmg::lanczos
+} // namespace mfmg
 
-#endif // _LANCZOS_SIMPLEOP_TEMPLATE_HPP_
-
-//=============================================================================
+#endif
