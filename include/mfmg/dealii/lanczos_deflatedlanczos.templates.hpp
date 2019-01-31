@@ -21,6 +21,12 @@
 #include "lanczos_deflatedlanczos.hpp"
 #include "lanczos_deflatedop.templates.hpp"
 #include "lanczos_lanczos.templates.hpp"
+
+// This complex code has to be included before lapacke for the code to compile.
+// Otherwise, it conflicts with boost or Kokkos.
+#include <complex>
+#define lapack_complex_float std::complex<float>
+#define lapack_complex_double std::complex<double>
 #include "lapacke.h"
 
 namespace mfmg
