@@ -19,8 +19,8 @@
 
 #include "cblas.h"
 #include "lanczos_deflatedlanczos.hpp"
-#include "lanczos_deflatedop.template.hpp"
-#include "lanczos_lanczos.template.hpp"
+#include "lanczos_deflatedop.templates.hpp"
+#include "lanczos_lanczos.templates.hpp"
 #include "lapacke.h"
 
 namespace mfmg
