@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(lanczos)
   for (int i = 0; i < num_ritzvals; ++i)
   {
     double ritzval = solver.get_eval(i);
-    for (int j = 0; j < n; ++j)
+    for (int j = 0; j < (int)n; ++j)
     {
       const double eval = op.eigenvalue(j);
       const double diff = fabs(ritzval - eval);

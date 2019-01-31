@@ -13,6 +13,7 @@
 #define MFMG_LANCZOS_DEFLATEDOP_TEMPLATE_HPP
 
 #include <cassert>
+#include <cmath>
 
 #include "lanczos_deflatedop.hpp"
 
@@ -134,7 +135,7 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
 
     // ISSUE: we are not accounting for possible rank deficiency here.
 
-    double norm = sqrt(dot_best);
+    double norm = std::sqrt(dot_best);
     assert(norm != (double)0.); // ISSUE need better test for near-zero here.
     deflation_vecs_[ind[i]]->scal((Scalar_t)(1 / norm));
 
