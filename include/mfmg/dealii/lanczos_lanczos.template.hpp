@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef _LANCZOS_LANCZOS_TEMPLATE_HPP_
-#define _LANCZOS_LANCZOS_TEMPLATE_HPP_
+#ifndef MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
+#define MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
 
 #include <cassert>
 #include <algorithm>

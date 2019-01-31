@@ -9,8 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                 *
  *************************************************************************/
 
-#ifndef _LANCZOS_SIMPLEVECTOR_HPP_
-#define _LANCZOS_SIMPLEVECTOR_HPP_
+#ifndef MFMG_LANCZOS_SIMPLEVECTOR_HPP
+#define MFMG_LANCZOS_SIMPLEVECTOR_HPP
 
 #include <cstddef>
 #include <vector>
