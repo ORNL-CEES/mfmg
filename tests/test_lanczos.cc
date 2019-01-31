@@ -12,12 +12,12 @@
 #define BOOST_TEST_MODULE lanczos
 
 #include "mfmg/dealii/lanczos_deflatedlanczos.templates.hpp"
-#include "mfmg/dealii/lanczos_simpleop.templates.hpp"
-#include "mfmg/dealii/lanczos_simplevector.templates.hpp"
 
 #include <cmath>
 #include <cstdio>
 
+#include "lanczos_simpleop.templates.hpp"
+#include "lanczos_simplevector.templates.hpp"
 #include "main.cc"
 
 //-----------------------------------------------------------------------------

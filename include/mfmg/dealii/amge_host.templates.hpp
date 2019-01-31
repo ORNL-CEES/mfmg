@@ -14,8 +14,6 @@
 
 #include <mfmg/dealii/amge_host.hpp>
 #include <mfmg/dealii/lanczos_deflatedlanczos.templates.hpp>
-#include <mfmg/dealii/lanczos_simpleop.templates.hpp>
-#include <mfmg/dealii/lanczos_simplevector.templates.hpp>
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
