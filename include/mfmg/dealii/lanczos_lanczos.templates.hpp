@@ -164,7 +164,7 @@ void Lanczos<OperatorType>::solve(
 
     // Apply operator.
 
-    _op.apply(*_lanc_vectors[it], *_lanc_vectors[it - 1]);
+    _op.apply(*_lanc_vectors[it - 1], *_lanc_vectors[it]);
 
     // Compute, apply, save lanczos coefficients.
 

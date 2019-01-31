@@ -50,7 +50,7 @@ public:
 
   // Operations
 
-  void apply(VectorType &vout, const VectorType &vin) const;
+  void apply(VectorType const &vin, VectorType &vout) const;
 
 private:
   size_t _dim;

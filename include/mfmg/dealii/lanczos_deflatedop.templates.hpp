@@ -48,8 +48,8 @@ DeflatedOp<BaseOperatorType>::~DeflatedOp()
 /// \brief Deflated operator: apply operator to a vector
 
 template <typename BaseOperatorType>
-void DeflatedOp<BaseOperatorType>::apply(VectorType &vout,
-                                         const VectorType &vin) const
+void DeflatedOp<BaseOperatorType>::apply(VectorType const &vin,
+                                         VectorType &vout) const
 {
 
   // NOTE: to save a vec, we will assume the initial guess is already deflated.
@@ -61,7 +61,7 @@ void DeflatedOp<BaseOperatorType>::apply(VectorType &vout,
   // a future modification may take this into account.  There are
   // some methods for determining when / how often needed.
 
-  _base_op.apply(vout, vin);
+  _base_op.apply(vin, vout);
 
   deflate(vout);
 }

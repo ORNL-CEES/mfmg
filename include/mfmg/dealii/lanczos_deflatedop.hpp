@@ -49,7 +49,7 @@ public:
 
   // Operations
 
-  void apply(VectorType &vout, const VectorType &vin) const;
+  void apply(VectorType const &vin, VectorType &vout) const;
 
   void add_deflation_vecs(Vectors_t vecs);
 

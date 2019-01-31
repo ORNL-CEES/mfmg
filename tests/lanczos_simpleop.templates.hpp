@@ -44,7 +44,7 @@ SimpleOp<VectorType>::~SimpleOp()
 /// \brief Simple test operator: apply operator to a vector
 
 template <typename VectorType>
-void SimpleOp<VectorType>::apply(VectorType &vout, const VectorType &vin) const
+void SimpleOp<VectorType>::apply(VectorType const &vin, VectorType &vout) const
 {
 
   for (int i = 0; i < this->_dim; ++i)
