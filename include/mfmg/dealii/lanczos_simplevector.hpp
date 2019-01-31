@@ -26,14 +26,14 @@ namespace lanczos
 ///        Implements a simple vector with elements stored in contiguous
 ///        memory locations in (CPU) memory.
 
-template <typename Scalar_t_>
+template <typename ScalarType_>
 class SimpleVector
 {
 
 public:
   // Typedefs
 
-  typedef Scalar_t_ Scalar_t;
+  typedef ScalarType_ ScalarType;
 
   // Ctor/dtor
 
@@ -42,25 +42,25 @@ public:
 
   // Accessors
 
-  size_t dim() const { return dim_; }
+  size_t dim() const { return _dim; }
 
-  Scalar_t &elt(size_t i);
-  Scalar_t const_elt(size_t i) const;
+  ScalarType &elt(size_t i);
+  ScalarType const_elt(size_t i) const;
 
   // Operations
 
   void copy(const SimpleVector &x);
   void copy(const SimpleVector *x) { copy(*x); }
 
-  void axpy(Scalar_t a, const SimpleVector &x);
-  void axpy(Scalar_t a, const SimpleVector *x) { axpy(a, *x); }
+  void axpy(ScalarType a, const SimpleVector &x);
+  void axpy(ScalarType a, const SimpleVector *x) { axpy(a, *x); }
 
-  void scal(Scalar_t a);
+  void scal(ScalarType a);
 
-  Scalar_t dot(const SimpleVector &x) const;
-  Scalar_t dot(const SimpleVector *x) const { return dot(*x); }
+  ScalarType dot(const SimpleVector &x) const;
+  ScalarType dot(const SimpleVector *x) const { return dot(*x); }
 
-  Scalar_t nrm2() const;
+  ScalarType nrm2() const;
 
   void set_zero();
 
@@ -69,13 +69,13 @@ public:
   void print() const;
 
 private:
-  size_t dim_;
-  std::vector<Scalar_t> data_;
+  size_t _dim;
+  std::vector<ScalarType> _data;
 
   // Disallowed methods
 
-  SimpleVector(const SimpleVector<Scalar_t> &);
-  void operator=(const SimpleVector<Scalar_t> &);
+  SimpleVector(const SimpleVector<ScalarType> &);
+  void operator=(const SimpleVector<ScalarType> &);
 };
 
 } // namespace lanczos

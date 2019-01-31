@@ -37,80 +37,81 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Deflated Lanczos solver: constructor
 
-template <typename Op_t>
-DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t &op, int num_evecs_per_cycle,
-                                       int num_cycles, int maxit, double tol,
-                                       unsigned int percent_overshoot,
-                                       unsigned int verbosity)
-    : op_(op), num_evecs_per_cycle_(num_evecs_per_cycle),
-      num_cycles_(num_cycles), maxit_(maxit), tol_(tol),
-      percent_overshoot_(percent_overshoot), verbosity_(verbosity),
-      dim_(op.dim())
+template <typename OperatorType>
+DeflatedLanczos<OperatorType>::DeflatedLanczos(
+    OperatorType &op, int num_evecs_per_cycle, int num_cycles, int maxit,
+    double tol, unsigned int percent_overshoot, unsigned int verbosity)
+    : _op(op), _num_evecs_per_cycle(num_evecs_per_cycle),
+      _num_cycles(num_cycles), _maxit(maxit), _tol(tol),
+      _percent_overshoot(percent_overshoot), _verbosity(verbosity),
+      _dim(op.dim())
 {
-  assert(this->num_evecs_per_cycle_ >= 1);
-  assert(this->num_cycles_ >= 1);
-  assert(this->maxit_ >= 0);
-  assert(this->maxit_ >= this->num_evecs_per_cycle_ &&
+  assert(this->_num_evecs_per_cycle >= 1);
+  assert(this->_num_cycles >= 1);
+  assert(this->_maxit >= 0);
+  assert(this->_maxit >= this->_num_evecs_per_cycle &&
          "maxit too small to produce required number of eigenvectors.");
-  assert(this->tol_ >= 0.);
+  assert(this->_tol >= 0.);
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Deflated Lanczos solver: destructor
 
-template <typename Op_t>
-DeflatedLanczos<Op_t>::~DeflatedLanczos()
+template <typename OperatorType>
+DeflatedLanczos<OperatorType>::~DeflatedLanczos()
 {
-  for (int i = 0; i < evecs_.size(); ++i)
+  for (int i = 0; i < _evecs.size(); ++i)
   {
-    delete evecs_[i];
+    delete _evecs[i];
   }
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
-template <typename Op_t>
-typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const
+template <typename OperatorType>
+typename OperatorType::ScalarType
+DeflatedLanczos<OperatorType>::get_eval(int i) const
 {
   assert(i >= 0);
-  assert(i < evals_.size());
+  assert(i < _evals.size());
 
-  return evals_[i];
+  return _evals[i];
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvector
 
-template <typename Op_t>
-typename Op_t::Vector_t *DeflatedLanczos<Op_t>::get_evec(int i) const
+template <typename OperatorType>
+typename OperatorType::VectorType *
+DeflatedLanczos<OperatorType>::get_evec(int i) const
 {
   assert(i >= 0);
-  assert(i < evecs_.size());
+  assert(i < _evecs.size());
 
   // ISSUE: giving users pointer to internal data that shouldn't be modified.
-  return evecs_[i];
+  return _evecs[i];
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform deflated Lanczos solve
 
-template <typename Op_t>
-void DeflatedLanczos<Op_t>::solve()
+template <typename OperatorType>
+void DeflatedLanczos<OperatorType>::solve()
 {
 
-  typedef DeflatedOp<Op_t> DOp;
+  typedef DeflatedOp<OperatorType> DOp;
 
   // Form deflated operator from original operator.
 
-  DOp deflated_op(this->op_);
+  DOp deflated_op(this->_op);
 
   // Loop over Lanczos solves.
 
-  for (int cycle = 0; cycle < num_cycles_; ++cycle)
+  for (int cycle = 0; cycle < _num_cycles; ++cycle)
   {
 
-    if (verbosity_ > 0)
+    if (_verbosity > 0)
     {
       std::cout << "----------------------------------------"
                    "---------------------------------------"
@@ -124,10 +125,10 @@ void DeflatedLanczos<Op_t>::solve()
     // seeds.
     // ISSUE; should a different initial guess strategy be used.
 
-    Lanczos<DOp> solver(deflated_op, num_evecs_per_cycle_, maxit_, tol_,
-                        percent_overshoot_, verbosity_);
+    Lanczos<DOp> solver(deflated_op, _num_evecs_per_cycle, _maxit, _tol,
+                        _percent_overshoot, _verbosity);
 
-    typename Op_t::Vector_t guess(dim_);
+    typename OperatorType::VectorType guess(_dim);
     guess.set_random(cycle, 1., 1.);
     // Deflate initial guess.
     deflated_op.deflate(guess);
@@ -140,16 +141,16 @@ void DeflatedLanczos<Op_t>::solve()
     // though the precise terminology should be "approximate eigenpairs"
     // or "Ritz pairs."
 
-    for (int i = 0; i < num_evecs_per_cycle_; ++i)
+    for (int i = 0; i < _num_evecs_per_cycle; ++i)
     {
-      evals_.push_back(solver.get_eval(i));
-      evecs_.push_back(new Vector_t(dim_));
-      evecs_[i]->copy(solver.get_evec(i));
+      _evals.push_back(solver.get_eval(i));
+      _evecs.push_back(new VectorType(_dim));
+      _evecs[i]->copy(solver.get_evec(i));
     }
 
     // Add eigenvectors to the set of vectors being deflated out.
 
-    if (cycle != num_cycles_ - 1)
+    if (cycle != _num_cycles - 1)
     {
       deflated_op.add_deflation_vecs(solver.get_evecs());
     }

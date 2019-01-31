@@ -26,16 +26,16 @@ namespace lanczos
 ///        A diagonal matrix with equally spaced eigenvalues of some
 ///        multiplicity.
 
-template <typename Vector_t_>
+template <typename VectorType_>
 class SimpleOp
 {
 
 public:
   // Typedefs
 
-  typedef Vector_t_ Vector_t;
-  typedef typename Vector_t::Scalar_t Scalar_t;
-  typedef typename std::vector<Vector_t *> Vectors_t;
+  typedef VectorType_ VectorType;
+  typedef typename VectorType::ScalarType ScalarType;
+  typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
@@ -44,29 +44,29 @@ public:
 
   // Accessors
 
-  size_t dim() const { return dim_; }
+  size_t dim() const { return _dim; }
 
-  Scalar_t eigenvalue(size_t i) const { return diag_value_(i); }
+  ScalarType eigenvalue(size_t i) const { return diag_value_(i); }
 
   // Operations
 
-  void apply(Vector_t &vout, const Vector_t &vin) const;
+  void apply(VectorType &vout, const VectorType &vin) const;
 
 private:
-  size_t dim_;
-  size_t multiplicity_;
+  size_t _dim;
+  size_t _multiplicity;
 
   // This will be a diagonal matrix; specify the diag entries here
 
-  Scalar_t diag_value_(size_t i) const
+  ScalarType diag_value_(size_t i) const
   {
-    return (Scalar_t)(1 + i / multiplicity_);
+    return (ScalarType)(1 + i / _multiplicity);
   }
 
   // Disallowed methods
 
-  SimpleOp(const SimpleOp<Vector_t> &);
-  void operator=(const SimpleOp<Vector_t> &);
+  SimpleOp(const SimpleOp<VectorType> &);
+  void operator=(const SimpleOp<VectorType> &);
 };
 
 //-----------------------------------------------------------------------------

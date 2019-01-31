@@ -35,87 +35,89 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: constructor
 
-template <typename Op_t>
-Lanczos<Op_t>::Lanczos(const Op_t &op, int num_requested, int maxit, double tol,
-                       unsigned int percent_overshoot, unsigned int verbosity)
-    : op_(op)
-      //, lanc_vectors_()
+template <typename OperatorType>
+Lanczos<OperatorType>::Lanczos(const OperatorType &op, int num_requested,
+                               int maxit, double tol,
+                               unsigned int percent_overshoot,
+                               unsigned int verbosity)
+    : _op(op)
+      //, _lanc_vectors()
       ,
-      num_requested_(num_requested), maxit_(maxit), tol_(tol),
-      percent_overshoot_(percent_overshoot), verbosity_(verbosity),
-      dim_(op.dim())
+      _num_requested(num_requested), _maxit(maxit), _tol(tol),
+      _percent_overshoot(percent_overshoot), _verbosity(verbosity),
+      _dim(op.dim())
 {
-  assert(this->num_requested_ >= 1);
-  assert(this->maxit_ >= 0);
-  assert(this->maxit_ >= this->num_requested_ &&
+  assert(this->_num_requested >= 1);
+  assert(this->_maxit >= 0);
+  assert(this->_maxit >= this->_num_requested &&
          "maxit too small to produce required number of eigenvectors.");
-  assert(this->tol_ >= 0.);
+  assert(this->_tol >= 0.);
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: destructor
 
-template <typename Op_t>
-Lanczos<Op_t>::~Lanczos()
+template <typename OperatorType>
+Lanczos<OperatorType>::~Lanczos()
 {
 
-  for (int i = 0; i < evecs_.size(); ++i)
+  for (int i = 0; i < _evecs.size(); ++i)
   {
-    delete evecs_[i];
+    delete _evecs[i];
   }
 
-  for (int i = 0; i < lanc_vectors_.size(); ++i)
+  for (int i = 0; i < _lanc_vectors.size(); ++i)
   {
-    delete lanc_vectors_[i];
+    delete _lanc_vectors[i];
   }
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
-template <typename Op_t>
-typename Op_t::Scalar_t Lanczos<Op_t>::get_eval(int i) const
+template <typename OperatorType>
+typename OperatorType::ScalarType Lanczos<OperatorType>::get_eval(int i) const
 {
   assert(i >= 0);
-  assert(i < evals_.size());
+  assert(i < _evals.size());
 
-  return evals_[i];
+  return _evals[i];
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvector
 
-template <typename Op_t>
-typename Op_t::Vector_t *Lanczos<Op_t>::get_evec(int i) const
+template <typename OperatorType>
+typename OperatorType::VectorType *Lanczos<OperatorType>::get_evec(int i) const
 {
   assert(i >= 0);
-  assert(i < evecs_.size());
+  assert(i < _evecs.size());
 
   // ISSUE: giving users pointer to internal data that shouldn't be modified.
-  return evecs_[i];
+  return _evecs[i];
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvectors
 
-template <typename Op_t>
-typename Op_t::Vectors_t Lanczos<Op_t>::get_evecs() const
+template <typename OperatorType>
+typename OperatorType::Vectors_t Lanczos<OperatorType>::get_evecs() const
 {
 
   // ISSUE: giving users pointer to internal data that shouldn't be modified.
-  return evecs_;
+  return _evecs;
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve, use random initial guess
 
-template <typename Op_t>
-void Lanczos<Op_t>::solve()
+template <typename OperatorType>
+void Lanczos<OperatorType>::solve()
 {
 
   // By default set initial guess to a random vector.
 
-  typename Op_t::Vector_t guess(dim_);
+  typename OperatorType::VectorType guess(_dim);
   guess.set_random();
   solve(guess);
 }
@@ -123,67 +125,68 @@ void Lanczos<Op_t>::solve()
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve
 
-template <typename Op_t>
-void Lanczos<Op_t>::solve(const typename Op_t::Vector_t &guess)
+template <typename OperatorType>
+void Lanczos<OperatorType>::solve(
+    const typename OperatorType::VectorType &guess)
 {
 
   // Initializations; first Lanczos vector.
 
-  Scalar_t alpha = 0;
-  Scalar_t beta = guess.nrm2();
+  ScalarType alpha = 0;
+  ScalarType beta = guess.nrm2();
 
-  if (lanc_vectors_.size() < 1)
+  if (_lanc_vectors.size() < 1)
   {
     // Create first Lanczos vector.
-    lanc_vectors_.push_back(new Vector_t(dim_));
+    _lanc_vectors.push_back(new VectorType(_dim));
   }
   // Set to initial guess; later normalize.
-  lanc_vectors_[0]->copy(guess);
+  _lanc_vectors[0]->copy(guess);
 
   Scalars_t t_maindiag;
   Scalars_t t_offdiag;
 
   // Lanczos iteration loop.
 
-  for (int it = 1, it_prev_check = 0; it <= maxit_; ++it)
+  for (int it = 1, it_prev_check = 0; it <= _maxit; ++it)
   {
 
     // Normalize lanczos vector.
 
     assert(beta != 0); // TODO: set up better check for near-zero.
-    lanc_vectors_[it - 1]->scal(1 / beta);
+    _lanc_vectors[it - 1]->scal(1 / beta);
 
-    if (lanc_vectors_.size() < it + 1)
+    if (_lanc_vectors.size() < it + 1)
     {
       // Add new Lanczos vector
-      lanc_vectors_.push_back(new Vector_t(dim_));
+      _lanc_vectors.push_back(new VectorType(_dim));
     }
 
     // Apply operator.
 
-    op_.apply(*lanc_vectors_[it], *lanc_vectors_[it - 1]);
+    _op.apply(*_lanc_vectors[it], *_lanc_vectors[it - 1]);
 
     // Compute, apply, save lanczos coefficients.
 
     if (1 != it)
     {
-      lanc_vectors_[it]->axpy(-beta, lanc_vectors_[it - 2]);
+      _lanc_vectors[it]->axpy(-beta, _lanc_vectors[it - 2]);
       t_offdiag.push_back(beta);
     } // if
 
-    alpha = lanc_vectors_[it - 1]->dot(lanc_vectors_[it]); // = tridiag_{it,it}
+    alpha = _lanc_vectors[it - 1]->dot(_lanc_vectors[it]); // = tridiag_{it,it}
 
     t_maindiag.push_back(alpha);
 
-    lanc_vectors_[it]->axpy(-alpha, lanc_vectors_[it - 1]);
+    _lanc_vectors[it]->axpy(-alpha, _lanc_vectors[it - 1]);
 
-    beta = lanc_vectors_[it]->nrm2(); // = tridiag_{it+1,it}
+    beta = _lanc_vectors[it]->nrm2(); // = tridiag_{it+1,it}
 
     // Check convergence if requested.
 
     const bool do_check =
-        1 == it || maxit_ == it ||
-        100 * (it - it_prev_check) > percent_overshoot_ * it_prev_check;
+        1 == it || _maxit == it ||
+        100 * (it - it_prev_check) > _percent_overshoot * it_prev_check;
     // NOTE: an alternative here for p > 0 is
     // int((100./p)*ln(it)) > int((100./p)*ln(it-1))
 
@@ -214,7 +217,7 @@ void Lanczos<Op_t>::solve(const typename Op_t::Vector_t &guess)
 
   calc_evecs_();
 
-  if (verbosity_ > 0)
+  if (_verbosity > 0)
   {
     std::cout << std::endl;
   }
@@ -223,17 +226,17 @@ void Lanczos<Op_t>::solve(const typename Op_t::Vector_t &guess)
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: calculate eigenpairs from tridiag of lanczos coeffs
 
-template <typename Op_t>
-void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
-                                         Scalars_t &t_offdiag)
+template <typename OperatorType>
+void Lanczos<OperatorType>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
+                                                 Scalars_t &t_offdiag)
 {
   assert(it >= 1);
-  assert(it <= this->maxit_);
+  assert(it <= this->_maxit);
   assert(t_maindiag.size() == it);
   assert(t_offdiag.size() == it - 1);
 
-  dim_tridiag_ = it;
-  const int k = dim_tridiag_;
+  _dim_tridiag = it;
+  const int k = _dim_tridiag;
 
   // Set up matrix
 
@@ -260,7 +263,7 @@ void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
 
   // NOTE: this part can be replaced if desired with some platform-specific
   // library.
-  // NOTE: for accuracy we are using double here rather than Scalar_t;
+  // NOTE: for accuracy we are using double here rather than ScalarType;
   // may not be needed.
   // ISSUE: LAPACK has other solvers that might be more efficient here.
 
@@ -268,7 +271,7 @@ void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
   auto t_evals_i = new double[k];
   auto t_evecs = new double[k * k];
 
-  // Do all in double, regardless of Scalar_t (for now)
+  // Do all in double, regardless of ScalarType (for now)
   const lapack_int info =
       LAPACKE_dgeev(LAPACK_COL_MAJOR, 'N', 'V', k, matrix, k, t_evals_r,
                     t_evals_i, NULL, k, t_evecs, k);
@@ -286,17 +289,17 @@ void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
 
   // Output requested eigenvalues.
 
-  if (verbosity_ > 0)
+  if (_verbosity > 0)
   {
     std::cout.width(4);
     std::cout << "It " << k;
     std::cout.precision(4);
     std::cout << "   evals ";
-    for (int i = 0; i < k && i < num_requested_; ++i)
+    for (int i = 0; i < k && i < _num_requested; ++i)
     {
       std::cout << " " << std::fixed << t_evals_r[sort_index[i]];
     }
-    if (dim_tridiag_ < num_requested_)
+    if (_dim_tridiag < _num_requested)
     {
       std::cout << "\n";
     }
@@ -304,15 +307,15 @@ void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
 
   // Save results.
 
-  if (k >= num_requested_)
+  if (k >= _num_requested)
   {
-    evals_.resize(num_requested_);
-    evecs_tridiag_.resize(k * num_requested_);
+    _evals.resize(_num_requested);
+    _evecs_tridiag.resize(k * _num_requested);
 
-    for (int i = 0; i < num_requested_; ++i)
+    for (int i = 0; i < _num_requested; ++i)
     {
       const int si = sort_index[i];
-      evals_[i] = (Scalar_t)t_evals_r[si];
+      _evals[i] = (ScalarType)t_evals_r[si];
       double sum = 0;
       for (int j = 0; j < k; ++j)
       {
@@ -321,7 +324,7 @@ void Lanczos<Op_t>::calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
       const double norm = sqrt(sum);
       for (int j = 0; j < k; ++j)
       {
-        evecs_tridiag_[j + k * i] = (Scalar_t)(t_evecs[j + k * si] / norm);
+        _evecs_tridiag[j + k * i] = (ScalarType)(t_evecs[j + k * si] / norm);
       }
     } // for i
   }   // if
@@ -360,21 +363,22 @@ http://www.netlib.org/lapack/explore-html/d9/d8e/group__double_g_eeigen_ga66e192
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform convergence check
 
-template <typename Op_t>
-bool Lanczos<Op_t>::check_convergence_(typename Op_t::Scalar_t beta)
+template <typename OperatorType>
+bool Lanczos<OperatorType>::check_convergence_(
+    typename OperatorType::ScalarType beta)
 {
 
-  // Must iterate at least until we have num_requested_ eigenpairs.
-  if (dim_tridiag_ < num_requested_)
+  // Must iterate at least until we have _num_requested eigenpairs.
+  if (_dim_tridiag < _num_requested)
   {
     return false;
   }
 
-  const int n = dim_tridiag_;
+  const int n = _dim_tridiag;
 
   bool is_converged = true;
 
-  if (verbosity_ > 0)
+  if (_verbosity > 0)
   {
     std::cout.precision(4);
     std::cout << std::fixed;
@@ -387,18 +391,18 @@ bool Lanczos<Op_t>::check_convergence_(typename Op_t::Scalar_t beta)
   // of this check.
   // NOTE: it may be desirable to "scale" the stopping criterion
   // based on (estimate of) matrix norm or similar.
-  for (int i = 0; i < num_requested_; ++i)
+  for (int i = 0; i < _num_requested; ++i)
   {
     const double bound =
-        (double)beta * abs((double)evecs_tridiag_[n - 1 + n * i]);
-    is_converged = is_converged && bound <= tol_;
-    if (verbosity_ > 0)
+        (double)beta * abs((double)_evecs_tridiag[n - 1 + n * i]);
+    is_converged = is_converged && bound <= _tol;
+    if (_verbosity > 0)
     {
       std::cout << " " << bound;
     }
   }
 
-  if (verbosity_ > 0)
+  if (_verbosity > 0)
   {
     std::cout << "\n";
   }
@@ -409,26 +413,26 @@ bool Lanczos<Op_t>::check_convergence_(typename Op_t::Scalar_t beta)
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: calculate full (approx) evecs from tridiag evecs
 
-template <typename Op_t>
-void Lanczos<Op_t>::calc_evecs_()
+template <typename OperatorType>
+void Lanczos<OperatorType>::calc_evecs_()
 {
-  assert(evecs_.size() == 0);
-  assert(dim_tridiag_ >= num_requested_);
+  assert(_evecs.size() == 0);
+  assert(_dim_tridiag >= _num_requested);
 
-  const int k = dim_tridiag_;
+  const int k = _dim_tridiag;
 
   // Matrix-matrix product to convert tridiag evecs to operator evecs.
 
-  for (int i = 0; i < num_requested_; ++i)
+  for (int i = 0; i < _num_requested; ++i)
   {
-    evecs_.push_back(new Vector_t(dim_));
-    evecs_[i]->set_zero();
+    _evecs.push_back(new VectorType(_dim));
+    _evecs[i]->set_zero();
 
-    for (int j = 0; j < dim_tridiag_; ++j)
+    for (int j = 0; j < _dim_tridiag; ++j)
     {
-      evecs_[i]->axpy(evecs_tridiag_[j + k * i], lanc_vectors_[j]);
+      _evecs[i]->axpy(_evecs_tridiag[j + k * i], _lanc_vectors[j]);
     }
-    // evecs_[i]->print();
+    // _evecs[i]->print();
   }
 }
 

@@ -26,15 +26,15 @@ BOOST_AUTO_TEST_CASE(lanczos)
 {
   using namespace mfmg::lanczos;
 
-  typedef double Scalar_t;
-  typedef SimpleVector<Scalar_t> Vector_t;
-  typedef SimpleOp<Vector_t> Op_t;
-  typedef DeflatedLanczos<Op_t> Solver_t;
+  typedef double ScalarType;
+  typedef SimpleVector<ScalarType> VectorType;
+  typedef SimpleOp<VectorType> OperatorType;
+  typedef DeflatedLanczos<OperatorType> Solver_t;
 
   const size_t n = 1000;
   const int multiplicity = 2;
 
-  Op_t op(n, multiplicity);
+  OperatorType op(n, multiplicity);
 
   // std::cout << "Test matrix is a diagonal matrix with eigenvalues 1, 2, ...
   // ."

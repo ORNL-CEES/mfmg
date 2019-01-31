@@ -25,30 +25,31 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: constructor
 
-template <typename BaseOp_t>
-DeflatedOp<BaseOp_t>::DeflatedOp(const BaseOp_t &base_op)
-    : base_op_(base_op), dim_(base_op.dim())
+template <typename BaseOperatorType>
+DeflatedOp<BaseOperatorType>::DeflatedOp(const BaseOperatorType &base_op)
+    : _base_op(base_op), _dim(base_op.dim())
 {
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: destructor
 
-template <typename BaseOp_t>
-DeflatedOp<BaseOp_t>::~DeflatedOp()
+template <typename BaseOperatorType>
+DeflatedOp<BaseOperatorType>::~DeflatedOp()
 {
 
-  for (int i = 0; i < deflation_vecs_.size(); ++i)
+  for (int i = 0; i < _deflation_vecs.size(); ++i)
   {
-    delete deflation_vecs_[i];
+    delete _deflation_vecs[i];
   }
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply operator to a vector
 
-template <typename BaseOp_t>
-void DeflatedOp<BaseOp_t>::apply(Vector_t &vout, const Vector_t &vin) const
+template <typename BaseOperatorType>
+void DeflatedOp<BaseOperatorType>::apply(VectorType &vout,
+                                         const VectorType &vin) const
 {
 
   // NOTE: to save a vec, we will assume the initial guess is already deflated.
@@ -60,7 +61,7 @@ void DeflatedOp<BaseOp_t>::apply(Vector_t &vout, const Vector_t &vin) const
   // a future modification may take this into account.  There are
   // some methods for determining when / how often needed.
 
-  base_op_.apply(vout, vin);
+  _base_op.apply(vout, vin);
 
   deflate(vout);
 }
@@ -68,11 +69,11 @@ void DeflatedOp<BaseOp_t>::apply(Vector_t &vout, const Vector_t &vin) const
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: add more vectors to the set of deflation vectors
 
-template <typename BaseOp_t>
-void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
+template <typename BaseOperatorType>
+void DeflatedOp<BaseOperatorType>::add_deflation_vecs(Vectors_t vecs)
 {
 
-  const int num_old = deflation_vecs_.size();
+  const int num_old = _deflation_vecs.size();
   const int num_new = vecs.size();
   const int num_total = num_old + num_new;
 
@@ -87,8 +88,8 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
 
   for (int i = 0; i < num_new; ++i)
   {
-    deflation_vecs_.push_back(new Vector_t(dim_));
-    deflation_vecs_.back()->copy(vecs[i]);
+    _deflation_vecs.push_back(new VectorType(_dim));
+    _deflation_vecs.back()->copy(vecs[i]);
   }
 
   // Orthogonalize new vectors with respect to old vectors.
@@ -97,8 +98,8 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
   {
     for (int j = 0; j < num_old; ++j)
     {
-      Scalar_t a = deflation_vecs_[j]->dot(deflation_vecs_[num_old + i]);
-      deflation_vecs_[num_old + i]->axpy(-a, deflation_vecs_[j]);
+      ScalarType a = _deflation_vecs[j]->dot(_deflation_vecs[num_old + i]);
+      _deflation_vecs[num_old + i]->axpy(-a, _deflation_vecs[j]);
     }
   }
 
@@ -120,7 +121,7 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
     for (int j = i; j < num_new; ++j)
     {
       const double dot_this =
-          (double)deflation_vecs_[ind[j]]->dot(deflation_vecs_[ind[j]]);
+          (double)_deflation_vecs[ind[j]]->dot(_deflation_vecs[ind[j]]);
 
       if (dot_this > dot_best)
       {
@@ -137,14 +138,14 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
 
     double norm = std::sqrt(dot_best);
     assert(norm != (double)0.); // ISSUE need better test for near-zero here.
-    deflation_vecs_[ind[i]]->scal((Scalar_t)(1 / norm));
+    _deflation_vecs[ind[i]]->scal((ScalarType)(1 / norm));
 
     // Orthogonalize all later vectors against this one.
 
     for (int j = i + 1; j < num_new; ++j)
     {
-      Scalar_t a = deflation_vecs_[ind[i]]->dot(deflation_vecs_[ind[j]]);
-      deflation_vecs_[ind[j]]->axpy(-a, deflation_vecs_[ind[i]]);
+      ScalarType a = _deflation_vecs[ind[i]]->dot(_deflation_vecs[ind[j]]);
+      _deflation_vecs[ind[j]]->axpy(-a, _deflation_vecs[ind[i]]);
     }
 
   } // i
@@ -153,16 +154,16 @@ void DeflatedOp<BaseOp_t>::add_deflation_vecs(Vectors_t vecs)
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply the deflation (projection) to a vector
 
-template <typename BaseOp_t>
-void DeflatedOp<BaseOp_t>::deflate(Vector_t &vec) const
+template <typename BaseOperatorType>
+void DeflatedOp<BaseOperatorType>::deflate(VectorType &vec) const
 {
 
   // Apply (I - VV^T) to a vector.
 
-  for (int i = 0; i < deflation_vecs_.size(); ++i)
+  for (int i = 0; i < _deflation_vecs.size(); ++i)
   {
-    Scalar_t a = deflation_vecs_[i]->dot(vec);
-    vec.axpy(-a, deflation_vecs_[i]);
+    ScalarType a = _deflation_vecs[i]->dot(vec);
+    vec.axpy(-a, _deflation_vecs[i]);
   }
 }
 

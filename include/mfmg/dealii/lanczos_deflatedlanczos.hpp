@@ -27,58 +27,58 @@ namespace lanczos
 ///        computed (approximate) eigenvectors.  This is meant to deal with
 ///        possible eigenvalue multiplicities.
 
-template <typename Op_t_>
+template <typename OperatorType_>
 class DeflatedLanczos
 {
 
 public:
   // Typedefs
 
-  typedef Op_t_ Op_t;
-  typedef typename Op_t::Vector_t Vector_t;
-  typedef typename Op_t::Scalar_t Scalar_t;
-  typedef typename std::vector<Scalar_t> Scalars_t;
-  typedef typename std::vector<Vector_t *> Vectors_t;
+  typedef OperatorType_ OperatorType;
+  typedef typename OperatorType::VectorType VectorType;
+  typedef typename OperatorType::ScalarType ScalarType;
+  typedef typename std::vector<ScalarType> Scalars_t;
+  typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
-  DeflatedLanczos(Op_t &op, int num_evecs_per_cycle, int num_cycles, int maxit,
-                  double tol, unsigned int percent_overshoot = 0,
+  DeflatedLanczos(OperatorType &op, int num_evecs_per_cycle, int num_cycles,
+                  int maxit, double tol, unsigned int percent_overshoot = 0,
                   unsigned int verbosity = 0);
   ~DeflatedLanczos();
 
   // Accessors
 
-  Scalar_t get_eval(int i) const;
+  ScalarType get_eval(int i) const;
 
-  Vector_t *get_evec(int i) const;
+  VectorType *get_evec(int i) const;
 
-  int num_evecs() const { return num_evecs_per_cycle_ * num_cycles_; }
+  int num_evecs() const { return _num_evecs_per_cycle * _num_cycles; }
 
   // Operations
 
   void solve();
 
 private:
-  const Op_t &op_;
-  const int num_evecs_per_cycle_; // number of eigs to calc per lanc solve
-  const int num_cycles_;          // number of lanczos solves
-  const int maxit_;               // maximum number of lanc interations
-  const double tol_;              // convergence tolerance for eigenvalue
-  const unsigned int percent_overshoot_;
+  const OperatorType &_op;
+  const int _num_evecs_per_cycle; // number of eigs to calc per lanc solve
+  const int _num_cycles;          // number of lanczos solves
+  const int _maxit;               // maximum number of lanc interations
+  const double _tol;              // convergence tolerance for eigenvalue
+  const unsigned int _percent_overshoot;
   // allowed iteration count overshoot from
   // less frequent stopping tests
-  const unsigned int verbosity_; // verbosity of output
+  const unsigned int _verbosity; // verbosity of output
 
-  size_t dim_; // operator and vector dimension
+  size_t _dim; // operator and vector dimension
 
-  std::vector<Scalar_t> evals_; // (approximate) eigenvals of full operator
-  Vectors_t evecs_;             // (approximate) eigenvecs of full operator
+  std::vector<ScalarType> _evals; // (approximate) eigenvals of full operator
+  Vectors_t _evecs;               // (approximate) eigenvecs of full operator
 
   // Disallowed methods
 
-  DeflatedLanczos(const DeflatedLanczos<Op_t> &);
-  void operator=(const DeflatedLanczos<Op_t> &);
+  DeflatedLanczos(const DeflatedLanczos<OperatorType> &);
+  void operator=(const DeflatedLanczos<OperatorType> &);
 };
 
 } // namespace lanczos

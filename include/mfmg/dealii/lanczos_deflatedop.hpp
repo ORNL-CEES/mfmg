@@ -26,46 +26,46 @@ namespace lanczos
 ///        Given an undeflated operator, a new operator is constructed
 ///        with a subspace represented by a set of vectors projected out.
 
-template <typename BaseOp_t_>
+template <typename BaseOperatorType_>
 class DeflatedOp
 {
 
 public:
   // Typedefs
 
-  typedef BaseOp_t_ BaseOp_t;
-  typedef typename BaseOp_t_::Vector_t Vector_t;
-  typedef typename Vector_t::Scalar_t Scalar_t;
-  typedef typename std::vector<Vector_t *> Vectors_t;
+  typedef BaseOperatorType_ BaseOperatorType;
+  typedef typename BaseOperatorType_::VectorType VectorType;
+  typedef typename VectorType::ScalarType ScalarType;
+  typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
-  DeflatedOp(const BaseOp_t &base_op);
+  DeflatedOp(const BaseOperatorType &base_op);
   ~DeflatedOp();
 
   // Accessors
 
-  size_t dim() const { return dim_; } // operator and vector dimension
+  size_t dim() const { return _dim; } // operator and vector dimension
 
   // Operations
 
-  void apply(Vector_t &vout, const Vector_t &vin) const;
+  void apply(VectorType &vout, const VectorType &vin) const;
 
   void add_deflation_vecs(Vectors_t vecs);
 
-  void deflate(Vector_t &vec) const;
+  void deflate(VectorType &vec) const;
 
 private:
-  const BaseOp_t_ &base_op_; // reference to the base operator object
+  const BaseOperatorType_ &_base_op; // reference to the base operator object
 
-  size_t dim_; // operator and vector dimension
+  size_t _dim; // operator and vector dimension
 
-  Vectors_t deflation_vecs_; // vectors to deflate out
+  Vectors_t _deflation_vecs; // vectors to deflate out
 
   // Disallowed methods
 
-  DeflatedOp(const DeflatedOp<BaseOp_t> &);
-  void operator=(const DeflatedOp<BaseOp_t> &);
+  DeflatedOp(const DeflatedOp<BaseOperatorType> &);
+  void operator=(const DeflatedOp<BaseOperatorType> &);
 };
 
 } // namespace lanczos
