@@ -26,47 +26,47 @@ namespace lanczos
 ///        A diagonal matrix with equally spaced eigenvalues of some
 ///        multiplicity.
 
-template<typename Vector_t_>
-class SimpleOp {
+template <typename Vector_t_>
+class SimpleOp
+{
 
-  public:
+public:
+  // Typedefs
 
-    // Typedefs
+  typedef Vector_t_ Vector_t;
+  typedef typename Vector_t::Scalar_t Scalar_t;
+  typedef typename std::vector<Vector_t *> Vectors_t;
 
-    typedef Vector_t_ Vector_t;
-    typedef typename Vector_t::Scalar_t Scalar_t;
-    typedef typename std::vector<Vector_t*> Vectors_t;
+  // Ctor/dtor
 
-    // Ctor/dtor
+  SimpleOp(size_t dim, size_t multiplicity = 1);
+  ~SimpleOp();
 
-    SimpleOp(size_t dim, size_t multiplicity = 1);
-    ~SimpleOp();
+  // Accessors
 
-    // Accessors
+  size_t dim() const { return dim_; }
 
-    size_t dim() const {return dim_;}
+  Scalar_t eigenvalue(size_t i) const { return diag_value_(i); }
 
-    Scalar_t eigenvalue(size_t i) const {return diag_value_(i);}
+  // Operations
 
-    // Operations
+  void apply(Vector_t &vout, const Vector_t &vin) const;
 
-    void apply(Vector_t& vout, const Vector_t& vin) const;
+private:
+  size_t dim_;
+  size_t multiplicity_;
 
-  private:
+  // This will be a diagonal matrix; specify the diag entries here
 
-    size_t dim_;
-    size_t multiplicity_;
+  Scalar_t diag_value_(size_t i) const
+  {
+    return (Scalar_t)(1 + i / multiplicity_);
+  }
 
-    // This will be a diagonal matrix; specify the diag entries here
+  // Disallowed methods
 
-    Scalar_t diag_value_(size_t i) const {
-      return (Scalar_t)(1+i/multiplicity_);
-    }
-
-    // Disallowed methods
-
-    SimpleOp(      const SimpleOp<Vector_t>&);
-    void operator=(const SimpleOp<Vector_t>&);
+  SimpleOp(const SimpleOp<Vector_t> &);
+  void operator=(const SimpleOp<Vector_t> &);
 };
 
 //-----------------------------------------------------------------------------

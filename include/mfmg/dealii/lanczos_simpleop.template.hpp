@@ -24,28 +24,31 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Simple test operator: constructor
 
-template<typename Vector_t>
+template <typename Vector_t>
 SimpleOp<Vector_t>::SimpleOp(size_t dim, size_t multiplicity)
-  : dim_(dim)
-  , multiplicity_(multiplicity) {
-  //assert(this->dim_ >= 0);
+    : dim_(dim), multiplicity_(multiplicity)
+{
+  // assert(this->dim_ >= 0);
   assert(multiplicity > 0);
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Simple test operator: destructor
 
-template<typename Vector_t>
-SimpleOp<Vector_t>::~SimpleOp() {
+template <typename Vector_t>
+SimpleOp<Vector_t>::~SimpleOp()
+{
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Simple test operator: apply operator to a vector
 
-template<typename Vector_t>
-void SimpleOp<Vector_t>::apply(Vector_t& vout, const Vector_t& vin) const {
+template <typename Vector_t>
+void SimpleOp<Vector_t>::apply(Vector_t &vout, const Vector_t &vin) const
+{
 
-  for (int i=0; i<this->dim_; ++i) {
+  for (int i = 0; i < this->dim_; ++i)
+  {
     vout.elt(i) = this->diag_value_(i) * vin.const_elt(i);
   }
 }

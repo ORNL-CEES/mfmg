@@ -12,17 +12,16 @@
 #ifndef MFMG_LANCZOS_DEFLATEDLANCZOS_TEMPLATE_HPP
 #define MFMG_LANCZOS_DEFLATEDLANCZOS_TEMPLATE_HPP
 
-#include <cassert>
 #include <algorithm>
-#include <vector>
+#include <cassert>
 #include <iostream>
+#include <vector>
 
 #include "cblas.h"
-#include "lapacke.h"
-
+#include "lanczos_deflatedlanczos.hpp"
 #include "lanczos_deflatedop.template.hpp"
 #include "lanczos_lanczos.template.hpp"
-#include "lanczos_deflatedlanczos.hpp"
+#include "lapacke.h"
 
 namespace mfmg
 {
@@ -32,18 +31,16 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Deflated Lanczos solver: constructor
 
-template<typename Op_t>
-DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t& op, int num_evecs_per_cycle,
- int num_cycles, int maxit, double tol, unsigned int percent_overshoot,
- unsigned int verbosity)
-  : op_(op)
-  , num_evecs_per_cycle_(num_evecs_per_cycle)
-  , num_cycles_(num_cycles)
-  , maxit_(maxit)
-  , tol_(tol)
-  , percent_overshoot_(percent_overshoot)
-  , verbosity_(verbosity)
-  , dim_(op.dim()) {
+template <typename Op_t>
+DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t &op, int num_evecs_per_cycle,
+                                       int num_cycles, int maxit, double tol,
+                                       unsigned int percent_overshoot,
+                                       unsigned int verbosity)
+    : op_(op), num_evecs_per_cycle_(num_evecs_per_cycle),
+      num_cycles_(num_cycles), maxit_(maxit), tol_(tol),
+      percent_overshoot_(percent_overshoot), verbosity_(verbosity),
+      dim_(op.dim())
+{
   assert(this->num_evecs_per_cycle_ >= 1);
   assert(this->num_cycles_ >= 1);
   assert(this->maxit_ >= 0);
@@ -55,9 +52,11 @@ DeflatedLanczos<Op_t>::DeflatedLanczos(Op_t& op, int num_evecs_per_cycle,
 //-----------------------------------------------------------------------------
 /// \brief Deflated Lanczos solver: destructor
 
-template<typename Op_t>
-DeflatedLanczos<Op_t>::~DeflatedLanczos() {
-  for (int i = 0; i < evecs_.size(); ++i) {
+template <typename Op_t>
+DeflatedLanczos<Op_t>::~DeflatedLanczos()
+{
+  for (int i = 0; i < evecs_.size(); ++i)
+  {
     delete evecs_[i];
   }
 }
@@ -65,8 +64,9 @@ DeflatedLanczos<Op_t>::~DeflatedLanczos() {
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
-template<typename Op_t>
-typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const {
+template <typename Op_t>
+typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const
+{
   assert(i >= 0);
   assert(i < evals_.size());
 
@@ -76,8 +76,9 @@ typename Op_t::Scalar_t DeflatedLanczos<Op_t>::get_eval(int i) const {
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvector
 
-template<typename Op_t>
-typename Op_t::Vector_t* DeflatedLanczos<Op_t>::get_evec(int i) const {
+template <typename Op_t>
+typename Op_t::Vector_t *DeflatedLanczos<Op_t>::get_evec(int i) const
+{
   assert(i >= 0);
   assert(i < evecs_.size());
 
@@ -88,8 +89,9 @@ typename Op_t::Vector_t* DeflatedLanczos<Op_t>::get_evec(int i) const {
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform deflated Lanczos solve
 
-template<typename Op_t>
-void DeflatedLanczos<Op_t>::solve() {
+template <typename Op_t>
+void DeflatedLanczos<Op_t>::solve()
+{
 
   typedef DeflatedOp<Op_t> DOp;
 
@@ -99,11 +101,14 @@ void DeflatedLanczos<Op_t>::solve() {
 
   // Loop over Lanczos solves.
 
-  for (int cycle=0; cycle<num_cycles_; ++cycle) {
+  for (int cycle = 0; cycle < num_cycles_; ++cycle)
+  {
 
-    if (verbosity_ > 0) {
+    if (verbosity_ > 0)
+    {
       std::cout << "----------------------------------------"
-                   "---------------------------------------" << std::endl;
+                   "---------------------------------------"
+                << std::endl;
       std::cout << "Lanczos solve " << cycle + 1 << ":" << std::endl;
     }
 
@@ -129,7 +134,8 @@ void DeflatedLanczos<Op_t>::solve() {
     // though the precise terminology should be "approximate eigenpairs"
     // or "Ritz pairs."
 
-    for (int i=0; i<num_evecs_per_cycle_; ++i) {
+    for (int i = 0; i < num_evecs_per_cycle_; ++i)
+    {
       evals_.push_back(solver.get_eval(i));
       evecs_.push_back(new Vector_t(dim_));
       evecs_[i]->copy(solver.get_evec(i));

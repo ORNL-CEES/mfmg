@@ -11,12 +11,12 @@
 
 #define BOOST_TEST_MODULE lanczos
 
-#include <cstdio>
-#include <cmath>
-
-#include "mfmg/dealii/lanczos_simplevector.template.hpp"
-#include "mfmg/dealii/lanczos_simpleop.template.hpp"
 #include "mfmg/dealii/lanczos_deflatedlanczos.template.hpp"
+#include "mfmg/dealii/lanczos_simpleop.template.hpp"
+#include "mfmg/dealii/lanczos_simplevector.template.hpp"
+
+#include <cmath>
+#include <cstdio>
 
 #include "main.cc"
 
@@ -36,32 +36,34 @@ BOOST_AUTO_TEST_CASE(lanczos)
 
   Op_t op(n, multiplicity);
 
-//std::cout << "Test matrix is a diagonal matrix with eigenvalues 1, 2, ... ."
-//    << std::endl;
-//std::cout << "Matrix dimension: " << n << " multiplicity of all eigenvalues: "
-//    << multiplicity << "." << std::endl;
+  // std::cout << "Test matrix is a diagonal matrix with eigenvalues 1, 2, ...
+  // ."
+  //    << std::endl;
+  // std::cout << "Matrix dimension: " << n << " multiplicity of all
+  // eigenvalues: "
+  //    << multiplicity << "." << std::endl;
 
   const int num_evecs_per_cycle = 2;
   const int num_cycles = 3;
 
-//std::cout << "Number of Lanczos solves to be performed in sequence: "
-//    << num_cycles << std::endl;
-//std::cout << "Number of eigenpairs computed per Lanczos solve: "
-//    << num_evecs_per_cycle << std::endl;
-//std::cout << "Each Lanczos solve will deflate "
-//             "previously computed eigenvectors." << std::endl;
+  // std::cout << "Number of Lanczos solves to be performed in sequence: "
+  //    << num_cycles << std::endl;
+  // std::cout << "Number of eigenpairs computed per Lanczos solve: "
+  //    << num_evecs_per_cycle << std::endl;
+  // std::cout << "Each Lanczos solve will deflate "
+  //             "previously computed eigenvectors." << std::endl;
 
   const int maxit = 200;
   const double tol = 1.e-2;
   const double percent_overshoot = 5;
   const int verbosity = 0; // 1;
 
-//std::cout << "Maximum iterations for each Lanczos solve: " << maxit
-//    << std::endl;
-//std::cout << "Convergence tolerance: " << tol << std::endl;
-//std::cout << "Percent overshoot num iterations allowed by stopping test: "
-//    << percent_overshoot << std::endl;
-//std::cout << std::endl;
+  // std::cout << "Maximum iterations for each Lanczos solve: " << maxit
+  //    << std::endl;
+  // std::cout << "Convergence tolerance: " << tol << std::endl;
+  // std::cout << "Percent overshoot num iterations allowed by stopping test: "
+  //    << percent_overshoot << std::endl;
+  // std::cout << std::endl;
 
   Solver_t solver(op, num_evecs_per_cycle, num_cycles, maxit, tol,
                   percent_overshoot, verbosity);
@@ -70,7 +72,8 @@ BOOST_AUTO_TEST_CASE(lanczos)
 
   std::cout << "Final approximate eigenvalues: " << std::endl;
 
-  for (int i=0; i<solver.num_evecs(); ++i) {
+  for (int i = 0; i < solver.num_evecs(); ++i)
+  {
     std::cout.width(4);
     std::cout.precision(8);
     std::cout << std::fixed << solver.get_eval(i) << " ";
@@ -87,22 +90,26 @@ BOOST_AUTO_TEST_CASE(lanczos)
 
   const int num_ritzvals = solver.num_evecs();
   int num_passed = 0;
-  const double tol_test = 1.*tol; // this may need adjustment
+  const double tol_test = 1. * tol; // this may need adjustment
 
-  for (int i=0; i<num_ritzvals; ++i) {
+  for (int i = 0; i < num_ritzvals; ++i)
+  {
     double ritzval = solver.get_eval(i);
-    for (int j=0; j<n; ++j) {
+    for (int j = 0; j < n; ++j)
+    {
       const double eval = op.eigenvalue(j);
       const double diff = fabs(ritzval - eval);
       const bool match = diff < tol_test;
-      //std::cout << i << " " << eval << " " << ritzval << " " << "\n";
-      if (match) {
+      // std::cout << i << " " << eval << " " << ritzval << " " << "\n";
+      if (match)
+      {
         num_passed++;
         break;
       }
     } // j
-  } // i
-  //std::cout << "num_passed " << num_passed << " num_ritzvals " << num_ritzvals << "\n";
+  }   // i
+  // std::cout << "num_passed " << num_passed << " num_ritzvals " <<
+  // num_ritzvals << "\n";
 
   BOOST_TEST(num_passed == num_ritzvals);
 
