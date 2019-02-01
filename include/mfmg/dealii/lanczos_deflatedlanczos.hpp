@@ -42,9 +42,8 @@ public:
 
   // Ctor/dtor
 
-  DeflatedLanczos(OperatorType &op, int num_evecs_per_cycle, int num_cycles,
-                  int maxit, double tol, unsigned int percent_overshoot = 0,
-                  unsigned int verbosity = 0);
+  DeflatedLanczos(OperatorType const &op,
+                  boost::property_tree::ptree const &params);
   ~DeflatedLanczos();
 
   // Accessors
@@ -61,14 +60,14 @@ public:
 
 private:
   const OperatorType &_op;
-  const int _num_evecs_per_cycle; // number of eigs to calc per lanc solve
-  const int _num_cycles;          // number of lanczos solves
-  const int _maxit;               // maximum number of lanc interations
-  const double _tol;              // convergence tolerance for eigenvalue
-  const unsigned int _percent_overshoot;
+  int _num_evecs_per_cycle; // number of eigs to calc per lanc solve
+  int _num_cycles;          // number of lanczos solves
+  int _maxit;               // maximum number of lanc interations
+  double _tol;              // convergence tolerance for eigenvalue
+  unsigned int _percent_overshoot;
   // allowed iteration count overshoot from
   // less frequent stopping tests
-  const unsigned int _verbosity; // verbosity of output
+  unsigned int _verbosity; // verbosity of output
 
   size_t _dim; // operator and vector dimension
 

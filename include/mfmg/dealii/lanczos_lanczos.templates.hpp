@@ -36,22 +36,22 @@ namespace lanczos
 /// \brief Lanczos solver: constructor
 
 template <typename OperatorType>
-Lanczos<OperatorType>::Lanczos(const OperatorType &op, int num_requested,
-                               int maxit, double tol,
-                               unsigned int percent_overshoot,
-                               unsigned int verbosity)
+Lanczos<OperatorType>::Lanczos(OperatorType const &op,
+                               boost::property_tree::ptree const &params)
     : _op(op)
-      //, _lanc_vectors()
-      ,
-      _num_requested(num_requested), _maxit(maxit), _tol(tol),
-      _percent_overshoot(percent_overshoot), _verbosity(verbosity),
-      _dim(op.dim())
 {
-  assert(this->_num_requested >= 1);
-  assert(this->_maxit >= 0);
-  assert(this->_maxit >= this->_num_requested &&
+  _num_requested = params.get<int>("num_eigenpairs");
+  _maxit = params.get<int>("max_iterations");
+  _tol = params.get<double>("tolerance");
+  _percent_overshoot = params.get<int>("percent_overshoot", 0);
+  _verbosity = params.get<unsigned int>("verbosity", 0);
+  _dim = op.dim();
+
+  assert(_num_requested >= 1);
+  assert(_maxit >= 0);
+  assert(_maxit >= _num_requested &&
          "maxit too small to produce required number of eigenvectors.");
-  assert(this->_tol >= 0.);
+  assert(_tol >= 0.);
 }
 
 //-----------------------------------------------------------------------------

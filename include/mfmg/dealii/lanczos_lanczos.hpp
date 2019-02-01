@@ -12,6 +12,9 @@
 #ifndef MFMG_LANCZOS_LANCZOS_HPP
 #define MFMG_LANCZOS_LANCZOS_HPP
 
+#include <boost/property_tree/ptree.hpp>
+
+#include <memory>
 #include <vector>
 
 namespace mfmg
@@ -37,8 +40,7 @@ public:
 
   // Ctor/dtor
 
-  Lanczos(const OperatorType &op, int num_requested, int maxit, double tol,
-          unsigned int percent_overshoot = 0, unsigned int verbosity = 0);
+  Lanczos(OperatorType const &op, boost::property_tree::ptree const &params);
   ~Lanczos();
 
   // Accessors
@@ -56,14 +58,13 @@ public:
   void solve(const VectorType &guess);
 
 private:
-  const OperatorType &_op;  // reference to operator object to use
-  const int _num_requested; // number of eigenpairs to calculate
-  const int _maxit;         // maximum number of lanc interations
-  const double _tol;        // convergence tolerance for eigenvalue
-  const unsigned int _percent_overshoot;
-  // allowed iteration count overshoot from
-  // less frequent stopping tests
-  const unsigned int _verbosity; // verbosity of output
+  OperatorType const &_op;         // reference to operator object to use
+  int _num_requested;              // number of eigenpairs to calculate
+  int _maxit;                      // maximum number of lanc interations
+  double _tol;                     // convergence tolerance for eigenvalue
+  unsigned int _percent_overshoot; // allowed iteration count overshoot from
+                                   // less frequent stopping tests
+  unsigned int _verbosity;         // verbosity of output
 
   size_t _dim;         // operator and vector dimension
   size_t _dim_tridiag; // dimension of tridiag matrix

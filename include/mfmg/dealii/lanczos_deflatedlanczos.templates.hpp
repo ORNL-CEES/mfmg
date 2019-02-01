@@ -12,6 +12,8 @@
 #ifndef MFMG_LANCZOS_DEFLATEDLANCZOS_TEMPLATE_HPP
 #define MFMG_LANCZOS_DEFLATEDLANCZOS_TEMPLATE_HPP
 
+#include <boost/property_tree/ptree.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -39,13 +41,17 @@ namespace lanczos
 
 template <typename OperatorType>
 DeflatedLanczos<OperatorType>::DeflatedLanczos(
-    OperatorType &op, int num_evecs_per_cycle, int num_cycles, int maxit,
-    double tol, unsigned int percent_overshoot, unsigned int verbosity)
-    : _op(op), _num_evecs_per_cycle(num_evecs_per_cycle),
-      _num_cycles(num_cycles), _maxit(maxit), _tol(tol),
-      _percent_overshoot(percent_overshoot), _verbosity(verbosity),
-      _dim(op.dim())
+    OperatorType const &op, boost::property_tree::ptree const &params)
+    : _op(op)
 {
+  _num_evecs_per_cycle = params.get<int>("num_eigenpairs_per_cycle");
+  _num_cycles = params.get<int>("num_cycles");
+  _maxit = params.get<int>("max_iterations");
+  _tol = params.get<double>("tolerance");
+  _percent_overshoot = params.get<int>("percent_overshoot", 0);
+  _verbosity = params.get<unsigned int>("verbosity", 0);
+  _dim = op.dim();
+
   assert(this->_num_evecs_per_cycle >= 1);
   assert(this->_num_cycles >= 1);
   assert(this->_maxit >= 0);
@@ -125,8 +131,13 @@ void DeflatedLanczos<OperatorType>::solve()
     // seeds.
     // ISSUE; should a different initial guess strategy be used.
 
-    Lanczos<DOp> solver(deflated_op, _num_evecs_per_cycle, _maxit, _tol,
-                        _percent_overshoot, _verbosity);
+    boost::property_tree::ptree lanczos_params;
+    lanczos_params.put("num_eigenpairs", _num_evecs_per_cycle);
+    lanczos_params.put("max_iterations", _maxit);
+    lanczos_params.put("tolerance", _tol);
+    lanczos_params.put("percent_overshoot", _percent_overshoot);
+    lanczos_params.put("verbosity", _verbosity);
+    Lanczos<DOp> solver(deflated_op, lanczos_params);
 
     typename OperatorType::VectorType guess(_dim);
     guess.set_random(cycle, 1., 1.);

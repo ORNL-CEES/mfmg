@@ -65,8 +65,14 @@ BOOST_AUTO_TEST_CASE(lanczos)
   //    << percent_overshoot << std::endl;
   // std::cout << std::endl;
 
-  Solver_t solver(op, num_evecs_per_cycle, num_cycles, maxit, tol,
-                  percent_overshoot, verbosity);
+  boost::property_tree::ptree lanczos_params;
+  lanczos_params.put("num_eigenpairs_per_cycle", num_evecs_per_cycle);
+  lanczos_params.put("num_cycles", num_cycles);
+  lanczos_params.put("max_iterations", maxit);
+  lanczos_params.put("tolerance", tol);
+  lanczos_params.put("percent_overshoot", percent_overshoot);
+  lanczos_params.put("verbosity", verbosity);
+  Solver_t solver(op, lanczos_params);
 
   solver.solve();
 
