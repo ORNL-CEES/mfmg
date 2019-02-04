@@ -12,6 +12,7 @@
 #define BOOST_TEST_MODULE hierarchy
 
 #include <mfmg/common/hierarchy.hpp>
+#include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
 #include <deal.II/base/conditional_ostream.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -326,45 +327,71 @@ dealii::TrilinosWrappers::SparseMatrix gimme_identity(unsigned int n_local_rows)
   return identity_matrix;
 }
 
-BOOST_AUTO_TEST_CASE(matrix_transpose_matrix_multiply)
+BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
 {
-  //  unsigned int const n_local_rows = 10;
-  //  unsigned int const n_entries_per_row = 3;
-  //  auto A = gimme_a_matrix(n_local_rows, n_entries_per_row);
-  //  auto B = gimme_a_matrix(n_local_rows, n_entries_per_row);
-  //  dealii::TrilinosWrappers::SparseMatrix C(A.locally_owned_range_indices(),
-  //                                           B.locally_owned_range_indices(),
-  //                                           A.get_mpi_communicator());
-  //  mfmg::matrix_transpose_matrix_multiply(C, B, A);
-  //
-  //  dealii::TrilinosWrappers::SparseMatrix
-  //  BT(B.locally_owned_domain_indices(),
-  //                                            B.locally_owned_range_indices(),
-  //                                            B.get_mpi_communicator());
-  //  // auto I = gimme_identity(n_local_rows);
-  //  // B.Tmmult(BT, I);
-  //  dealii::TrilinosWrappers::SparseMatrix
-  //  C_ref(A.locally_owned_range_indices(),
-  //                                               B.locally_owned_range_indices(),
-  //                                               A.get_mpi_communicator());
-  //  // A.mmult(C_ref, BT);
-  //  int error_code = EpetraExt::MatrixMatrix::Multiply(
-  //      A.trilinos_matrix(), false, B.trilinos_matrix(), true,
-  //      const_cast<Epetra_CrsMatrix &>(BT.trilinos_matrix()));
-  //  BOOST_TEST(error_code == 0);
-  //  C_ref.reinit(BT.trilinos_matrix());
-  //
-  //  dealii::LinearAlgebra::distributed::Vector<double> u(
-  //      A.locally_owned_domain_indices(), A.get_mpi_communicator());
-  //  u = 1.;
-  //
-  //  dealii::LinearAlgebra::distributed::Vector<double> v(
-  //      A.locally_owned_domain_indices(), A.get_mpi_communicator());
-  //
-  //  C.vmult(v, u);
-  //  BOOST_TEST(v.l2_norm() > 1.);
-  //
-  //  u = -1.;
-  //  C_ref.vmult_add(v, u);
-  //  BOOST_TEST(v.l2_norm() == 0.);
+  using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
+  int constexpr dim = mfmg::DealIIMeshEvaluator<2>::_dim;
+
+  MPI_Comm comm = MPI_COMM_WORLD;
+
+  dealii::ConditionalOStream pcout(
+      std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
+
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("eigensolver.type", "lapack");
+  auto material_property =
+      MaterialPropertyFactory<dim>::create_material_property(
+          params->get<std::string>("material_property.type"));
+  Source<dim> source;
+  auto laplace_ptree = params->get_child("laplace");
+
+  // Compute the ref AP
+  Laplace<dim, DVector> ref_laplace(comm, 1);
+  ref_laplace.setup_system(laplace_ptree);
+  ref_laplace.assemble_system(source, *material_property);
+
+  auto ref_evaluator =
+      std::make_shared<TestMeshEvaluator<mfmg::DealIIMeshEvaluator<2>>>(
+          ref_laplace._dof_handler, ref_laplace._constraints, 1,
+          ref_laplace._system_matrix, material_property);
+  std::unique_ptr<mfmg::HierarchyHelpers<DVector>> ref_hierarchy_helpers(
+      new mfmg::DealIIHierarchyHelpers<dim, DVector>());
+  auto ref_a = ref_hierarchy_helpers->get_global_operator(ref_evaluator);
+  auto ref_restrictor =
+      ref_hierarchy_helpers->build_restrictor(comm, ref_evaluator, params);
+  auto ref_ap = ref_a->multiply_transpose(ref_restrictor);
+  auto ref_matrix =
+      std::dynamic_pointer_cast<mfmg::DealIITrilinosMatrixOperator<DVector>>(
+          ref_ap)
+          ->get_matrix();
+
+  // Compute the fast AP
+  params->put("fast_ap", true);
+  Laplace<dim, DVector> fast_laplace(comm, 1);
+  fast_laplace.setup_system(laplace_ptree);
+  fast_laplace.assemble_system(source, *material_property);
+
+  auto fast_evaluator =
+      std::make_shared<TestMeshEvaluator<mfmg::DealIIMeshEvaluator<2>>>(
+          fast_laplace._dof_handler, fast_laplace._constraints, 1,
+          fast_laplace._system_matrix, material_property);
+  std::unique_ptr<mfmg::HierarchyHelpers<DVector>> fast_hierarchy_helpers(
+      new mfmg::DealIIHierarchyHelpers<dim, DVector>());
+
+  auto fast_restrictor =
+      fast_hierarchy_helpers->build_restrictor(comm, fast_evaluator, params);
+
+  auto fast_ap = fast_hierarchy_helpers->fast_multiply_transpose();
+  auto fast_matrix =
+      std::dynamic_pointer_cast<mfmg::DealIITrilinosMatrixOperator<DVector>>(
+          fast_ap)
+          ->get_matrix();
+
+  // Compare the two matrices obtained
+  for (unsigned int i = 0; i < ref_matrix->m(); ++i)
+    for (unsigned int j = 0; j < ref_matrix->n(); ++j)
+      if (ref_matrix->el(i, j) > 1e-10)
+        BOOST_TEST(fast_matrix->el(i, j) == ref_matrix->el(i, j),
+                   tt::tolerance(1e-6));
 }
