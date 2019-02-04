@@ -66,24 +66,24 @@ private:
                                    // less frequent stopping tests
   unsigned int _verbosity;         // verbosity of output
 
-  size_t _dim;         // operator and vector dimension
-  size_t _dim_tridiag; // dimension of tridiag matrix
-
   Vectors_t _lanc_vectors; // lanczos vectors
 
   std::vector<ScalarType> _evals; // (approximate) eigenvals
-  std::vector<ScalarType> _evecs_tridiag;
-  // eigenvecs of tridiag matrix,
-  // stored in flat array
+  Vectors_t _evecs;               // (approximate) eigenvecs of full operator
+  std::vector<ScalarType>
+      _evecs_tridiag; // eigenvecs of tridiag matrix, stored in flat array
 
-  Vectors_t _evecs; // (approximate) eigenvecs of full operator
+  void details_calc_tridiag_epairs(Scalars_t const &t_maindiag,
+                                   Scalars_t const &t_offdiag,
+                                   const int num_requested, Scalars_t &evals,
+                                   Scalars_t &evecs);
 
-  void calc_tridiag_epairs_(int it, Scalars_t &t_maindiag,
-                            Scalars_t &t_offdiag);
+  bool details_check_convergence(ScalarType beta, const int num_requested,
+                                 double tol, Scalars_t const &evecs);
 
-  bool check_convergence_(ScalarType beta);
-
-  void calc_evecs_();
+  void details_calc_evecs(const int num_requested, const int n,
+                          Vectors_t const &lanc_vectors,
+                          Scalars_t const &evecs_tridiag, Vectors_t &evecs);
 
   // Disallowed methods
 
