@@ -64,11 +64,6 @@ Lanczos<OperatorType>::~Lanczos()
   {
     delete _evecs[i];
   }
-
-  for (int i = 0; i < _lanc_vectors.size(); ++i)
-  {
-    delete _lanc_vectors[i];
-  }
 }
 
 //-----------------------------------------------------------------------------
@@ -116,34 +111,38 @@ void Lanczos<OperatorType>::solve()
 
   // By default set initial guess to a random vector.
 
-  typename OperatorType::VectorType guess(_op.dim());
-  guess.set_random();
-  solve(guess);
+  typename OperatorType::VectorType initial_guess(_op.dim());
+  initial_guess.set_random();
+  details_solve_lanczos(_num_requested, initial_guess, _evals, _evecs);
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve
 
 template <typename OperatorType>
-void Lanczos<OperatorType>::solve(
-    const typename OperatorType::VectorType &guess)
+void Lanczos<OperatorType>::details_solve_lanczos(
+    const int num_requested, VectorType const &initial_guess, Scalars_t &evals,
+    Vectors_t &evecs)
 {
-
   // Initializations; first Lanczos vector.
 
   ScalarType alpha = 0;
-  ScalarType beta = guess.nrm2();
+  ScalarType beta = initial_guess.nrm2();
 
-  if (_lanc_vectors.size() < 1)
+  Vectors_t lanc_vectors; // Lanczos vectors
+
+  if (lanc_vectors.size() < 1)
   {
     // Create first Lanczos vector.
-    _lanc_vectors.push_back(new VectorType(_op.dim()));
+    lanc_vectors.push_back(new VectorType(_op.dim()));
   }
   // Set to initial guess; later normalize.
-  _lanc_vectors[0]->copy(guess);
+  lanc_vectors[0]->copy(initial_guess);
 
   Scalars_t t_maindiag;
   Scalars_t t_offdiag;
+
+  Scalars_t evecs_tridiag; // eigenvecs of tridiag matrix, stored in flat array
 
   // Lanczos iteration loop.
   int it = 1;
@@ -151,33 +150,33 @@ void Lanczos<OperatorType>::solve(
   {
     // Normalize lanczos vector.
     assert(beta != 0); // TODO: set up better check for near-zero.
-    _lanc_vectors[it - 1]->scal(1 / beta);
+    lanc_vectors[it - 1]->scal(1 / beta);
 
-    if (_lanc_vectors.size() < it + 1)
+    if (lanc_vectors.size() < it + 1)
     {
       // Add new Lanczos vector
-      _lanc_vectors.push_back(new VectorType(_op.dim()));
+      lanc_vectors.push_back(new VectorType(_op.dim()));
     }
 
     // Apply operator.
 
-    _op.apply(*_lanc_vectors[it - 1], *_lanc_vectors[it]);
+    _op.apply(*lanc_vectors[it - 1], *lanc_vectors[it]);
 
     // Compute, apply, save lanczos coefficients.
 
     if (1 != it)
     {
-      _lanc_vectors[it]->axpy(-beta, _lanc_vectors[it - 2]);
+      lanc_vectors[it]->axpy(-beta, lanc_vectors[it - 2]);
       t_offdiag.push_back(beta);
     } // if
 
-    alpha = _lanc_vectors[it - 1]->dot(_lanc_vectors[it]); // = tridiag_{it,it}
+    alpha = lanc_vectors[it - 1]->dot(lanc_vectors[it]); // = tridiag_{it,it}
 
     t_maindiag.push_back(alpha);
 
-    _lanc_vectors[it]->axpy(-alpha, _lanc_vectors[it - 1]);
+    lanc_vectors[it]->axpy(-alpha, lanc_vectors[it - 1]);
 
-    beta = _lanc_vectors[it]->nrm2(); // = tridiag_{it+1,it}
+    beta = lanc_vectors[it]->nrm2(); // = tridiag_{it+1,it}
 
     // Check convergence if requested.
 
@@ -190,10 +189,10 @@ void Lanczos<OperatorType>::solve(
     if (do_check)
     {
       // Calc eigenpairs of tridiag matrix for conv test or at last it.
-      details_calc_tridiag_epairs(t_maindiag, t_offdiag, _num_requested, _evals,
-                                  _evecs_tridiag);
+      details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested, evals,
+                                  evecs_tridiag);
 
-      if (details_check_convergence(beta, _num_requested, _tol, _evecs_tridiag))
+      if (details_check_convergence(beta, num_requested, _tol, evecs_tridiag))
       {
         break;
       }
@@ -202,7 +201,7 @@ void Lanczos<OperatorType>::solve(
       it_prev_check = it;
     }
   }
-  assert(it >= _num_requested);
+  assert(it >= num_requested);
 
   // Calc full operator evecs from tridiag evecs.
   // ISSUE: may be needed to modify this code to not save all lanc vecs
@@ -212,11 +211,16 @@ void Lanczos<OperatorType>::solve(
   // operatioon differences.
   // ISSUE: we have not taken precautions here with regard to
   // potential impacts of loss of orthogonality of lanczos vectors.
-  details_calc_evecs(_num_requested, it, _lanc_vectors, _evecs_tridiag, _evecs);
+  details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag, evecs);
 
   if (_verbosity > 0)
   {
     std::cout << std::endl;
+  }
+
+  for (int i = 0; i < lanc_vectors.size(); ++i)
+  {
+    delete lanc_vectors[i];
   }
 }
 

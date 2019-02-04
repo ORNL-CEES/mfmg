@@ -55,7 +55,10 @@ public:
   // Operations
 
   void solve();
-  void solve(const VectorType &guess);
+
+  void details_solve_lanczos(const int num_requested,
+                             VectorType const &initial_guess, Scalars_t &evals,
+                             Vectors_t &evecs);
 
 private:
   OperatorType const &_op;         // reference to operator object to use
@@ -66,12 +69,8 @@ private:
                                    // less frequent stopping tests
   unsigned int _verbosity;         // verbosity of output
 
-  Vectors_t _lanc_vectors; // lanczos vectors
-
-  std::vector<ScalarType> _evals; // (approximate) eigenvals
-  Vectors_t _evecs;               // (approximate) eigenvecs of full operator
-  std::vector<ScalarType>
-      _evecs_tridiag; // eigenvecs of tridiag matrix, stored in flat array
+  Scalars_t _evals; // (approximate) eigenvals
+  Vectors_t _evecs; // (approximate) eigenvecs of full operator
 
   void details_calc_tridiag_epairs(Scalars_t const &t_maindiag,
                                    Scalars_t const &t_offdiag,

@@ -139,12 +139,15 @@ void DeflatedLanczos<OperatorType>::solve()
     lanczos_params.put("verbosity", _verbosity);
     Lanczos<DOp> solver(deflated_op, lanczos_params);
 
-    typename OperatorType::VectorType guess(_dim);
-    guess.set_random(cycle, 1., 1.);
+    typename OperatorType::VectorType initial_guess(_dim);
+    initial_guess.set_random(cycle, 1., 1.);
     // Deflate initial guess.
-    deflated_op.deflate(guess);
+    deflated_op.deflate(initial_guess);
 
-    solver.solve(guess);
+    Scalars_t evals;
+    Vectors_t evecs;
+    solver.details_solve_lanczos(_num_evecs_per_cycle, initial_guess, evals,
+                                 evecs);
 
     // Save the eigenpairs just calculated.
 
@@ -154,16 +157,16 @@ void DeflatedLanczos<OperatorType>::solve()
 
     for (int i = 0; i < _num_evecs_per_cycle; ++i)
     {
-      _evals.push_back(solver.get_eval(i));
+      _evals.push_back(evals[i]);
       _evecs.push_back(new VectorType(_dim));
-      _evecs[i]->copy(solver.get_evec(i));
+      _evecs[i]->copy(evecs[i]);
     }
 
     // Add eigenvectors to the set of vectors being deflated out.
 
     if (cycle != _num_cycles - 1)
     {
-      deflated_op.add_deflation_vecs(solver.get_evecs());
+      deflated_op.add_deflation_vecs(evecs);
     }
 
   } // cycle
