@@ -13,6 +13,8 @@
 #define MFMG_DEALII_HIERARCHY_HELPERS_HPP
 
 #include <mfmg/common/hierarchy_helpers.hpp>
+#include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 namespace mfmg
 {
@@ -29,6 +31,9 @@ public:
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
 
+  std::shared_ptr<Operator<vector_type>>
+  fast_multiply_transpose() override final;
+
   std::shared_ptr<Smoother<vector_type>> build_smoother(
       std::shared_ptr<Operator<vector_type> const> op,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
@@ -39,6 +44,10 @@ public:
 
 private:
   std::shared_ptr<Operator<vector_type>> _global_operator;
+  std::unique_ptr<AMGe_host<dim, DealIIMeshEvaluator<dim>, vector_type>> _amge;
+  std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix> _eigenvector_matrix;
+  std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+      _delta_correction_matrix;
 };
 } // namespace mfmg
 

@@ -91,6 +91,19 @@ public:
           typename VectorType::value_type> const &locally_relevant_global_diag,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix);
 
+  void setup_restrictor(
+      boost::property_tree::ptree const &params,
+      unsigned int const n_eigenvectors, double const tolerance,
+      MeshEvaluator const &evaluator,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const &locally_relevant_global_diag,
+      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          restriction_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &eigenvector_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &delta_eigenvector_matrix);
+
 private:
   /**
    * This data structure is empty but it is necessary to use WorkStream.
@@ -106,6 +119,7 @@ private:
    */
   struct CopyData
   {
+    std::vector<std::complex<double>> local_eigenvalues;
     std::vector<dealii::Vector<double>> local_eigenvectors;
     std::vector<ScalarType> diag_elements;
     std::vector<dealii::types::global_dof_index> local_dof_indices_map;
@@ -131,6 +145,16 @@ private:
                        std::vector<std::vector<dealii::types::global_dof_index>>
                            &dof_indices_maps,
                        std::vector<unsigned int> &n_local_eigenvectors);
+
+  // Give a different name to help the compiler. Otherwise, it gets confused
+  // when calling WorkStream
+  void copy_local_to_global_eig(
+      CopyData const &copy_data, std::vector<double> &eigenvalues,
+      std::vector<dealii::Vector<double>> &eigenvectors,
+      std::vector<std::vector<ScalarType>> &diag_elements,
+      std::vector<std::vector<dealii::types::global_dof_index>>
+          &dof_indices_maps,
+      std::vector<unsigned int> &n_local_eigenvectors);
 
   boost::property_tree::ptree _eigensolver_params;
 };
