@@ -80,6 +80,25 @@ public:
           &locally_relevant_global_diag_dev,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
 
+  void compute_restriction_sparse_matrix(
+      std::vector<typename VectorType::value_type> const &eigenvalues,
+      std::vector<dealii::Vector<typename VectorType::value_type>> const
+          &eigenvectors,
+      std::vector<std::vector<typename VectorType::value_type>> const
+          &diag_elements,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_maps,
+      std::vector<unsigned int> const &n_local_eigenvectors,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const
+          &locally_relevant_global_diag_dev,
+      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          restriction_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &eigenvector_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &delta_eigenvector_matrix) const;
+
 protected:
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;

@@ -325,6 +325,124 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
 }
 
 template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
+    std::vector<typename VectorType::value_type> const &eigenvalues,
+    std::vector<dealii::Vector<typename VectorType::value_type>> const
+        &eigenvectors,
+    std::vector<std::vector<typename VectorType::value_type>> const
+        &diag_elements,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors,
+    dealii::LinearAlgebra::distributed::Vector<
+        typename VectorType::value_type> const &locally_relevant_global_diag,
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        restriction_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &eigenvector_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &delta_eigenvector_matrix) const
+{
+  // Compute the sparsity pattern (Epetra_FECrsGraph)
+  dealii::TrilinosWrappers::SparsityPattern restriction_sp =
+      compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps,
+                                           n_local_eigenvectors);
+
+  // Build the sparse matrices
+  restriction_sparse_matrix->reinit(restriction_sp);
+  eigenvector_sparse_matrix->reinit(restriction_sp);
+  // The sparsity pattern is different than for the other sparse matrices
+  // because some of the entries that do not correspond to agglomerate boundary
+  // are zeros. Because reinit requires the SparsityPattern which is harder to
+  // compute, we instead use the constructor that computes the SparsityPattern
+  // when compress() is called).
+  delta_eigenvector_matrix.reset(new dealii::TrilinosWrappers::SparseMatrix(
+      eigenvector_sparse_matrix->locally_owned_range_indices(),
+      eigenvector_sparse_matrix->locally_owned_domain_indices(),
+      eigenvector_sparse_matrix->get_mpi_communicator()));
+
+  std::pair<dealii::types::global_dof_index,
+            dealii::types::global_dof_index> const local_range =
+      restriction_sp.local_range();
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int pos = 0;
+  ASSERT(n_agglomerates == dof_indices_maps.size(),
+         "dof_indices_maps has the wrong size: " +
+             std::to_string(dof_indices_maps.size()) + " instead of " +
+             std::to_string(n_agglomerates));
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int k = 0; k < n_local_eig; ++k)
+    {
+      unsigned int const n_elem = eigenvectors[pos].size();
+      ASSERT(n_elem == dof_indices_maps[i].size(),
+             "dof_indices_maps[i] has the wrong size: " +
+                 std::to_string(dof_indices_maps[i].size()) + " instead of " +
+                 std::to_string(n_elem));
+      for (unsigned int j = 0; j < n_elem; ++j)
+      {
+        dealii::types::global_dof_index const global_pos =
+            dof_indices_maps[i][j];
+        // Fill restriction sparse matrix
+        restriction_sparse_matrix->add(
+            local_range.first + pos, global_pos,
+            diag_elements[i][j] / locally_relevant_global_diag[global_pos] *
+                eigenvectors[pos][j]);
+        // Fill eigenvector sparse matrix
+        eigenvector_sparse_matrix->add(local_range.first + pos, global_pos,
+                                       eigenvectors[pos][j]);
+        // Fill delta eigenvector sparse matrix
+        delta_eigenvector_matrix->set(
+            local_range.first + pos, global_pos,
+            (diag_elements[i][j] / locally_relevant_global_diag[global_pos] -
+             1.) *
+                eigenvectors[pos][j]);
+      }
+      ++pos;
+    }
+  }
+
+  // Compress the matrices
+  restriction_sparse_matrix->compress(dealii::VectorOperation::add);
+  eigenvector_sparse_matrix->compress(dealii::VectorOperation::add);
+  delta_eigenvector_matrix->compress(dealii::VectorOperation::insert);
+
+#if MFMG_DEBUG
+  // Check that the sum of the weight matrices is the identity
+  auto locally_owned_dofs =
+      locally_relevant_global_diag.locally_owned_elements();
+  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
+                                               locally_owned_dofs, this->_comm);
+  for (auto local_index : locally_owned_dofs)
+    sp.add(local_index, local_index);
+  sp.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
+  pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_elem = eigenvectors[pos].size();
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      double const value =
+          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
+      weight_matrix.add(global_pos, global_pos, value);
+    }
+    pos += n_local_eigenvectors[i];
+  }
+
+  // Compress the matrix
+  weight_matrix.compress(dealii::VectorOperation::add);
+
+  for (auto index : locally_owned_dofs)
+    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
+           "Sum of local weight matrices is not the identity");
+#endif
+}
+
+template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
