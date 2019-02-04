@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE lanczos
 
-#include "mfmg/dealii/lanczos_deflatedlanczos.templates.hpp"
+#include "mfmg/dealii/lanczos.templates.hpp"
 
 #include <cmath>
 #include <cstdio>
@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(lanczos)
   typedef double ScalarType;
   typedef SimpleVector<ScalarType> VectorType;
   typedef SimpleOp<VectorType> OperatorType;
-  typedef DeflatedLanczos<OperatorType> Solver_t;
+  typedef Lanczos<OperatorType> Solver_t;
 
   const size_t n = 1000;
   const int multiplicity = 2;
@@ -66,6 +66,7 @@ BOOST_AUTO_TEST_CASE(lanczos)
   // std::cout << std::endl;
 
   boost::property_tree::ptree lanczos_params;
+  lanczos_params.put("is_deflated", true);
   lanczos_params.put("num_eigenpairs_per_cycle", num_evecs_per_cycle);
   lanczos_params.put("num_cycles", num_cycles);
   lanczos_params.put("max_iterations", maxit);

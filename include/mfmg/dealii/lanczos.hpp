@@ -25,14 +25,12 @@ namespace lanczos
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver
 
-template <typename OperatorType_>
+template <typename OperatorType>
 class Lanczos
 {
 
 public:
   // Typedefs
-
-  typedef OperatorType_ OperatorType;
   typedef typename OperatorType::VectorType VectorType;
   typedef typename OperatorType::ScalarType ScalarType;
   typedef typename std::vector<ScalarType> Scalars_t;
@@ -50,27 +48,35 @@ public:
   VectorType *get_evec(int i) const;
   Vectors_t get_evecs() const;
 
-  int num_evecs() const { return _num_requested; }
+  int num_evecs() const
+  {
+    return (_is_deflated ? _num_evecs_per_cycle * _num_cycles : _num_requested);
+  }
 
   // Operations
 
   void solve();
 
-  void details_solve_lanczos(const int num_requested,
-                             VectorType const &initial_guess, Scalars_t &evals,
-                             Vectors_t &evecs);
-
 private:
   OperatorType const &_op;         // reference to operator object to use
+  bool _is_deflated;               // mode
   int _num_requested;              // number of eigenpairs to calculate
+  int _num_evecs_per_cycle;        // number of eigs to calc per lanc solve
+  int _num_cycles;                 // number of lanczos solves
   int _maxit;                      // maximum number of lanc interations
   double _tol;                     // convergence tolerance for eigenvalue
   unsigned int _percent_overshoot; // allowed iteration count overshoot from
                                    // less frequent stopping tests
   unsigned int _verbosity;         // verbosity of output
 
-  Scalars_t _evals; // (approximate) eigenvals
+  Scalars_t _evals; // (approximate) eigenvals of full operator
   Vectors_t _evecs; // (approximate) eigenvecs of full operator
+
+  template <typename FullOperatorType>
+  void details_solve_lanczos(FullOperatorType const &op,
+                             const int num_requested,
+                             VectorType const &initial_guess, Scalars_t &evals,
+                             Vectors_t &evecs);
 
   void details_calc_tridiag_epairs(Scalars_t const &t_maindiag,
                                    Scalars_t const &t_offdiag,

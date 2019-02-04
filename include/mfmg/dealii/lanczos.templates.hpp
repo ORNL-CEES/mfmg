@@ -18,7 +18,8 @@
 #include <vector>
 
 #include "cblas.h"
-#include "lanczos_lanczos.hpp"
+#include "lanczos.hpp"
+#include "lanczos_deflatedop.templates.hpp"
 
 // This complex code has to be included before lapacke for the code to compile.
 // Otherwise, it conflicts with boost or Kokkos.
@@ -40,16 +41,32 @@ Lanczos<OperatorType>::Lanczos(OperatorType const &op,
                                boost::property_tree::ptree const &params)
     : _op(op)
 {
-  _num_requested = params.get<int>("num_eigenpairs");
+  _is_deflated = params.get<bool>("is_deflated");
   _maxit = params.get<int>("max_iterations");
   _tol = params.get<double>("tolerance");
   _percent_overshoot = params.get<int>("percent_overshoot", 0);
   _verbosity = params.get<unsigned int>("verbosity", 0);
 
-  assert(_num_requested >= 1);
+  if (_is_deflated)
+  {
+    _num_evecs_per_cycle = params.get<int>("num_eigenpairs_per_cycle");
+    _num_cycles = params.get<int>("num_cycles");
+
+    assert(_num_evecs_per_cycle >= 1);
+    assert(_num_cycles >= 1);
+    assert(_maxit >= _num_evecs_per_cycle &&
+           "maxit too small to produce required number of eigenvectors.");
+  }
+  else
+  {
+    _num_requested = params.get<int>("num_eigenpairs");
+
+    assert(_num_requested >= 1);
+    assert(_maxit >= _num_requested &&
+           "maxit too small to produce required number of eigenvectors.");
+  }
+
   assert(_maxit >= 0);
-  assert(_maxit >= _num_requested &&
-         "maxit too small to produce required number of eigenvectors.");
   assert(_tol >= 0.);
 }
 
@@ -108,21 +125,77 @@ typename OperatorType::Vectors_t Lanczos<OperatorType>::get_evecs() const
 template <typename OperatorType>
 void Lanczos<OperatorType>::solve()
 {
+  if (!_is_deflated)
+  {
+    // By default set initial guess to a random vector.
+    VectorType initial_guess(_op.dim());
+    initial_guess.set_random();
+    details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
+  }
+  else
+  {
+    typedef DeflatedOp<OperatorType> DOp;
 
-  // By default set initial guess to a random vector.
+    // Form deflated operator from original operator.
+    DOp deflated_op(this->_op);
 
-  typename OperatorType::VectorType initial_guess(_op.dim());
-  initial_guess.set_random();
-  details_solve_lanczos(_num_requested, initial_guess, _evals, _evecs);
+    // Loop over Lanczos solves.
+    for (int cycle = 0; cycle < _num_cycles; ++cycle)
+    {
+
+      if (_verbosity > 0)
+      {
+        std::cout << "----------------------------------------"
+                     "---------------------------------------"
+                  << std::endl;
+        std::cout << "Lanczos solve " << cycle + 1 << ":" << std::endl;
+      }
+
+      // Perform Lanczos solve, initial guess is a lin comb of a
+      // constant vector (to try to capture "smooth" eigenmodes
+      // of PDE problems and a random vector based on different random
+      // seeds.
+      // ISSUE; should a different initial guess strategy be used.
+      typename OperatorType::VectorType initial_guess(_op.dim());
+      initial_guess.set_random(cycle, 1., 1.);
+      // Deflate initial guess.
+      deflated_op.deflate(initial_guess);
+
+      Scalars_t evals;
+      Vectors_t evecs;
+      details_solve_lanczos(deflated_op, _num_evecs_per_cycle, initial_guess,
+                            evals, evecs);
+
+      // Save the eigenpairs just calculated.
+
+      // NOTE: throughout we use the term eigenpair (= eigenvector, eigenvalue),
+      // though the precise terminology should be "approximate eigenpairs"
+      // or "Ritz pairs."
+      for (int i = 0; i < _num_evecs_per_cycle; ++i)
+      {
+        _evals.push_back(evals[i]);
+        _evecs.push_back(new VectorType(_op.dim()));
+        _evecs[i]->copy(evecs[i]);
+      }
+
+      // Add eigenvectors to the set of vectors being deflated out.
+
+      if (cycle != _num_cycles - 1)
+      {
+        deflated_op.add_deflation_vecs(evecs);
+      }
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve
 
 template <typename OperatorType>
+template <typename FullOperatorType>
 void Lanczos<OperatorType>::details_solve_lanczos(
-    const int num_requested, VectorType const &initial_guess, Scalars_t &evals,
-    Vectors_t &evecs)
+    FullOperatorType const &op, const int num_requested,
+    VectorType const &initial_guess, Scalars_t &evals, Vectors_t &evecs)
 {
   // Initializations; first Lanczos vector.
 
@@ -134,7 +207,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
   if (lanc_vectors.size() < 1)
   {
     // Create first Lanczos vector.
-    lanc_vectors.push_back(new VectorType(_op.dim()));
+    lanc_vectors.push_back(new VectorType(op.dim()));
   }
   // Set to initial guess; later normalize.
   lanc_vectors[0]->copy(initial_guess);
@@ -155,12 +228,12 @@ void Lanczos<OperatorType>::details_solve_lanczos(
     if (lanc_vectors.size() < it + 1)
     {
       // Add new Lanczos vector
-      lanc_vectors.push_back(new VectorType(_op.dim()));
+      lanc_vectors.push_back(new VectorType(op.dim()));
     }
 
     // Apply operator.
 
-    _op.apply(*lanc_vectors[it - 1], *lanc_vectors[it]);
+    op.apply(*lanc_vectors[it - 1], *lanc_vectors[it]);
 
     // Compute, apply, save lanczos coefficients.
 
@@ -415,7 +488,7 @@ void Lanczos<OperatorType>::details_calc_evecs(const int num_requested,
     {
       evecs[i]->axpy(evecs_tridiag[j + n * i], lanc_vectors[j]);
     }
-    // _evecs[i]->print();
+    // evecs[i]->print();
   }
 }
 
