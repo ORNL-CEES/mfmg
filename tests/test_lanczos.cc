@@ -17,7 +17,6 @@
 #include <cstdio>
 
 #include "lanczos_simpleop.templates.hpp"
-#include "lanczos_simplevector.templates.hpp"
 #include "main.cc"
 
 //-----------------------------------------------------------------------------
@@ -27,7 +26,7 @@ BOOST_AUTO_TEST_CASE(lanczos)
   using namespace mfmg::lanczos;
 
   typedef double ScalarType;
-  typedef SimpleVector<ScalarType> VectorType;
+  typedef dealii::Vector<ScalarType> VectorType;
   typedef SimpleOp<VectorType> OperatorType;
   typedef Lanczos<OperatorType> Solver_t;
 
