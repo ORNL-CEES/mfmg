@@ -19,15 +19,14 @@
 
 namespace mfmg
 {
-namespace lanczos
-{
 
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: constructor
 
-template <typename BaseOperatorType>
-DeflatedOp<BaseOperatorType>::DeflatedOp(const BaseOperatorType &base_op)
-    : _base_op(base_op), _dim(base_op.dim())
+template <typename VectorType>
+DeflatedOperator<VectorType>::DeflatedOperator(
+    const Operator<VectorType> &base_op)
+    : _base_op(base_op)
 {
 }
 
@@ -35,7 +34,7 @@ DeflatedOp<BaseOperatorType>::DeflatedOp(const BaseOperatorType &base_op)
 /// \brief Deflated operator: destructor
 
 template <typename BaseOperatorType>
-DeflatedOp<BaseOperatorType>::~DeflatedOp()
+DeflatedOperator<BaseOperatorType>::~DeflatedOperator()
 {
 
   for (int i = 0; i < _deflation_vecs.size(); ++i)
@@ -47,11 +46,10 @@ DeflatedOp<BaseOperatorType>::~DeflatedOp()
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply operator to a vector
 
-template <typename BaseOperatorType>
-void DeflatedOp<BaseOperatorType>::apply(VectorType const &vin,
-                                         VectorType &vout) const
+template <typename VectorType>
+void DeflatedOperator<VectorType>::apply(VectorType const &x, VectorType &y,
+                                         OperatorMode mode) const
 {
-
   // NOTE: to save a vec, we will assume the initial guess is already deflated.
   // NOTE: the deflation needs to be applied as part of the operator,
   // not just the initial guess, because the deflation vecs are not
@@ -60,17 +58,16 @@ void DeflatedOp<BaseOperatorType>::apply(VectorType const &vin,
   // ISSUE: it is not required to deflate at every step;
   // a future modification may take this into account.  There are
   // some methods for determining when / how often needed.
+  _base_op.apply(x, y, mode);
 
-  _base_op.apply(vin, vout);
-
-  deflate(vout);
+  deflate(y);
 }
 
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: add more vectors to the set of deflation vectors
 
-template <typename BaseOperatorType>
-void DeflatedOp<BaseOperatorType>::add_deflation_vecs(Vectors_t vecs)
+template <typename VectorType>
+void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
 {
 
   const int num_old = _deflation_vecs.size();
@@ -87,10 +84,7 @@ void DeflatedOp<BaseOperatorType>::add_deflation_vecs(Vectors_t vecs)
   // Copy in new vectors
 
   for (int i = 0; i < num_new; ++i)
-  {
-    _deflation_vecs.push_back(new VectorType(_dim));
-    (*_deflation_vecs.back()) = *vecs[i];
-  }
+    _deflation_vecs.push_back(new VectorType(*vecs[i]));
 
   // Orthogonalize new vectors with respect to old vectors.
 
@@ -154,8 +148,8 @@ void DeflatedOp<BaseOperatorType>::add_deflation_vecs(Vectors_t vecs)
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply the deflation (projection) to a vector
 
-template <typename BaseOperatorType>
-void DeflatedOp<BaseOperatorType>::deflate(VectorType &vec) const
+template <typename VectorType>
+void DeflatedOperator<VectorType>::deflate(VectorType &vec) const
 {
 
   // Apply (I - VV^T) to a vector.
@@ -166,10 +160,6 @@ void DeflatedOp<BaseOperatorType>::deflate(VectorType &vec) const
     vec.add(-a, *_deflation_vecs[i]);
   }
 }
-
-//-----------------------------------------------------------------------------
-
-} // namespace lanczos
 
 } // namespace mfmg
 

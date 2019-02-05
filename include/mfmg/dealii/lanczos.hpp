@@ -12,6 +12,8 @@
 #ifndef MFMG_LANCZOS_LANCZOS_HPP
 #define MFMG_LANCZOS_LANCZOS_HPP
 
+#include <mfmg/common/operator.hpp>
+
 #include <boost/property_tree/ptree.hpp>
 
 #include <memory>
@@ -19,22 +21,21 @@
 
 namespace mfmg
 {
-namespace lanczos
-{
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver
 
-template <typename OperatorType>
+template <typename VectorType>
 class Lanczos
 {
-
 public:
   // Typedefs
-  typedef typename OperatorType::VectorType VectorType;
-  typedef typename OperatorType::ScalarType ScalarType;
+  using vector_type = VectorType;
+  using ScalarType = typename VectorType::value_type;
+  using OperatorType = Operator<VectorType>;
+
   typedef typename std::vector<ScalarType> Scalars_t;
-  typedef typename OperatorType::Vectors_t Vectors_t;
+  typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
@@ -72,8 +73,7 @@ private:
   Scalars_t _evals; // (approximate) eigenvals of full operator
   Vectors_t _evecs; // (approximate) eigenvecs of full operator
 
-  template <typename FullOperatorType>
-  void details_solve_lanczos(FullOperatorType const &op,
+  void details_solve_lanczos(Operator<VectorType> const &op,
                              const int num_requested,
                              VectorType const &initial_guess, Scalars_t &evals,
                              Vectors_t &evecs);
@@ -92,11 +92,9 @@ private:
 
   // Disallowed methods
 
-  Lanczos(const Lanczos<OperatorType> &);
-  void operator=(const Lanczos<OperatorType> &);
+  Lanczos(const Lanczos<VectorType> &);
+  void operator=(const Lanczos<VectorType> &);
 };
-
-} // namespace lanczos
 
 } // namespace mfmg
 

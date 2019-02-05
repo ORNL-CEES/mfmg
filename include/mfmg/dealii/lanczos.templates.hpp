@@ -31,15 +31,13 @@
 
 namespace mfmg
 {
-namespace lanczos
-{
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: constructor
 
-template <typename OperatorType>
-Lanczos<OperatorType>::Lanczos(OperatorType const &op,
-                               boost::property_tree::ptree const &params)
+template <typename VectorType>
+Lanczos<VectorType>::Lanczos(OperatorType const &op,
+                             boost::property_tree::ptree const &params)
     : _op(op)
 {
   _is_deflated = params.get<bool>("is_deflated");
@@ -74,8 +72,8 @@ Lanczos<OperatorType>::Lanczos(OperatorType const &op,
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: destructor
 
-template <typename OperatorType>
-Lanczos<OperatorType>::~Lanczos()
+template <typename VectorType>
+Lanczos<VectorType>::~Lanczos()
 {
 
   for (int i = 0; i < _evecs.size(); ++i)
@@ -87,8 +85,9 @@ Lanczos<OperatorType>::~Lanczos()
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvalue
 
-template <typename OperatorType>
-typename OperatorType::ScalarType Lanczos<OperatorType>::get_eval(int i) const
+template <typename VectorType>
+typename Lanczos<VectorType>::ScalarType
+Lanczos<VectorType>::get_eval(int i) const
 {
   assert(i >= 0);
   assert(i < _evals.size());
@@ -99,8 +98,8 @@ typename OperatorType::ScalarType Lanczos<OperatorType>::get_eval(int i) const
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvector
 
-template <typename OperatorType>
-typename OperatorType::VectorType *Lanczos<OperatorType>::get_evec(int i) const
+template <typename VectorType>
+VectorType *Lanczos<VectorType>::get_evec(int i) const
 {
   assert(i >= 0);
   assert(i < _evecs.size());
@@ -112,8 +111,8 @@ typename OperatorType::VectorType *Lanczos<OperatorType>::get_evec(int i) const
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvectors
 
-template <typename OperatorType>
-typename OperatorType::Vectors_t Lanczos<OperatorType>::get_evecs() const
+template <typename VectorType>
+typename Lanczos<VectorType>::Vectors_t Lanczos<VectorType>::get_evecs() const
 {
 
   // ISSUE: giving users pointer to internal data that shouldn't be modified.
@@ -123,27 +122,28 @@ typename OperatorType::Vectors_t Lanczos<OperatorType>::get_evecs() const
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve, use random initial guess
 
-template <typename OperatorType>
-void Lanczos<OperatorType>::solve()
+template <typename VectorType>
+void Lanczos<VectorType>::solve()
 {
+  // FIXME: right now Operator does not have dimension accessors
+  const int n = _op.build_domain_vector()->size();
+
   if (!_is_deflated)
   {
     // By default set initial guess to a random vector.
-    VectorType initial_guess(_op.dim());
+    auto initial_guess = _op.build_domain_vector();
     {
       std::mt19937 gen(0);
       std::uniform_real_distribution<double> dis(0, 1);
-      for (int i = 0; i < initial_guess.size(); i++)
-        initial_guess[i] = (ScalarType)(dis(gen));
+      for (int i = 0; i < n; i++)
+        (*initial_guess)[i] = (ScalarType)(dis(gen));
     }
-    details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
+    details_solve_lanczos(_op, _num_requested, *initial_guess, _evals, _evecs);
   }
   else
   {
-    typedef DeflatedOp<OperatorType> DOp;
-
     // Form deflated operator from original operator.
-    DOp deflated_op(this->_op);
+    DeflatedOperator<VectorType> deflated_op(this->_op);
 
     // Loop over Lanczos solves.
     for (int cycle = 0; cycle < _num_cycles; ++cycle)
@@ -162,20 +162,20 @@ void Lanczos<OperatorType>::solve()
       // of PDE problems and a random vector based on different random
       // seeds.
       // ISSUE; should a different initial guess strategy be used.
-      VectorType initial_guess(_op.dim());
+      auto initial_guess = _op.build_domain_vector();
       {
         std::mt19937 gen(cycle);
         std::uniform_real_distribution<double> dis(0, 1);
-        for (int i = 0; i < initial_guess.size(); i++)
-          initial_guess[i] = (ScalarType)(1. + dis(gen));
+        for (int i = 0; i < initial_guess->size(); i++)
+          (*initial_guess)[i] = (ScalarType)(1. + dis(gen));
       }
 
       // Deflate initial guess.
-      deflated_op.deflate(initial_guess);
+      deflated_op.deflate(*initial_guess);
 
       Scalars_t evals;
       Vectors_t evecs;
-      details_solve_lanczos(deflated_op, _num_evecs_per_cycle, initial_guess,
+      details_solve_lanczos(deflated_op, _num_evecs_per_cycle, *initial_guess,
                             evals, evecs);
 
       // Save the eigenpairs just calculated.
@@ -186,7 +186,7 @@ void Lanczos<OperatorType>::solve()
       for (int i = 0; i < _num_evecs_per_cycle; ++i)
       {
         _evals.push_back(evals[i]);
-        _evecs.push_back(new VectorType(_op.dim()));
+        _evecs.push_back(new VectorType(n));
         _evecs[i] = evecs[i];
       }
 
@@ -203,12 +203,16 @@ void Lanczos<OperatorType>::solve()
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve
 
-template <typename OperatorType>
-template <typename FullOperatorType>
-void Lanczos<OperatorType>::details_solve_lanczos(
-    FullOperatorType const &op, const int num_requested,
-    VectorType const &initial_guess, Scalars_t &evals, Vectors_t &evecs)
+template <typename VectorType>
+void Lanczos<VectorType>::details_solve_lanczos(Operator<VectorType> const &op,
+                                                const int num_requested,
+                                                VectorType const &initial_guess,
+                                                Scalars_t &evals,
+                                                Vectors_t &evecs)
 {
+  // FIXME: right now Operator does not have dimension accessors
+  const int n = _op.build_domain_vector()->size();
+
   // Initializations; first Lanczos vector.
 
   ScalarType alpha = 0;
@@ -219,7 +223,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
   if (lanc_vectors.size() < 1)
   {
     // Create first Lanczos vector.
-    lanc_vectors.push_back(new VectorType(op.dim()));
+    lanc_vectors.push_back(new VectorType(n));
   }
   // Set to initial guess; later normalize.
   (*lanc_vectors[0]) = initial_guess;
@@ -240,7 +244,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
     if (lanc_vectors.size() < it + 1)
     {
       // Add new Lanczos vector
-      lanc_vectors.push_back(new VectorType(op.dim()));
+      lanc_vectors.push_back(new VectorType(n));
     }
 
     // Apply operator.
@@ -312,8 +316,8 @@ void Lanczos<OperatorType>::details_solve_lanczos(
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: calculate eigenpairs from tridiag of lanczos coeffs
 
-template <typename OperatorType>
-void Lanczos<OperatorType>::details_calc_tridiag_epairs(
+template <typename VectorType>
+void Lanczos<VectorType>::details_calc_tridiag_epairs(
     Scalars_t const &t_maindiag, Scalars_t const &t_offdiag,
     const int num_requested, Scalars_t &evals, Scalars_t &evecs)
 {
@@ -430,11 +434,11 @@ http://www.netlib.org/lapack/explore-html/d9/d8e/group__double_g_eeigen_ga66e192
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform convergence check
 
-template <typename OperatorType>
-bool Lanczos<OperatorType>::details_check_convergence(ScalarType beta,
-                                                      const int num_requested,
-                                                      double tol,
-                                                      Scalars_t const &evecs)
+template <typename VectorType>
+bool Lanczos<VectorType>::details_check_convergence(ScalarType beta,
+                                                    const int num_requested,
+                                                    double tol,
+                                                    Scalars_t const &evecs)
 {
   const int n = evecs.size();
 
@@ -479,12 +483,12 @@ bool Lanczos<OperatorType>::details_check_convergence(ScalarType beta,
 
 //-----------------------------------------------------------------------------
 /// \brief Lanczos solver: calculate full (approx) evecs from tridiag evecs
-template <typename OperatorType>
-void Lanczos<OperatorType>::details_calc_evecs(const int num_requested,
-                                               const int n,
-                                               Vectors_t const &lanc_vectors,
-                                               Scalars_t const &evecs_tridiag,
-                                               Vectors_t &evecs)
+template <typename VectorType>
+void Lanczos<VectorType>::details_calc_evecs(const int num_requested,
+                                             const int n,
+                                             Vectors_t const &lanc_vectors,
+                                             Scalars_t const &evecs_tridiag,
+                                             Vectors_t &evecs)
 {
   assert(evecs.size() == 0);
 
@@ -503,8 +507,6 @@ void Lanczos<OperatorType>::details_calc_evecs(const int num_requested,
     // evecs[i]->print();
   }
 }
-
-} // namespace lanczos
 
 } // namespace mfmg
 

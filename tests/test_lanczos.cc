@@ -23,12 +23,13 @@
 
 BOOST_AUTO_TEST_CASE(lanczos)
 {
-  using namespace mfmg::lanczos;
+  using namespace mfmg;
 
   typedef double ScalarType;
   typedef dealii::Vector<ScalarType> VectorType;
-  typedef SimpleOp<VectorType> OperatorType;
-  typedef Lanczos<OperatorType> Solver_t;
+  typedef SimpleOperator<VectorType> OperatorType;
+
+  typedef Lanczos<VectorType> Solver_t;
 
   const size_t n = 1000;
   const int multiplicity = 2;

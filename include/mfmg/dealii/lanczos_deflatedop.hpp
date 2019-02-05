@@ -12,12 +12,14 @@
 #ifndef MFMG_LANCZOS_DEFLATEDOP_HPP
 #define MFMG_LANCZOS_DEFLATEDOP_HPP
 
+#include <mfmg/common/exceptions.hpp>
+#include <mfmg/common/operator.hpp>
+
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 namespace mfmg
-{
-namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -26,49 +28,73 @@ namespace lanczos
 ///        Given an undeflated operator, a new operator is constructed
 ///        with a subspace represented by a set of vectors projected out.
 
-template <typename BaseOperatorType_>
-class DeflatedOp
+template <typename VectorType>
+class DeflatedOperator : public Operator<VectorType>
 {
 
 public:
   // Typedefs
+  using vector_type = VectorType;
+  using ScalarType = typename VectorType::value_type;
 
-  typedef BaseOperatorType_ BaseOperatorType;
-  typedef typename BaseOperatorType_::VectorType VectorType;
-  typedef typename VectorType::value_type ScalarType;
   typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
-  DeflatedOp(const BaseOperatorType &base_op);
-  ~DeflatedOp();
-
-  // Accessors
-
-  size_t dim() const { return _dim; } // operator and vector dimension
+  DeflatedOperator(const Operator<VectorType> &op);
+  ~DeflatedOperator();
 
   // Operations
 
-  void apply(VectorType const &vin, VectorType &vout) const;
+  void apply(vector_type const &x, vector_type &y,
+             OperatorMode mode = OperatorMode::NO_TRANS) const;
+
+  std::shared_ptr<vector_type> build_domain_vector() const
+  {
+    return _base_op.build_domain_vector();
+  }
+
+  std::shared_ptr<vector_type> build_range_vector() const
+  {
+    return _base_op.build_range_vector();
+  }
 
   void add_deflation_vecs(Vectors_t vecs);
 
   void deflate(VectorType &vec) const;
 
-private:
-  const BaseOperatorType_ &_base_op; // reference to the base operator object
+  // Not implemented functions from Operator
+  std::shared_ptr<Operator<VectorType>> transpose() const
+  {
+    ASSERT(true, "Not implemented");
+  }
 
-  size_t _dim; // operator and vector dimension
+  std::shared_ptr<Operator<VectorType>>
+  multiply(std::shared_ptr<Operator<VectorType> const> b) const
+  {
+    ASSERT(true, "Not implemented");
+  }
+
+  std::shared_ptr<Operator<VectorType>>
+  multiply_transpose(std::shared_ptr<Operator<VectorType> const> b) const
+  {
+    ASSERT(true, "Not implemented");
+  }
+
+  size_t grid_complexity() const { ASSERT(true, "Not implemented"); }
+
+  size_t operator_complexity() const { ASSERT(true, "Not implemented"); }
+
+private:
+  const Operator<VectorType> &_base_op; // reference to the base operator object
 
   Vectors_t _deflation_vecs; // vectors to deflate out
 
   // Disallowed methods
 
-  DeflatedOp(const DeflatedOp<BaseOperatorType> &);
-  void operator=(const DeflatedOp<BaseOperatorType> &);
+  DeflatedOperator(const DeflatedOperator<VectorType> &);
+  void operator=(const DeflatedOperator<VectorType> &);
 };
-
-} // namespace lanczos
 
 } // namespace mfmg
 

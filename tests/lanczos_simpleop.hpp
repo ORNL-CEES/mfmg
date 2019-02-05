@@ -12,12 +12,14 @@
 #ifndef MFMG_LANCZOS_SIMPLEOP_HPP
 #define MFMG_LANCZOS_SIMPLEOP_HPP
 
+#include <mfmg/common/exceptions.hpp>
+#include <mfmg/common/operator.hpp>
+
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 namespace mfmg
-{
-namespace lanczos
 {
 
 //-----------------------------------------------------------------------------
@@ -26,31 +28,60 @@ namespace lanczos
 ///        A diagonal matrix with equally spaced eigenvalues of some
 ///        multiplicity.
 
-template <typename VectorType_>
-class SimpleOp
+template <typename VectorType>
+class SimpleOperator : public Operator<VectorType>
 {
-
 public:
   // Typedefs
+  using vector_type = VectorType;
+  using ScalarType = typename VectorType::value_type;
 
-  typedef VectorType_ VectorType;
-  typedef typename VectorType::value_type ScalarType;
   typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor
 
-  SimpleOp(size_t dim, size_t multiplicity = 1);
-  ~SimpleOp();
+  SimpleOperator(size_t dim, size_t multiplicity = 1);
+  ~SimpleOperator();
 
   // Accessors
-
-  size_t dim() const { return _dim; }
-
   ScalarType eigenvalue(size_t i) const { return diag_value_(i); }
 
   // Operations
 
-  void apply(VectorType const &vin, VectorType &vout) const;
+  void apply(VectorType const &vin, VectorType &vout,
+             OperatorMode mode = OperatorMode::NO_TRANS) const;
+
+  std::shared_ptr<vector_type> build_domain_vector() const
+  {
+    return std::make_shared<vector_type>(_dim);
+  }
+
+  std::shared_ptr<vector_type> build_range_vector() const
+  {
+    return std::make_shared<vector_type>(_dim);
+  }
+
+  // Not implemented functions from Operator
+  std::shared_ptr<Operator<VectorType>> transpose() const
+  {
+    ASSERT(true, "Not implemented");
+  }
+
+  std::shared_ptr<Operator<VectorType>>
+  multiply(std::shared_ptr<Operator<VectorType> const> b) const
+  {
+    ASSERT(true, "Not implemented");
+  }
+
+  std::shared_ptr<Operator<VectorType>>
+  multiply_transpose(std::shared_ptr<Operator<VectorType> const> b) const
+  {
+    ASSERT(true, "Not implemented");
+  }
+
+  size_t grid_complexity() const { ASSERT(true, "Not implemented"); }
+
+  size_t operator_complexity() const { ASSERT(true, "Not implemented"); }
 
 private:
   size_t _dim;
@@ -65,13 +96,9 @@ private:
 
   // Disallowed methods
 
-  SimpleOp(const SimpleOp<VectorType> &);
-  void operator=(const SimpleOp<VectorType> &);
-};
-
-//-----------------------------------------------------------------------------
-
-} // namespace lanczos
+  SimpleOperator(const SimpleOperator<VectorType> &);
+  void operator=(const SimpleOperator<VectorType> &);
+}; // namespace mfmg
 
 } // namespace mfmg
 

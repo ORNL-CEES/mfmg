@@ -18,14 +18,12 @@
 
 namespace mfmg
 {
-namespace lanczos
-{
 
 //-----------------------------------------------------------------------------
 /// \brief Simple test operator: constructor
 
 template <typename VectorType>
-SimpleOp<VectorType>::SimpleOp(size_t dim, size_t multiplicity)
+SimpleOperator<VectorType>::SimpleOperator(size_t dim, size_t multiplicity)
     : _dim(dim), _multiplicity(multiplicity)
 {
   // assert(this->_dim >= 0);
@@ -36,7 +34,7 @@ SimpleOp<VectorType>::SimpleOp(size_t dim, size_t multiplicity)
 /// \brief Simple test operator: destructor
 
 template <typename VectorType>
-SimpleOp<VectorType>::~SimpleOp()
+SimpleOperator<VectorType>::~SimpleOperator()
 {
 }
 
@@ -44,16 +42,15 @@ SimpleOp<VectorType>::~SimpleOp()
 /// \brief Simple test operator: apply operator to a vector
 
 template <typename VectorType>
-void SimpleOp<VectorType>::apply(VectorType const &vin, VectorType &vout) const
+void SimpleOperator<VectorType>::apply(VectorType const &x, VectorType &y,
+                                       OperatorMode mode) const
 {
 
   for (int i = 0; i < this->_dim; ++i)
   {
-    vout[i] = this->diag_value_(i) * vin[i];
+    y[i] = this->diag_value_(i) * x[i];
   }
 }
-
-} // namespace lanczos
 
 } // namespace mfmg
 
