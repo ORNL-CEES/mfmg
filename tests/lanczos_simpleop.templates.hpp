@@ -49,7 +49,7 @@ void SimpleOp<VectorType>::apply(VectorType const &vin, VectorType &vout) const
 
   for (int i = 0; i < this->_dim; ++i)
   {
-    vout.elt(i) = this->diag_value_(i) * vin.const_elt(i);
+    vout[i] = this->diag_value_(i) * vin[i];
   }
 }
 

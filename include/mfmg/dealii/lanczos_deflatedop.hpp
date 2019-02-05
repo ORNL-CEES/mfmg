@@ -35,7 +35,7 @@ public:
 
   typedef BaseOperatorType_ BaseOperatorType;
   typedef typename BaseOperatorType_::VectorType VectorType;
-  typedef typename VectorType::ScalarType ScalarType;
+  typedef typename VectorType::value_type ScalarType;
   typedef typename std::vector<VectorType *> Vectors_t;
 
   // Ctor/dtor

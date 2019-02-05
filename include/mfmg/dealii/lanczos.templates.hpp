@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include "cblas.h"
@@ -129,7 +130,12 @@ void Lanczos<OperatorType>::solve()
   {
     // By default set initial guess to a random vector.
     VectorType initial_guess(_op.dim());
-    initial_guess.set_random();
+    {
+      std::mt19937 gen(0);
+      std::uniform_real_distribution<double> dis(0, 1);
+      for (int i = 0; i < initial_guess.size(); i++)
+        initial_guess[i] = (ScalarType)(dis(gen));
+    }
     details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
   }
   else
@@ -156,8 +162,14 @@ void Lanczos<OperatorType>::solve()
       // of PDE problems and a random vector based on different random
       // seeds.
       // ISSUE; should a different initial guess strategy be used.
-      typename OperatorType::VectorType initial_guess(_op.dim());
-      initial_guess.set_random(cycle, 1., 1.);
+      VectorType initial_guess(_op.dim());
+      {
+        std::mt19937 gen(cycle);
+        std::uniform_real_distribution<double> dis(0, 1);
+        for (int i = 0; i < initial_guess.size(); i++)
+          initial_guess[i] = (ScalarType)(1. + dis(gen));
+      }
+
       // Deflate initial guess.
       deflated_op.deflate(initial_guess);
 
@@ -168,14 +180,14 @@ void Lanczos<OperatorType>::solve()
 
       // Save the eigenpairs just calculated.
 
-      // NOTE: throughout we use the term eigenpair (= eigenvector, eigenvalue),
-      // though the precise terminology should be "approximate eigenpairs"
-      // or "Ritz pairs."
+      // NOTE: throughout we use the term eigenpair (= eigenvector,
+      // eigenvalue), though the precise terminology should be "approximate
+      // eigenpairs" or "Ritz pairs."
       for (int i = 0; i < _num_evecs_per_cycle; ++i)
       {
         _evals.push_back(evals[i]);
         _evecs.push_back(new VectorType(_op.dim()));
-        _evecs[i]->copy(evecs[i]);
+        _evecs[i] = evecs[i];
       }
 
       // Add eigenvectors to the set of vectors being deflated out.
@@ -200,7 +212,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
   // Initializations; first Lanczos vector.
 
   ScalarType alpha = 0;
-  ScalarType beta = initial_guess.nrm2();
+  ScalarType beta = initial_guess.l2_norm();
 
   Vectors_t lanc_vectors; // Lanczos vectors
 
@@ -210,7 +222,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
     lanc_vectors.push_back(new VectorType(op.dim()));
   }
   // Set to initial guess; later normalize.
-  lanc_vectors[0]->copy(initial_guess);
+  (*lanc_vectors[0]) = initial_guess;
 
   Scalars_t t_maindiag;
   Scalars_t t_offdiag;
@@ -223,7 +235,7 @@ void Lanczos<OperatorType>::details_solve_lanczos(
   {
     // Normalize lanczos vector.
     assert(beta != 0); // TODO: set up better check for near-zero.
-    lanc_vectors[it - 1]->scal(1 / beta);
+    (*lanc_vectors[it - 1]) *= 1 / beta;
 
     if (lanc_vectors.size() < it + 1)
     {
@@ -239,17 +251,17 @@ void Lanczos<OperatorType>::details_solve_lanczos(
 
     if (1 != it)
     {
-      lanc_vectors[it]->axpy(-beta, lanc_vectors[it - 2]);
+      lanc_vectors[it]->add(-beta, *lanc_vectors[it - 2]);
       t_offdiag.push_back(beta);
     } // if
 
-    alpha = lanc_vectors[it - 1]->dot(lanc_vectors[it]); // = tridiag_{it,it}
+    alpha = (*lanc_vectors[it - 1]) * (*lanc_vectors[it]); // = tridiag_{it,it}
 
     t_maindiag.push_back(alpha);
 
-    lanc_vectors[it]->axpy(-alpha, lanc_vectors[it - 1]);
+    lanc_vectors[it]->add(-alpha, *lanc_vectors[it - 1]);
 
-    beta = lanc_vectors[it]->nrm2(); // = tridiag_{it+1,it}
+    beta = lanc_vectors[it]->l2_norm(); // = tridiag_{it+1,it}
 
     // Check convergence if requested.
 
@@ -476,17 +488,17 @@ void Lanczos<OperatorType>::details_calc_evecs(const int num_requested,
 {
   assert(evecs.size() == 0);
 
-  auto dim = lanc_vectors[0]->dim();
+  auto dim = lanc_vectors[0]->size();
 
   // Matrix-matrix product to convert tridiag evecs to operator evecs.
   for (int i = 0; i < num_requested; ++i)
   {
     evecs.push_back(new VectorType(dim));
-    evecs[i]->set_zero();
+    (*evecs[i]) = 0.0;
 
     for (int j = 0; j < n; ++j)
     {
-      evecs[i]->axpy(evecs_tridiag[j + n * i], lanc_vectors[j]);
+      evecs[i]->add(evecs_tridiag[j + n * i], *lanc_vectors[j]);
     }
     // evecs[i]->print();
   }
