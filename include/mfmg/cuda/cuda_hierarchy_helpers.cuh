@@ -29,22 +29,22 @@ public:
 
   virtual ~CudaHierarchyHelpers() override = default;
 
-  std::shared_ptr<Operator<vector_type>> get_global_operator(
-      std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
+  std::shared_ptr<Operator<vector_type>>
+  get_global_operator(std::shared_ptr<MeshEvaluator> mesh_evaluator) override;
 
   std::shared_ptr<Operator<vector_type>> build_restrictor(
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+      std::shared_ptr<boost::property_tree::ptree const> params) override;
 
   std::shared_ptr<Smoother<vector_type>> build_smoother(
       std::shared_ptr<Operator<vector_type> const> op,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+      std::shared_ptr<boost::property_tree::ptree const> params) override;
 
   std::shared_ptr<Solver<vector_type>> build_coarse_solver(
       std::shared_ptr<Operator<vector_type> const> op,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+      std::shared_ptr<boost::property_tree::ptree const> params) override;
 
-private:
+protected:
   CudaHandle const &_cuda_handle;
   std::shared_ptr<Operator<vector_type>> _operator;
 };
