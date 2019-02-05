@@ -31,19 +31,6 @@ DeflatedOperator<VectorType>::DeflatedOperator(
 }
 
 //-----------------------------------------------------------------------------
-/// \brief Deflated operator: destructor
-
-template <typename BaseOperatorType>
-DeflatedOperator<BaseOperatorType>::~DeflatedOperator()
-{
-
-  for (int i = 0; i < _deflation_vecs.size(); ++i)
-  {
-    delete _deflation_vecs[i];
-  }
-}
-
-//-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply operator to a vector
 
 template <typename VectorType>
@@ -67,7 +54,8 @@ void DeflatedOperator<VectorType>::apply(VectorType const &x, VectorType &y,
 /// \brief Deflated operator: add more vectors to the set of deflation vectors
 
 template <typename VectorType>
-void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
+void DeflatedOperator<VectorType>::add_deflation_vecs(
+    std::vector<VectorType> const &vecs)
 {
 
   const int num_old = _deflation_vecs.size();
@@ -84,7 +72,7 @@ void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
   // Copy in new vectors
 
   for (int i = 0; i < num_new; ++i)
-    _deflation_vecs.push_back(new VectorType(*vecs[i]));
+    _deflation_vecs.push_back(VectorType(vecs[i]));
 
   // Orthogonalize new vectors with respect to old vectors.
 
@@ -92,8 +80,8 @@ void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
   {
     for (int j = 0; j < num_old; ++j)
     {
-      ScalarType a = (*_deflation_vecs[j]) * (*_deflation_vecs[num_old + i]);
-      _deflation_vecs[num_old + i]->add(-a, (*_deflation_vecs[j]));
+      ScalarType a = _deflation_vecs[j] * _deflation_vecs[num_old + i];
+      _deflation_vecs[num_old + i].add(-a, _deflation_vecs[j]);
     }
   }
 
@@ -115,7 +103,7 @@ void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
     for (int j = i; j < num_new; ++j)
     {
       const double dot_this =
-          (double)((*_deflation_vecs[ind[j]]) * (*_deflation_vecs[ind[j]]));
+          (double)(_deflation_vecs[ind[j]] * _deflation_vecs[ind[j]]);
 
       if (dot_this > dot_best)
       {
@@ -132,14 +120,14 @@ void DeflatedOperator<VectorType>::add_deflation_vecs(Vectors_t vecs)
 
     double norm = std::sqrt(dot_best);
     assert(norm != (double)0.); // ISSUE need better test for near-zero here.
-    (*_deflation_vecs[ind[i]]) *= (ScalarType)(1 / norm);
+    _deflation_vecs[ind[i]] *= (ScalarType)(1 / norm);
 
     // Orthogonalize all later vectors against this one.
 
     for (int j = i + 1; j < num_new; ++j)
     {
-      ScalarType a = (*_deflation_vecs[ind[i]]) * (*_deflation_vecs[ind[j]]);
-      _deflation_vecs[ind[j]]->add(-a, *_deflation_vecs[ind[i]]);
+      ScalarType a = _deflation_vecs[ind[i]] * _deflation_vecs[ind[j]];
+      _deflation_vecs[ind[j]].add(-a, _deflation_vecs[ind[i]]);
     }
 
   } // i
@@ -156,8 +144,8 @@ void DeflatedOperator<VectorType>::deflate(VectorType &vec) const
 
   for (int i = 0; i < _deflation_vecs.size(); ++i)
   {
-    ScalarType a = (*_deflation_vecs[i]) * vec;
-    vec.add(-a, *_deflation_vecs[i]);
+    ScalarType a = _deflation_vecs[i] * vec;
+    vec.add(-a, _deflation_vecs[i]);
   }
 }
 

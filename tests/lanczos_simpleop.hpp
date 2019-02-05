@@ -65,23 +65,36 @@ public:
   std::shared_ptr<Operator<VectorType>> transpose() const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
   }
 
   std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const> b) const
+  multiply(std::shared_ptr<Operator<VectorType> const>) const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
+    ;
   }
 
   std::shared_ptr<Operator<VectorType>>
-  multiply_transpose(std::shared_ptr<Operator<VectorType> const> b) const
+  multiply_transpose(std::shared_ptr<Operator<VectorType> const>) const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
+    ;
   }
 
-  size_t grid_complexity() const { ASSERT(true, "Not implemented"); }
+  size_t grid_complexity() const
+  {
+    ASSERT(true, "Not implemented");
+    return 0;
+  }
 
-  size_t operator_complexity() const { ASSERT(true, "Not implemented"); }
+  size_t operator_complexity() const
+  {
+    ASSERT(true, "Not implemented");
+    return 0;
+  }
 
 private:
   size_t _dim;

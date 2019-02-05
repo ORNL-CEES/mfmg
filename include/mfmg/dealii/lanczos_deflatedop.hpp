@@ -37,12 +37,10 @@ public:
   using vector_type = VectorType;
   using ScalarType = typename VectorType::value_type;
 
-  typedef typename std::vector<VectorType *> Vectors_t;
-
   // Ctor/dtor
 
   DeflatedOperator(const Operator<VectorType> &op);
-  ~DeflatedOperator();
+  ~DeflatedOperator() {}
 
   // Operations
 
@@ -59,7 +57,7 @@ public:
     return _base_op.build_range_vector();
   }
 
-  void add_deflation_vecs(Vectors_t vecs);
+  void add_deflation_vecs(std::vector<VectorType> const &vecs);
 
   void deflate(VectorType &vec) const;
 
@@ -67,28 +65,41 @@ public:
   std::shared_ptr<Operator<VectorType>> transpose() const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
   }
 
   std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const> b) const
+  multiply(std::shared_ptr<Operator<VectorType> const>) const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
+    ;
   }
 
   std::shared_ptr<Operator<VectorType>>
-  multiply_transpose(std::shared_ptr<Operator<VectorType> const> b) const
+  multiply_transpose(std::shared_ptr<Operator<VectorType> const>) const
   {
     ASSERT(true, "Not implemented");
+    return nullptr;
+    ;
   }
 
-  size_t grid_complexity() const { ASSERT(true, "Not implemented"); }
+  size_t grid_complexity() const
+  {
+    ASSERT(true, "Not implemented");
+    return 0;
+  }
 
-  size_t operator_complexity() const { ASSERT(true, "Not implemented"); }
+  size_t operator_complexity() const
+  {
+    ASSERT(true, "Not implemented");
+    return 0;
+  }
 
 private:
   const Operator<VectorType> &_base_op; // reference to the base operator object
 
-  Vectors_t _deflation_vecs; // vectors to deflate out
+  std::vector<VectorType> _deflation_vecs; // vectors to deflate out
 
   // Disallowed methods
 

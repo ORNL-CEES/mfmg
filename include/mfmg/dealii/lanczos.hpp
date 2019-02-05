@@ -34,20 +34,15 @@ public:
   using ScalarType = typename VectorType::value_type;
   using OperatorType = Operator<VectorType>;
 
-  typedef typename std::vector<ScalarType> Scalars_t;
-  typedef typename std::vector<VectorType *> Vectors_t;
-
   // Ctor/dtor
-
   Lanczos(OperatorType const &op, boost::property_tree::ptree const &params);
-  ~Lanczos();
+  ~Lanczos() {}
 
   // Accessors
-
   ScalarType get_eval(int i) const;
 
-  VectorType *get_evec(int i) const;
-  Vectors_t get_evecs() const;
+  VectorType const &get_evec(int i) const;
+  std::vector<VectorType> const &get_evecs() const;
 
   int num_evecs() const
   {
@@ -70,25 +65,29 @@ private:
                                    // less frequent stopping tests
   unsigned int _verbosity;         // verbosity of output
 
-  Scalars_t _evals; // (approximate) eigenvals of full operator
-  Vectors_t _evecs; // (approximate) eigenvecs of full operator
+  std::vector<ScalarType> _evals; // (approximate) eigenvals of full operator
+  std::vector<VectorType> _evecs; // (approximate) eigenvecs of full operator
 
   void details_solve_lanczos(Operator<VectorType> const &op,
                              const int num_requested,
-                             VectorType const &initial_guess, Scalars_t &evals,
-                             Vectors_t &evecs);
+                             VectorType const &initial_guess,
+                             std::vector<ScalarType> &evals,
+                             std::vector<VectorType> &evecs);
 
-  void details_calc_tridiag_epairs(Scalars_t const &t_maindiag,
-                                   Scalars_t const &t_offdiag,
-                                   const int num_requested, Scalars_t &evals,
-                                   Scalars_t &evecs);
+  void details_calc_tridiag_epairs(std::vector<ScalarType> const &t_maindiag,
+                                   std::vector<ScalarType> const &t_offdiag,
+                                   const int num_requested,
+                                   std::vector<ScalarType> &evals,
+                                   std::vector<ScalarType> &evecs);
 
   bool details_check_convergence(ScalarType beta, const int num_requested,
-                                 double tol, Scalars_t const &evecs);
+                                 double tol,
+                                 std::vector<ScalarType> const &evecs);
 
   void details_calc_evecs(const int num_requested, const int n,
-                          Vectors_t const &lanc_vectors,
-                          Scalars_t const &evecs_tridiag, Vectors_t &evecs);
+                          std::vector<VectorType> const &lanc_vectors,
+                          std::vector<ScalarType> const &evecs_tridiag,
+                          std::vector<VectorType> &evecs);
 
   // Disallowed methods
 
