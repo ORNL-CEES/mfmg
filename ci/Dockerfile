@@ -14,7 +14,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       git \
       lcov \
       zlib1g-dev \
-      libopenblas-dev \
+      liblapacke-dev \
       python2.7-dev \
       && \
       echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main" > /etc/apt/sources.list.d/llvm.list && \
