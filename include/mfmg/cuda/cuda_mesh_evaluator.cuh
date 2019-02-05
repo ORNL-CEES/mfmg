@@ -32,9 +32,9 @@ public:
                     dealii::DoFHandler<dim> &dof_handler,
                     dealii::AffineConstraints<double> &constraints);
 
-  int get_dim() const final;
+  virtual int get_dim() const override final;
 
-  std::string get_mesh_evaluator_type() const final;
+  virtual std::string get_mesh_evaluator_type() const override final;
 
   virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
                                     dealii::AffineConstraints<double> &,
