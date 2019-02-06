@@ -86,6 +86,35 @@ struct NoOp
     throw std::runtime_error("should never get here");
   }
 };
+
+struct WrapEvaluateAgglomerate
+{
+  template <typename MeshEvaluator, typename DoFHandler, typename Constraints>
+  WrapEvaluateAgglomerate(MeshEvaluator const &mesh_evaluator,
+                          DoFHandler &dof_handler, Constraints &constraints)
+  {
+    mesh_evaluator.evaluate_agglomerate(dof_handler, constraints, _matrix);
+  }
+
+  template <typename VectorType>
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    _matrix.vmult(dst, src);
+  }
+  std::vector<double> get_diag_elements() const
+  {
+    unsigned int const size = _matrix.m();
+    std::vector<double> diag_elements(size);
+    for (unsigned int i = 0; i < size; ++i)
+    {
+      diag_elements[i] = _matrix.diag_element(i);
+    }
+    return diag_elements;
+  }
+
+private:
+  dealii::TrilinosWrappers::SparseMatrix _matrix;
+};
 #endif
 
 template <int dim, typename MeshEvaluator, typename VectorType>
@@ -112,6 +141,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
+#if defined(APPROACH1) || defined(APPROACH2)
   dealii::TrilinosWrappers::SparseMatrix agglomerate_system_matrix;
 
   // Call user function to build the system matrix
@@ -124,9 +154,14 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<ScalarType> diag_elements(size);
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
+#elif defined(APPROACH3)
+  WrapEvaluateAgglomerate agglomerate_system_matrix(
+      evaluator, agglomerate_dof_handler, agglomerate_constraints);
+  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
+#endif
 
   // Compute the eigenvalues and the eigenvectors
-  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
+  unsigned int const n_dofs_agglomerate = diag_elements.size();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
   // Arpack only works with double not float
   std::vector<dealii::Vector<double>> eigenvectors(
@@ -134,8 +169,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   if (_eigensolver_type == "arpack")
   {
+#if defined(APPROACH3)
+    NoOp agglomerate_mass_matrix;
+#else
     // Make Identity mass matrix
     Identity agglomerate_mass_matrix;
+#endif
 
 #if defined(APPROACH1)
     dealii::SparseDirectUMFPACK inv_system_matrix;
@@ -206,6 +245,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else
   {
+#if defined(APPROACH3)
+    throw std::runtime_error("not available");
+#else
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
     full_matrix.copy_from(agglomerate_system_matrix);
@@ -225,6 +267,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
       for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
         eigenvectors[i][j] = lapack_eigenvectors[j][i];
+#endif
   }
 
   // Compute the map between the local and the global dof indices.
