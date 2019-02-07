@@ -42,8 +42,7 @@ SimpleOperator<VectorType>::~SimpleOperator()
 /// \brief Simple test operator: apply operator to a vector
 
 template <typename VectorType>
-void SimpleOperator<VectorType>::apply(VectorType const &x, VectorType &y,
-                                       OperatorMode mode) const
+void SimpleOperator<VectorType>::vmult(VectorType &y, VectorType const &x) const
 {
 
   for (int i = 0; i < this->_dim; ++i)

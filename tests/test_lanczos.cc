@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(lanczos)
   typedef dealii::Vector<ScalarType> VectorType;
   typedef SimpleOperator<VectorType> OperatorType;
 
-  typedef Lanczos<VectorType> Solver_t;
+  typedef Lanczos<OperatorType, VectorType> Solver_t;
 
   const size_t n = 1000;
   const int multiplicity = 2;

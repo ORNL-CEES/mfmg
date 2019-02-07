@@ -23,9 +23,9 @@ namespace mfmg
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: constructor
 
-template <typename VectorType>
-DeflatedOperator<VectorType>::DeflatedOperator(
-    const Operator<VectorType> &base_op)
+template <typename OperatorType, typename VectorType>
+DeflatedOperator<OperatorType, VectorType>::DeflatedOperator(
+    const OperatorType &base_op)
     : _base_op(base_op)
 {
 }
@@ -33,9 +33,9 @@ DeflatedOperator<VectorType>::DeflatedOperator(
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply operator to a vector
 
-template <typename VectorType>
-void DeflatedOperator<VectorType>::apply(VectorType const &x, VectorType &y,
-                                         OperatorMode mode) const
+template <typename OperatorType, typename VectorType>
+void DeflatedOperator<OperatorType, VectorType>::vmult(
+    VectorType &y, VectorType const &x) const
 {
   // NOTE: to save a vec, we will assume the initial guess is already deflated.
   // NOTE: the deflation needs to be applied as part of the operator,
@@ -45,7 +45,7 @@ void DeflatedOperator<VectorType>::apply(VectorType const &x, VectorType &y,
   // ISSUE: it is not required to deflate at every step;
   // a future modification may take this into account.  There are
   // some methods for determining when / how often needed.
-  _base_op.apply(x, y, mode);
+  _base_op.vmult(y, x);
 
   deflate(y);
 }
@@ -53,8 +53,8 @@ void DeflatedOperator<VectorType>::apply(VectorType const &x, VectorType &y,
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: add more vectors to the set of deflation vectors
 
-template <typename VectorType>
-void DeflatedOperator<VectorType>::add_deflation_vecs(
+template <typename OperatorType, typename VectorType>
+void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
     std::vector<VectorType> const &vecs)
 {
 
@@ -136,8 +136,8 @@ void DeflatedOperator<VectorType>::add_deflation_vecs(
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply the deflation (projection) to a vector
 
-template <typename VectorType>
-void DeflatedOperator<VectorType>::deflate(VectorType &vec) const
+template <typename OperatorType, typename VectorType>
+void DeflatedOperator<OperatorType, VectorType>::deflate(VectorType &vec) const
 {
 
   // Apply (I - VV^T) to a vector.

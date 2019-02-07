@@ -28,12 +28,12 @@ namespace mfmg
 ///        A diagonal matrix with equally spaced eigenvalues of some
 ///        multiplicity.
 
-template <typename VectorType>
-class SimpleOperator : public Operator<VectorType>
+template <typename VectorType_>
+class SimpleOperator
 {
 public:
   // Typedefs
-  using vector_type = VectorType;
+  using VectorType = VectorType_;
   using ScalarType = typename VectorType::value_type;
 
   typedef typename std::vector<VectorType *> Vectors_t;
@@ -48,53 +48,10 @@ public:
 
   // Operations
 
-  void apply(VectorType const &vin, VectorType &vout,
-             OperatorMode mode = OperatorMode::NO_TRANS) const;
+  void vmult(VectorType &y, VectorType const &x) const;
 
-  std::shared_ptr<vector_type> build_domain_vector() const
-  {
-    return std::make_shared<vector_type>(_dim);
-  }
-
-  std::shared_ptr<vector_type> build_range_vector() const
-  {
-    return std::make_shared<vector_type>(_dim);
-  }
-
-  // Not implemented functions from Operator
-  std::shared_ptr<Operator<VectorType>> transpose() const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-  }
-
-  std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const>) const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-    ;
-  }
-
-  std::shared_ptr<Operator<VectorType>>
-  multiply_transpose(std::shared_ptr<Operator<VectorType> const>) const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-    ;
-  }
-
-  size_t grid_complexity() const
-  {
-    ASSERT(true, "Not implemented");
-    return 0;
-  }
-
-  size_t operator_complexity() const
-  {
-    ASSERT(true, "Not implemented");
-    return 0;
-  }
+  size_t m() const { return _dim; }
+  size_t n() const { return _dim; }
 
 private:
   size_t _dim;

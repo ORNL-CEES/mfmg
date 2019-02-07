@@ -28,83 +28,37 @@ namespace mfmg
 ///        Given an undeflated operator, a new operator is constructed
 ///        with a subspace represented by a set of vectors projected out.
 
-template <typename VectorType>
-class DeflatedOperator : public Operator<VectorType>
+template <typename OperatorType, typename VectorType>
+class DeflatedOperator
 {
-
 public:
   // Typedefs
-  using vector_type = VectorType;
   using ScalarType = typename VectorType::value_type;
 
   // Ctor/dtor
 
-  DeflatedOperator(const Operator<VectorType> &op);
+  DeflatedOperator(OperatorType const &op);
   ~DeflatedOperator() {}
 
   // Operations
+  void vmult(VectorType &y, VectorType const &x) const;
 
-  void apply(vector_type const &x, vector_type &y,
-             OperatorMode mode = OperatorMode::NO_TRANS) const;
-
-  std::shared_ptr<vector_type> build_domain_vector() const
-  {
-    return _base_op.build_domain_vector();
-  }
-
-  std::shared_ptr<vector_type> build_range_vector() const
-  {
-    return _base_op.build_range_vector();
-  }
+  size_t m() const { return _base_op.m(); }
+  size_t n() const { return _base_op.n(); }
 
   void add_deflation_vecs(std::vector<VectorType> const &vecs);
 
   void deflate(VectorType &vec) const;
 
-  // Not implemented functions from Operator
-  std::shared_ptr<Operator<VectorType>> transpose() const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-  }
-
-  std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const>) const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-    ;
-  }
-
-  std::shared_ptr<Operator<VectorType>>
-  multiply_transpose(std::shared_ptr<Operator<VectorType> const>) const
-  {
-    ASSERT(true, "Not implemented");
-    return nullptr;
-    ;
-  }
-
-  size_t grid_complexity() const
-  {
-    ASSERT(true, "Not implemented");
-    return 0;
-  }
-
-  size_t operator_complexity() const
-  {
-    ASSERT(true, "Not implemented");
-    return 0;
-  }
-
 private:
-  const Operator<VectorType> &_base_op; // reference to the base operator object
+  OperatorType const &_base_op; // reference to the base operator object
 
   std::vector<VectorType> _deflation_vecs; // vectors to deflate out
 
   // Disallowed methods
 
-  DeflatedOperator(const DeflatedOperator<VectorType> &);
-  void operator=(const DeflatedOperator<VectorType> &);
+  DeflatedOperator(const DeflatedOperator<OperatorType, VectorType> &);
+  void operator=(const DeflatedOperator<OperatorType, VectorType> &);
 };
 
 } // namespace mfmg
