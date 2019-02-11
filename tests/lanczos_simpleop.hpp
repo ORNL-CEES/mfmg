@@ -34,19 +34,10 @@ class SimpleOperator
 public:
   // Typedefs
   using VectorType = VectorType_;
-  using ScalarType = typename VectorType::value_type;
-
-  typedef typename std::vector<VectorType *> Vectors_t;
-
-  // Ctor/dtor
 
   SimpleOperator(size_t dim, size_t multiplicity = 1);
-  ~SimpleOperator();
 
-  // Accessors
-  ScalarType eigenvalue(size_t i) const { return diag_value_(i); }
-
-  // Operations
+  std::vector<double> get_evals() const;
 
   void vmult(VectorType &y, VectorType const &x) const;
 
@@ -58,16 +49,11 @@ private:
   size_t _multiplicity;
 
   // This will be a diagonal matrix; specify the diag entries here
-
-  ScalarType diag_value_(size_t i) const
-  {
-    return (ScalarType)(1 + i / _multiplicity);
-  }
+  double diag_value_(size_t i) const { return 1 + i / _multiplicity; }
 
   // Disallowed methods
-
-  SimpleOperator(const SimpleOperator<VectorType> &);
-  void operator=(const SimpleOperator<VectorType> &);
+  SimpleOperator(const SimpleOperator<VectorType> &) = delete;
+  void operator=(const SimpleOperator<VectorType> &) = delete;
 }; // namespace mfmg
 
 } // namespace mfmg

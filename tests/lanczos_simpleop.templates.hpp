@@ -19,36 +19,31 @@
 namespace mfmg
 {
 
-//-----------------------------------------------------------------------------
 /// \brief Simple test operator: constructor
-
 template <typename VectorType>
 SimpleOperator<VectorType>::SimpleOperator(size_t dim, size_t multiplicity)
     : _dim(dim), _multiplicity(multiplicity)
 {
-  // assert(this->_dim >= 0);
+  assert(_dim >= 0);
   assert(multiplicity > 0);
 }
 
-//-----------------------------------------------------------------------------
-/// \brief Simple test operator: destructor
-
 template <typename VectorType>
-SimpleOperator<VectorType>::~SimpleOperator()
+std::vector<double> SimpleOperator<VectorType>::get_evals() const
 {
+  std::vector<double> evals(_dim);
+  for (size_t i = 0; i < _dim; i++)
+    evals[i] = diag_value_(i);
+
+  return evals;
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Simple test operator: apply operator to a vector
-
 template <typename VectorType>
 void SimpleOperator<VectorType>::vmult(VectorType &y, VectorType const &x) const
 {
-
-  for (int i = 0; i < this->_dim; ++i)
-  {
-    y[i] = this->diag_value_(i) * x[i];
-  }
+  for (size_t i = 0; i < _dim; ++i)
+    y[i] = diag_value_(i) * x[i];
 }
 
 } // namespace mfmg

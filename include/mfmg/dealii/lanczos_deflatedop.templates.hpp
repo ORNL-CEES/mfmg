@@ -20,9 +20,7 @@
 namespace mfmg
 {
 
-//-----------------------------------------------------------------------------
 /// \brief Deflated operator: constructor
-
 template <typename OperatorType, typename VectorType>
 DeflatedOperator<OperatorType, VectorType>::DeflatedOperator(
     const OperatorType &base_op)
@@ -30,9 +28,7 @@ DeflatedOperator<OperatorType, VectorType>::DeflatedOperator(
 {
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply operator to a vector
-
 template <typename OperatorType, typename VectorType>
 void DeflatedOperator<OperatorType, VectorType>::vmult(
     VectorType &y, VectorType const &x) const
@@ -50,9 +46,15 @@ void DeflatedOperator<OperatorType, VectorType>::vmult(
   deflate(y);
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Deflated operator: add more vectors to the set of deflation vectors
-
+///
+/// ISSUE: we are using a very unsophisticated modified Gram Schmidt
+/// with permutation to essentially perform a rank revealing QR
+/// factorization. Much more sophisticated and robust methods exist.
+///
+/// ISSUE: this has no BLAS-3 performance characteristics.
+/// This is bad for performance but possibly useful for
+/// portability, since only BLAS-1 operations are required.
 template <typename OperatorType, typename VectorType>
 void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
     std::vector<VectorType> const &vecs)
@@ -60,93 +62,66 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
 
   const int num_old = _deflation_vecs.size();
   const int num_new = vecs.size();
-  const int num_total = num_old + num_new;
-
-  // ISSUE: we are using a very unsophisticated modified Gram Schmidt
-  // with permutation to essentially perform a rank revealing QR
-  // factorization.  Much more sophisticated and robust methods exist.
-  // ISSUE: this has no BLAS-3 performance characteristics.
-  // This is bad for performance but possibly useful for
-  // portability, since only BLAS-1 operations are required.
 
   // Copy in new vectors
+  for (auto const &v : vecs)
+    _deflation_vecs.push_back(v);
 
-  for (int i = 0; i < num_new; ++i)
-    _deflation_vecs.push_back(VectorType(vecs[i]));
+  // These have to be computed *after* push_back as it may invalidate iterators
+  auto vold_start = _deflation_vecs.begin();
+  auto vnew_start = vold_start + num_old;
 
-  // Orthogonalize new vectors with respect to old vectors.
+  // Orthogonalize new vectors with respect to old vectors
+  std::for_each(vnew_start, vnew_start + num_new, [&](auto &new_v) {
+    std::for_each(vold_start, vold_start + num_old,
+                  [&new_v](auto const &v) { new_v.add(-(new_v * v), v); });
+  });
 
-  for (int i = 0; i < num_new; ++i)
-  {
-    for (int j = 0; j < num_old; ++j)
-    {
-      ScalarType a = _deflation_vecs[j] * _deflation_vecs[num_old + i];
-      _deflation_vecs[num_old + i].add(-a, _deflation_vecs[j]);
-    }
-  }
-
-  // Orthonormalize new vectors with respect to each other.
-
-  std::vector<int> ind(num_new);
-  for (int i = 0; i < num_new; ++i)
-  {
-    ind[i] = num_old + i;
-  }
-
+  // Orthonormalize new vectors with respect to each other (with an additional
+  // twist of doing that in decreasing norm order)
+  std::vector<int> perm_ind(num_new);
+  std::iota(perm_ind.begin(), perm_ind.end(), num_old);
   for (int i = 0; i < num_new; ++i)
   {
-
-    // Find longest vector of those left.
-
+    // Find longest vector of those left
     double dot_best = -1;
 
     for (int j = i; j < num_new; ++j)
     {
       const double dot_this =
-          (double)(_deflation_vecs[ind[j]] * _deflation_vecs[ind[j]]);
+          (double)(_deflation_vecs[perm_ind[j]] * _deflation_vecs[perm_ind[j]]);
 
       if (dot_this > dot_best)
       {
         dot_best = dot_this;
-        int tmp = ind[i];
-        ind[i] = ind[j];
-        ind[j] = tmp;
+        std::swap(perm_ind[i], perm_ind[j]);
       }
     }
 
     // Normalize.
 
-    // ISSUE: we are not accounting for possible rank deficiency here.
-
+    // FIXME: we are not accounting for possible rank deficiency here
     double norm = std::sqrt(dot_best);
-    assert(norm != (double)0.); // ISSUE need better test for near-zero here.
-    _deflation_vecs[ind[i]] *= (ScalarType)(1 / norm);
+    assert(norm != (double)0.); // FIXME need better test for near-zero here.
+    _deflation_vecs[perm_ind[i]] /= (ScalarType)(norm);
 
-    // Orthogonalize all later vectors against this one.
-
+    // Orthogonalize all later vectors against this one
     for (int j = i + 1; j < num_new; ++j)
     {
-      ScalarType a = _deflation_vecs[ind[i]] * _deflation_vecs[ind[j]];
-      _deflation_vecs[ind[j]].add(-a, _deflation_vecs[ind[i]]);
+      ScalarType a =
+          _deflation_vecs[perm_ind[i]] * _deflation_vecs[perm_ind[j]];
+      _deflation_vecs[perm_ind[j]].add(-a, _deflation_vecs[perm_ind[i]]);
     }
-
-  } // i
+  }
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Deflated operator: apply the deflation (projection) to a vector
-
 template <typename OperatorType, typename VectorType>
 void DeflatedOperator<OperatorType, VectorType>::deflate(VectorType &vec) const
 {
-
-  // Apply (I - VV^T) to a vector.
-
-  for (int i = 0; i < _deflation_vecs.size(); ++i)
-  {
-    ScalarType a = _deflation_vecs[i] * vec;
-    vec.add(-a, _deflation_vecs[i]);
-  }
+  // Apply (I - VV^T) to a vector
+  std::for_each(_deflation_vecs.begin(), _deflation_vecs.end(),
+                [&vec](auto const &dvec) { vec.add(-(vec * dvec), dvec); });
 }
 
 } // namespace mfmg

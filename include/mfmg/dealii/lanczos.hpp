@@ -37,6 +37,7 @@ public:
   ~Lanczos() {}
 
   // Accessors
+  std::vector<ScalarType> const &get_evals() const;
   ScalarType get_eval(int i) const;
 
   VectorType const &get_evec(int i) const;
@@ -52,16 +53,16 @@ public:
   void solve();
 
 private:
-  OperatorType const &_op;         // reference to operator object to use
-  bool _is_deflated;               // mode
-  int _num_requested;              // number of eigenpairs to calculate
-  int _num_evecs_per_cycle;        // number of eigs to calc per lanc solve
-  int _num_cycles;                 // number of lanczos solves
-  int _maxit;                      // maximum number of lanc interations
-  double _tol;                     // convergence tolerance for eigenvalue
-  unsigned int _percent_overshoot; // allowed iteration count overshoot from
-                                   // less frequent stopping tests
-  unsigned int _verbosity;         // verbosity of output
+  OperatorType const &_op;  // reference to operator object to use
+  bool _is_deflated;        // mode
+  int _num_requested;       // number of eigenpairs to calculate
+  int _num_evecs_per_cycle; // number of eigs to calc per lanc solve
+  int _num_cycles;          // number of lanczos solves
+  int _maxit;               // maximum number of lanc interations
+  double _tol;              // convergence tolerance for eigenvalue
+  int _percent_overshoot;   // allowed iteration count overshoot from
+                            // less frequent stopping tests
+  unsigned int _verbosity;  // verbosity of output
 
   std::vector<ScalarType> _evals; // (approximate) eigenvals of full operator
   std::vector<VectorType> _evecs; // (approximate) eigenvecs of full operator

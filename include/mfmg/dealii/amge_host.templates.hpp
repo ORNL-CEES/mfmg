@@ -206,7 +206,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         agglomerate_system_matrix, lanczos_params);
 
     solver.solve();
-    ASSERT(n_eigenvectors == solver.num_evecs(),
+    ASSERT(n_eigenvectors == static_cast<unsigned int>(solver.num_evecs()),
            "Wrong number of computed eigenpairs");
 
     // Copy the eigenvalues and the eigenvectors

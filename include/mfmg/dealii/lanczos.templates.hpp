@@ -18,7 +18,6 @@
 #include <random>
 #include <vector>
 
-#include "cblas.h"
 #include "lanczos.hpp"
 #include "lanczos_deflatedop.templates.hpp"
 
@@ -27,14 +26,12 @@
 #include <complex>
 #define lapack_complex_float std::complex<float>
 #define lapack_complex_double std::complex<double>
-#include "lapacke.h"
+#include <lapacke.h>
 
 namespace mfmg
 {
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: constructor
-
 template <typename OperatorType, typename VectorType>
 Lanczos<OperatorType, VectorType>::Lanczos(
     OperatorType const &op, boost::property_tree::ptree const &params)
@@ -45,6 +42,8 @@ Lanczos<OperatorType, VectorType>::Lanczos(
   _tol = params.get<double>("tolerance");
   _percent_overshoot = params.get<int>("percent_overshoot", 0);
   _verbosity = params.get<unsigned int>("verbosity", 0);
+
+  assert(0 <= _percent_overshoot && _percent_overshoot <= 100);
 
   if (_is_deflated)
   {
@@ -71,69 +70,60 @@ Lanczos<OperatorType, VectorType>::Lanczos(
   assert(_tol >= 0.);
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvalue
+template <typename OperatorType, typename VectorType>
+std::vector<typename Lanczos<OperatorType, VectorType>::ScalarType> const &
+Lanczos<OperatorType, VectorType>::get_evals() const
+{
+  return _evals;
+}
 
 template <typename OperatorType, typename VectorType>
 typename Lanczos<OperatorType, VectorType>::ScalarType
 Lanczos<OperatorType, VectorType>::get_eval(int i) const
 {
-  assert(i >= 0);
-  assert(i < _evals.size());
-
+  assert(i >= 0 && (size_t)i < _evals.size());
   return _evals[i];
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvector
-
 template <typename OperatorType, typename VectorType>
 VectorType const &Lanczos<OperatorType, VectorType>::get_evec(int i) const
 {
-  assert(i >= 0);
-  assert(i < _evecs.size());
-
-  // ISSUE: giving users pointer to internal data that shouldn't be modified.
+  assert(i >= 0 && (size_t)i < _evecs.size());
   return _evecs[i];
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: accessor for (approximate) eigenvectors
-
 template <typename OperatorType, typename VectorType>
 std::vector<VectorType> const &
 Lanczos<OperatorType, VectorType>::get_evecs() const
 {
-  // ISSUE: giving users pointer to internal data that shouldn't be modified.
   return _evecs;
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve, use random initial guess
-
 template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::solve()
 {
-  const int n = _op.m();
-
   if (!_is_deflated)
   {
     // By default set initial guess to a random vector.
     VectorType initial_guess(_op.n());
     {
       std::mt19937 gen(0);
-      std::uniform_real_distribution<double> dis(0, 1);
-      for (int i = 0; i < n; i++)
-        initial_guess[i] = (ScalarType)(dis(gen));
+      std::uniform_real_distribution<double> dist(0, 1);
+      std::generate(initial_guess.begin(), initial_guess.end(),
+                    [&]() { return (ScalarType)(1. + dist(gen)); });
     }
     details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
   }
   else
   {
     // Form deflated operator from original operator.
-    DeflatedOperator<OperatorType, VectorType> deflated_op(this->_op);
+    DeflatedOperator<OperatorType, VectorType> deflated_op(_op);
 
-    // Loop over Lanczos solves.
+    // Loop over Lanczos solves
     for (int cycle = 0; cycle < _num_cycles; ++cycle)
     {
 
@@ -145,20 +135,19 @@ void Lanczos<OperatorType, VectorType>::solve()
         std::cout << "Lanczos solve " << cycle + 1 << ":" << std::endl;
       }
 
-      // Perform Lanczos solve, initial guess is a lin comb of a
-      // constant vector (to try to capture "smooth" eigenmodes
-      // of PDE problems and a random vector based on different random
-      // seeds.
-      // ISSUE; should a different initial guess strategy be used.
+      // Perform Lanczos solve, initial guess is a linear combination of a
+      // constant vector (to try to capture "smooth" eigenmodes of PDE problems)
+      // and a random vector based on different random seeds.
+      // ISSUE: should a different initial guess strategy be used?
       VectorType initial_guess(_op.n());
       {
         std::mt19937 gen(cycle);
-        std::uniform_real_distribution<double> dis(0, 1);
-        for (int i = 0; i < initial_guess.size(); i++)
-          initial_guess[i] = (ScalarType)(1. + dis(gen));
+        std::uniform_real_distribution<double> dist(0, 1);
+        std::generate(initial_guess.begin(), initial_guess.end(),
+                      [&]() { return (ScalarType)(1. + dist(gen)); });
       }
 
-      // Deflate initial guess.
+      // Deflate initial guess
       deflated_op.deflate(initial_guess);
 
       std::vector<ScalarType> evals;
@@ -166,7 +155,7 @@ void Lanczos<OperatorType, VectorType>::solve()
       details_solve_lanczos(deflated_op, _num_evecs_per_cycle, initial_guess,
                             evals, evecs);
 
-      // Save the eigenpairs just calculated.
+      // Save the eigenpairs just calculated
 
       // NOTE: throughout we use the term eigenpair (= eigenvector,
       // eigenvalue), though the precise terminology should be "approximate
@@ -174,12 +163,10 @@ void Lanczos<OperatorType, VectorType>::solve()
       for (int i = 0; i < _num_evecs_per_cycle; ++i)
       {
         _evals.push_back(evals[i]);
-        _evecs.push_back(VectorType(n));
-        _evecs[i] = evecs[i];
+        _evecs.push_back(evecs[i]);
       }
 
-      // Add eigenvectors to the set of vectors being deflated out.
-
+      // Add eigenvectors to the set of vectors being deflated out
       if (cycle != _num_cycles - 1)
       {
         deflated_op.add_deflation_vecs(evecs);
@@ -188,9 +175,7 @@ void Lanczos<OperatorType, VectorType>::solve()
   }
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform Lanczos solve
-
 template <typename OperatorType, typename VectorType>
 template <typename FullOperatorType>
 void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
@@ -198,39 +183,33 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     VectorType const &initial_guess, std::vector<ScalarType> &evals,
     std::vector<VectorType> &evecs)
 {
-  // FIXME: right now Operator does not have dimension accessors
-  const int n = _op.m();
+  const int n = op.n();
 
   // Initializations; first Lanczos vector.
-
   ScalarType alpha = 0;
   ScalarType beta = initial_guess.l2_norm();
 
   std::vector<VectorType> lanc_vectors; // Lanczos vectors
 
+  // Create first Lanczos vector if necessary
   if (lanc_vectors.size() < 1)
-  {
-    // Create first Lanczos vector.
-    lanc_vectors.push_back(VectorType(n));
-  }
-  // Set to initial guess; later normalize.
-  lanc_vectors[0] = initial_guess;
+    lanc_vectors.push_back(initial_guess);
 
   std::vector<ScalarType> t_maindiag;
   std::vector<ScalarType> t_offdiag;
 
   std::vector<ScalarType>
-      evecs_tridiag; // eigenvecs of tridiag matrix, stored in flat array
+      evecs_tridiag; // eigenvectors of tridiagonal matrix, stored in flat array
 
-  // Lanczos iteration loop.
+  // Lanczos iteration loop
   int it = 1;
   for (int it_prev_check = 0; it <= _maxit; ++it)
   {
-    // Normalize lanczos vector.
-    assert(beta != 0); // TODO: set up better check for near-zero.
-    lanc_vectors[it - 1] *= 1 / beta;
+    // Normalize lanczos vector
+    assert(beta != 0); // TODO: set up better check for near-zero
+    lanc_vectors[it - 1] /= beta;
 
-    if (lanc_vectors.size() < it + 1)
+    if (lanc_vectors.size() < static_cast<size_t>(it + 1))
     {
       // Add new Lanczos vector
       lanc_vectors.push_back(VectorType(n));
@@ -239,13 +218,12 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     // Apply operator.
     op.vmult(lanc_vectors[it], lanc_vectors[it - 1]);
 
-    // Compute, apply, save lanczos coefficients.
-
-    if (1 != it)
+    // Compute, apply, save Lanczos coefficients
+    if (it != 1)
     {
       lanc_vectors[it].add(-beta, lanc_vectors[it - 2]);
       t_offdiag.push_back(beta);
-    } // if
+    }
 
     alpha = lanc_vectors[it - 1] * lanc_vectors[it]; // = tridiag_{it,it}
 
@@ -255,17 +233,16 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
 
     beta = lanc_vectors[it].l2_norm(); // = tridiag_{it+1,it}
 
-    // Check convergence if requested.
-
-    const bool do_check =
-        1 == it || _maxit == it ||
-        100 * (it - it_prev_check) > _percent_overshoot * it_prev_check;
+    // Check convergence if requested
     // NOTE: an alternative here for p > 0 is
     // int((100./p)*ln(it)) > int((100./p)*ln(it-1))
-
+    const bool do_check =
+        it == 1 || it == _maxit ||
+        (100 * (it - it_prev_check) > _percent_overshoot * it_prev_check);
     if (do_check)
     {
-      // Calc eigenpairs of tridiag matrix for conv test or at last it.
+      // Calculate eigenpairs of tridiagonal matrix for convvergence test or at
+      // last iteration
       details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested, evals,
                                   evecs_tridiag);
 
@@ -274,29 +251,28 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
         break;
       }
 
-      // Record iteration number when this check done.
+      // Record iteration number when this check done
       it_prev_check = it;
     }
   }
   assert(it >= num_requested);
 
-  // Calc full operator evecs from tridiag evecs.
-  // ISSUE: may be needed to modify this code to not save all lanc vecs
+  // Calculate full operator eigenvectors from tridiagonal eigenvectors.
+  // ISSUE: may be needed to modify this code to not save all Lanczos vectors
   // but instead recalculate them for this use.
-  // However this may be dangerous if the second lanczos iteration
+  // However this may be dangerous if the second Lanczos iteration
   // has different roundoff characteristics, e.g., due to order of
-  // operatioon differences.
+  // operation differences.
   // ISSUE: we have not taken precautions here with regard to
-  // potential impacts of loss of orthogonality of lanczos vectors.
+  // potential impacts of loss of orthogonality of Lanczos vectors.
   details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag, evecs);
 
   if (_verbosity > 0)
     std::cout << std::endl;
 }
 
-//-----------------------------------------------------------------------------
-/// \brief Lanczos solver: calculate eigenpairs from tridiag of lanczos coeffs
-
+/// \brief Lanczos solver: calculate eigenpairs from tridiagonal of Lanczos
+/// coefficients
 template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::vector<ScalarType> const &t_maindiag,
@@ -306,7 +282,7 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   const int n = t_maindiag.size();
 
   assert(n >= 1);
-  assert(t_offdiag.size() == n - 1);
+  assert(t_offdiag.size() == (size_t)(n - 1));
 
   // Allocate storage
   std::vector<double> matrix(n * n, 0.);
@@ -335,20 +311,15 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   const lapack_int info = LAPACKE_dgeev(
       LAPACK_COL_MAJOR, 'N', 'V', n, matrix.data(), n, t_evals_r.data(),
       t_evals_i.data(), NULL, n, t_evecs.data(), n);
+  ASSERT(!info, "Call to LAPACKE_dgeev failed.");
 
-  // Sort into ascending order
-
-  std::vector<int> sort_index(n);
-  for (int i = 0; i < n; ++i)
-  {
-    sort_index[i] = i;
-  }
-
-  std::sort(sort_index.begin(), sort_index.end(),
+  // Compute permutation for ascending order
+  std::vector<int> perm_index(n);
+  std::iota(perm_index.begin(), perm_index.end(), 0);
+  std::sort(perm_index.begin(), perm_index.end(),
             [&](int i, int j) { return t_evals_r[i] < t_evals_r[j]; });
 
-  // Output requested eigenvalues.
-
+  // Output requested eigenvalues
   if (_verbosity > 0)
   {
     std::cout.width(4);
@@ -357,7 +328,7 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::cout << "   evals ";
     for (int i = 0; i < n && i < num_requested; ++i)
     {
-      std::cout << " " << std::fixed << t_evals_r[sort_index[i]];
+      std::cout << " " << std::fixed << t_evals_r[perm_index[i]];
     }
     if (n < num_requested)
     {
@@ -375,47 +346,22 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 
     for (int i = 0; i < num_requested; ++i)
     {
-      const int si = sort_index[i];
+      const int si = perm_index[i];
+
       evals[i] = static_cast<ScalarType>(t_evals_r[si]);
-      double sum = 0;
-      for (int j = 0; j < n; ++j)
-      {
-        sum += t_evecs[j + n * si] * t_evecs[j + n * si];
-      }
-      const double norm = sqrt(sum);
-      for (int j = 0; j < n; ++j)
-      {
-        evecs[j + n * i] = static_cast<ScalarType>(t_evecs[j + n * si] / norm);
-      }
+
+      auto first = evecs.begin() + n * i;
+      auto t_first = t_evecs.begin() + n * si;
+      auto t_last = t_first + n;
+      double const norm =
+          std::sqrt(std::inner_product(t_first, t_last, t_first, 0.));
+      std::transform(t_first, t_last, first,
+                     [norm](auto &v) { return v / norm; });
     }
   }
-
-#if 0
-
-void LAPACK_dgeev( char* jobvl, char* jobvr, lapack_int* n, double* a,
-                   lapack_int* lda, double* wr, double* wi, double* vl,
-                   lapack_int* ldvl, double* vr, lapack_int* ldvr, double* work,
-                   lapack_int* lwork, lapack_int *info );
-
-lapack_int LAPACKE_dgeev( int matrix_order, char jobvl, char jobvr,
-                          lapack_int n, double* a, lapack_int lda, double* wr,
-                          double* wi, double* vl, lapack_int ldvl, double* vr,
-                          lapack_int ldvr );
-
-lapack_int LAPACKE_dgeev_work( int matrix_order, char jobvl, char jobvr,
-                               lapack_int n, double* a, lapack_int lda,
-                               double* wr, double* wi, double* vl,
-                               lapack_int ldvl, double* vr, lapack_int ldvr,
-                               double* work, lapack_int lwork );
-
-
-http://www.netlib.org/lapack/explore-html/d9/d8e/group__double_g_eeigen_ga66e19253344358f5dee1e60502b9e96f.html#ga66e19253344358f5dee1e60502b9e96f
-#endif
 }
 
-//-----------------------------------------------------------------------------
 /// \brief Lanczos solver: perform convergence check
-
 template <typename OperatorType, typename VectorType>
 bool Lanczos<OperatorType, VectorType>::details_check_convergence(
     ScalarType beta, const int num_requested, double tol,
@@ -423,7 +369,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
 {
   const int n = evecs.size();
 
-  // Must iterate at least until we have num_requested eigenpairs.
+  // Must iterate at least until we have num_requested eigenpairs
   if (n < num_requested)
   {
     return false;
@@ -439,7 +385,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
     std::cout << "   bounds ";
   }
 
-  // Terminate if every approx eval has converged to tolerance
+  // Terminate if every approximage eigenvalue has converged to tolerance
   // ISSUE: here ignoring possible nuances regarding the correctness
   // of this check.
   // NOTE: k may be desirable to "scale" the stopping criterion
@@ -462,8 +408,8 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
   return is_converged;
 }
 
-//-----------------------------------------------------------------------------
-/// \brief Lanczos solver: calculate full (approx) evecs from tridiag evecs
+/// \brief Lanczos solver: calculate full (approx) eigenvectors from tridiag
+/// eigenvectors
 template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_calc_evecs(
     const int num_requested, const int n,
@@ -471,21 +417,19 @@ void Lanczos<OperatorType, VectorType>::details_calc_evecs(
     std::vector<ScalarType> const &evecs_tridiag,
     std::vector<VectorType> &evecs)
 {
-  assert(evecs.size() == 0);
+  assert(evecs.empty());
 
   auto dim = lanc_vectors[0].size();
 
-  // Matrix-matrix product to convert tridiag evecs to operator evecs.
+  evecs.resize(num_requested, VectorType(dim));
+
+  // Matrix-matrix product to convert tridiagonal eigenvectors to operator
+  // eigenvectors
   for (int i = 0; i < num_requested; ++i)
   {
-    evecs.push_back(VectorType(dim));
     evecs[i] = 0.0;
-
     for (int j = 0; j < n; ++j)
-    {
       evecs[i].add(evecs_tridiag[j + n * i], lanc_vectors[j]);
-    }
-    // evecs[i]->print();
   }
 }
 
