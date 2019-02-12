@@ -89,7 +89,7 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
     for (int j = i; j < num_new; ++j)
     {
       const double dot_this =
-          (double)(_deflation_vecs[perm_ind[j]] * _deflation_vecs[perm_ind[j]]);
+          _deflation_vecs[perm_ind[j]] * _deflation_vecs[perm_ind[j]];
 
       if (dot_this > dot_best)
       {
@@ -102,14 +102,13 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
 
     // FIXME: we are not accounting for possible rank deficiency here
     double norm = std::sqrt(dot_best);
-    assert(norm != (double)0.); // FIXME need better test for near-zero here.
-    _deflation_vecs[perm_ind[i]] /= (ScalarType)(norm);
+    assert(norm); // FIXME need better test for near-zero here.
+    _deflation_vecs[perm_ind[i]] /= norm;
 
     // Orthogonalize all later vectors against this one
     for (int j = i + 1; j < num_new; ++j)
     {
-      ScalarType a =
-          _deflation_vecs[perm_ind[i]] * _deflation_vecs[perm_ind[j]];
+      double a = _deflation_vecs[perm_ind[i]] * _deflation_vecs[perm_ind[j]];
       _deflation_vecs[perm_ind[j]].add(-a, _deflation_vecs[perm_ind[i]]);
     }
   }

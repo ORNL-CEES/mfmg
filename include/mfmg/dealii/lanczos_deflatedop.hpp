@@ -32,13 +32,7 @@ template <typename OperatorType, typename VectorType>
 class DeflatedOperator
 {
 public:
-  // Typedefs
-  using ScalarType = typename VectorType::value_type;
-
-  // Ctor/dtor
-
   DeflatedOperator(OperatorType const &op);
-  ~DeflatedOperator() {}
 
   // Operations
   void vmult(VectorType &y, VectorType const &x) const;

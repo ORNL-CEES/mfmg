@@ -29,16 +29,13 @@ template <typename OperatorType, typename VectorType>
 class Lanczos
 {
 public:
-  // Typedefs
-  using ScalarType = typename VectorType::value_type;
-
   // Ctor/dtor
   Lanczos(OperatorType const &op, boost::property_tree::ptree const &params);
   ~Lanczos() {}
 
   // Accessors
-  std::vector<ScalarType> const &get_evals() const;
-  ScalarType get_eval(int i) const;
+  std::vector<double> const &get_evals() const;
+  double get_eval(int i) const;
 
   VectorType const &get_evec(int i) const;
   std::vector<VectorType> const &get_evecs() const;
@@ -64,29 +61,28 @@ private:
                             // less frequent stopping tests
   unsigned int _verbosity;  // verbosity of output
 
-  std::vector<ScalarType> _evals; // (approximate) eigenvals of full operator
+  std::vector<double> _evals;     // (approximate) eigenvals of full operator
   std::vector<VectorType> _evecs; // (approximate) eigenvecs of full operator
 
   template <typename FullOperatorType>
   void details_solve_lanczos(FullOperatorType const &op,
                              const int num_requested,
                              VectorType const &initial_guess,
-                             std::vector<ScalarType> &evals,
+                             std::vector<double> &evals,
                              std::vector<VectorType> &evecs);
 
-  void details_calc_tridiag_epairs(std::vector<ScalarType> const &t_maindiag,
-                                   std::vector<ScalarType> const &t_offdiag,
+  void details_calc_tridiag_epairs(std::vector<double> const &t_maindiag,
+                                   std::vector<double> const &t_offdiag,
                                    const int num_requested,
-                                   std::vector<ScalarType> &evals,
-                                   std::vector<ScalarType> &evecs);
+                                   std::vector<double> &evals,
+                                   std::vector<double> &evecs);
 
-  bool details_check_convergence(ScalarType beta, const int num_requested,
-                                 double tol,
-                                 std::vector<ScalarType> const &evecs);
+  bool details_check_convergence(double beta, const int num_requested,
+                                 double tol, std::vector<double> const &evecs);
 
   void details_calc_evecs(const int num_requested, const int n,
                           std::vector<VectorType> const &lanc_vectors,
-                          std::vector<ScalarType> const &evecs_tridiag,
+                          std::vector<double> const &evecs_tridiag,
                           std::vector<VectorType> &evecs);
 
   // Disallowed methods
