@@ -40,6 +40,10 @@ public:
   unsigned int
   build_agglomerates(boost::property_tree::ptree const &ptree) const;
 
+  std::pair<std::vector<std::vector<unsigned int>>,
+            std::vector<std::vector<unsigned int>>>
+  build_boundary_agglomerates() const;
+
   /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
    * agglomerate of a given \p agglomerate_id and a map that matches cells in
@@ -47,6 +51,13 @@ public:
    */
   void build_agglomerate_triangulation(
       unsigned int agglomerate_id,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map) const;
+
+  void build_agglomerate_triangulation(
+      std::vector<unsigned int> cell_index,
       dealii::Triangulation<dim> &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -128,6 +139,8 @@ private:
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
+
+  mutable unsigned int _n_agglomerates;
 };
 } // namespace mfmg
 

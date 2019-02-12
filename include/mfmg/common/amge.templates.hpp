@@ -17,6 +17,7 @@
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -59,10 +60,11 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
     // Always use the same seed for Zoltan
     Zoltan_Srand(ZOLTAN_RAND_INIT, NULL);
 #endif
-    unsigned int const n_agglomerates =
+    unsigned int const n_desired_agglomerates =
         ptree.get<unsigned int>("n_agglomerates");
 
-    return build_agglomerates_partitioner(partitioner_type, n_agglomerates);
+    return build_agglomerates_partitioner(partitioner_type,
+                                          n_desired_agglomerates);
   }
   else if (partitioner_type == "block")
   {
@@ -79,6 +81,74 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
                             " is not a valid choice for the partitioner. The "
                             "acceptable values are zoltan, metis, and block.");
   return 0;
+}
+
+template <int dim, typename VectorType>
+std::pair<std::vector<std::vector<unsigned int>>,
+          std::vector<std::vector<unsigned int>>>
+AMGe<dim, VectorType>::build_boundary_agglomerates() const
+{
+  auto filtered_iterators_range =
+      filter_iterators(_dof_handler.active_cell_iterators(),
+                       dealii::IteratorFilters::LocallyOwnedCell());
+  std::vector<std::vector<unsigned int>> agg_cell_id(_n_agglomerates);
+  std::vector<std::set<unsigned int>> agg_cell_set(_n_agglomerates);
+  for (auto cell : filtered_iterators_range)
+  {
+    agg_cell_id[cell->user_index() - 1].push_back(cell->active_cell_index());
+    agg_cell_set[cell->user_index() - 1].insert(cell->active_cell_index());
+  }
+
+  dealii::DynamicSparsityPattern connectivity;
+  dealii::GridTools::get_vertex_connectivity_of_cells(
+      _dof_handler.get_triangulation(), connectivity);
+
+  // TODO do this using multithreading. Maybe it's better to do everything in
+  // the following for loop
+  // Each agglomerate will create two new agglomerates: one composed of the
+  // cells of the agglomerate which are on the boundary with another agglomerate
+  // and another one composed of cells on other agglomerates that share a
+  // boundary with the current agglomerate
+  std::vector<std::vector<unsigned int>> interior_agglomerates(_n_agglomerates);
+  std::vector<std::vector<unsigned int>> halo_agglomerates(_n_agglomerates);
+  for (unsigned int i = 0; i < _n_agglomerates; ++i)
+  {
+    unsigned int const n_cells_agg = agg_cell_id[i].size();
+    std::vector<unsigned int> interior_boundary_cells;
+    std::vector<unsigned int> halo_cells;
+    std::set<unsigned int> halo_cells_in_agg;
+    for (unsigned int j = 0; j < n_cells_agg; ++j)
+    {
+      bool cell_in_agg = false;
+      // Get the connectivity for the current cell
+      auto connectivity_begin = connectivity.begin(agg_cell_id[i][j]);
+      auto connectivity_end = connectivity.end(agg_cell_id[i][j]);
+      for (auto connectivity_it = connectivity_begin;
+           connectivity_it != connectivity_end; ++connectivity_it)
+      {
+        // Cells that are on the boundary of agglomerates and have in their
+        // connectivity cells that are not part of the agglomerates
+        if (agg_cell_set[i].count(connectivity_it->column()) == 0)
+        {
+          if (cell_in_agg == false)
+          {
+            interior_boundary_cells.push_back(agg_cell_id[i][j]);
+            cell_in_agg = true;
+          }
+          if (halo_cells_in_agg.count(connectivity_it->column()) == 0)
+          {
+            halo_cells.push_back(connectivity_it->column());
+            halo_cells_in_agg.insert(connectivity_it->column());
+          }
+        }
+      }
+    }
+
+    interior_agglomerates[i] = interior_boundary_cells;
+    halo_agglomerates[i] = halo_cells;
+  }
+
+  return {interior_agglomerates, halo_agglomerates};
 }
 
 template <int dim, typename VectorType>
@@ -113,6 +183,67 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
         }
       }
     }
+
+  // If the agglomerate has hanging nodes, the patch is bigger than
+  // what we may expect because we cannot create a coarse triangulation with
+  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
+  // cells.
+  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
+      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+
+  // Copy the boundary IDs to the agglomerate triangulation
+  for (auto const &boundary : boundary_ids)
+  {
+    auto const boundary_cell = boundary.first;
+    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
+    {
+      if (agglomerate_cell.second == boundary_cell)
+      {
+        for (auto &boundary_face : boundary.second)
+          agglomerate_cell.first->face(boundary_face.first)
+              ->set_boundary_id(boundary_face.second);
+
+        break;
+      }
+    }
+  }
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    std::vector<unsigned int> cell_index,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
+{
+  std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
+      agglomerate;
+  // Map between the cells on the boundary and the faces on the boundary and the
+  // associated boundary id.
+  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
+           std::vector<std::pair<unsigned int, unsigned int>>>
+      boundary_ids;
+  auto cell_begin = _dof_handler.begin_active();
+  for (auto offset : cell_index)
+  {
+    auto cell = cell_begin;
+    for (unsigned int i = 0; i < offset; ++i)
+      ++cell;
+    agglomerate.push_back(cell);
+    if (cell->at_boundary())
+    {
+      for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
+           ++f)
+      {
+        if (cell->face(f)->at_boundary())
+        {
+          boundary_ids[cell].push_back(
+              std::make_pair(f, cell->face(f)->boundary_id()));
+        }
+      }
+    }
+  }
 
   // If the agglomerate has hanging nodes, the patch is bigger than
   // what we may expect because we cannot create a coarse triangulation with
@@ -526,7 +657,9 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     }
   }
 
-  return agglomerate - 1;
+  _n_agglomerates = agglomerate - 1;
+
+  return _n_agglomerates;
 }
 
 template <int dim, typename VectorType>
@@ -619,7 +752,9 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_partitioner(
     }
   }
 
-  return n_zoltan_agglomerates;
+  _n_agglomerates = n_zoltan_agglomerates;
+
+  return _n_agglomerates;
 }
 
 template <int dim, typename VectorType>
