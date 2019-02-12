@@ -200,7 +200,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     lanczos_params.put("max_iterations", 200);
     lanczos_params.put("tolerance", tolerance);
     lanczos_params.put("percent_overshoot", 5);
-    lanczos_params.put("verbosity", 0);
 
     Lanczos<dealii::SparseMatrix<double>, dealii::Vector<double>> solver(
         agglomerate_system_matrix, lanczos_params);

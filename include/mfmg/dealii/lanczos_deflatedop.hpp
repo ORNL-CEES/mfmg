@@ -50,9 +50,8 @@ private:
   std::vector<VectorType> _deflation_vecs; // vectors to deflate out
 
   // Disallowed methods
-
-  DeflatedOperator(const DeflatedOperator<OperatorType, VectorType> &);
-  void operator=(const DeflatedOperator<OperatorType, VectorType> &);
+  DeflatedOperator(const DeflatedOperator<OperatorType, VectorType> &) = delete;
+  void operator=(const DeflatedOperator<OperatorType, VectorType> &) = delete;
 };
 
 } // namespace mfmg

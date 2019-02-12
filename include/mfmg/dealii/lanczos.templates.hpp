@@ -41,7 +41,6 @@ Lanczos<OperatorType, VectorType>::Lanczos(
   _maxit = params.get<int>("max_iterations");
   _tol = params.get<double>("tolerance");
   _percent_overshoot = params.get<int>("percent_overshoot", 0);
-  _verbosity = params.get<unsigned int>("verbosity", 0);
 
   assert(0 <= _percent_overshoot && _percent_overshoot <= 100);
 
@@ -104,48 +103,24 @@ Lanczos<OperatorType, VectorType>::get_evecs() const
 template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::solve()
 {
+  // By default set initial guess to a random vector
+  VectorType initial_guess(_op.n());
+
   if (!_is_deflated)
   {
-    // By default set initial guess to a random vector.
-    VectorType initial_guess(_op.n());
-    {
-      std::mt19937 gen(0);
-      std::uniform_real_distribution<double> dist(0, 1);
-      std::generate(initial_guess.begin(), initial_guess.end(),
-                    [&]() { return 1 + dist(gen); });
-    }
+    details_set_initial_guess(initial_guess);
     details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
   }
   else
   {
-    // Form deflated operator from original operator.
+    // Form deflated operator from original operator
     DeflatedOperator<OperatorType, VectorType> deflated_op(_op);
 
     // Loop over Lanczos solves
     for (int cycle = 0; cycle < _num_cycles; ++cycle)
     {
+      details_set_initial_guess(initial_guess, cycle);
 
-      if (_verbosity > 0)
-      {
-        std::cout << "----------------------------------------"
-                     "---------------------------------------"
-                  << std::endl;
-        std::cout << "Lanczos solve " << cycle + 1 << ":" << std::endl;
-      }
-
-      // Perform Lanczos solve, initial guess is a linear combination of a
-      // constant vector (to try to capture "smooth" eigenmodes of PDE problems)
-      // and a random vector based on different random seeds.
-      // ISSUE: should a different initial guess strategy be used?
-      VectorType initial_guess(_op.n());
-      {
-        std::mt19937 gen(cycle);
-        std::uniform_real_distribution<double> dist(0, 1);
-        std::generate(initial_guess.begin(), initial_guess.end(),
-                      [&]() { return 1 + dist(gen); });
-      }
-
-      // Deflate initial guess
       deflated_op.deflate(initial_guess);
 
       std::vector<double> evals;
@@ -166,9 +141,7 @@ void Lanczos<OperatorType, VectorType>::solve()
 
       // Add eigenvectors to the set of vectors being deflated out
       if (cycle != _num_cycles - 1)
-      {
         deflated_op.add_deflation_vecs(evecs);
-      }
     }
   }
 }
@@ -179,7 +152,7 @@ template <typename FullOperatorType>
 void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     FullOperatorType const &op, const int num_requested,
     VectorType const &initial_guess, std::vector<double> &evals,
-    std::vector<VectorType> &evecs)
+    std::vector<VectorType> &evecs) const
 {
   const int n = op.n();
 
@@ -264,9 +237,6 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   // ISSUE: we have not taken precautions here with regard to
   // potential impacts of loss of orthogonality of Lanczos vectors.
   details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag, evecs);
-
-  if (_verbosity > 0)
-    std::cout << std::endl;
 }
 
 /// \brief Lanczos solver: calculate eigenpairs from tridiagonal of Lanczos
@@ -275,7 +245,7 @@ template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::vector<double> const &t_maindiag, std::vector<double> const &t_offdiag,
     const int num_requested, std::vector<double> &evals,
-    std::vector<double> &evecs)
+    std::vector<double> &evecs) const
 {
   const int n = t_maindiag.size();
 
@@ -317,23 +287,6 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   std::sort(perm_index.begin(), perm_index.end(),
             [&](int i, int j) { return t_evals_r[i] < t_evals_r[j]; });
 
-  // Output requested eigenvalues
-  if (_verbosity > 0)
-  {
-    std::cout.width(4);
-    std::cout << "It " << n;
-    std::cout.precision(4);
-    std::cout << "   evals ";
-    for (int i = 0; i < n && i < num_requested; ++i)
-    {
-      std::cout << " " << std::fixed << t_evals_r[perm_index[i]];
-    }
-    if (n < num_requested)
-    {
-      std::cout << "\n";
-    }
-  }
-
   // Save results.
   // FIXME: this does not follow details style, it should do a single thing
   // unconditionally
@@ -363,25 +316,15 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 template <typename OperatorType, typename VectorType>
 bool Lanczos<OperatorType, VectorType>::details_check_convergence(
     double beta, const int num_requested, double tol,
-    std::vector<double> const &evecs)
+    std::vector<double> const &evecs) const
 {
   const int n = evecs.size();
 
   // Must iterate at least until we have num_requested eigenpairs
   if (n < num_requested)
-  {
     return false;
-  }
 
   bool is_converged = true;
-
-  if (_verbosity > 0)
-  {
-    std::cout.precision(4);
-    std::cout << std::fixed;
-    // std::cout << "   " << beta;
-    std::cout << "   bounds ";
-  }
 
   // Terminate if every approximage eigenvalue has converged to tolerance
   // ISSUE: here ignoring possible nuances regarding the correctness
@@ -390,17 +333,8 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
   // based on (estimate of) matrix norm or similar.
   for (int i = 0; i < num_requested; ++i)
   {
-    const double bound = beta * abs(evecs[n - 1 + n * i]);
+    const double bound = beta * fabs(evecs[n - 1 + n * i]);
     is_converged = is_converged && bound <= tol;
-    if (_verbosity > 0)
-    {
-      std::cout << " " << bound;
-    }
-  }
-
-  if (_verbosity > 0)
-  {
-    std::cout << "\n";
   }
 
   return is_converged;
@@ -412,7 +346,8 @@ template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_calc_evecs(
     const int num_requested, const int n,
     std::vector<VectorType> const &lanc_vectors,
-    std::vector<double> const &evecs_tridiag, std::vector<VectorType> &evecs)
+    std::vector<double> const &evecs_tridiag,
+    std::vector<VectorType> &evecs) const
 {
   assert(evecs.empty());
 
@@ -428,6 +363,20 @@ void Lanczos<OperatorType, VectorType>::details_calc_evecs(
     for (int j = 0; j < n; ++j)
       evecs[i].add(evecs_tridiag[j + n * i], lanc_vectors[j]);
   }
+}
+
+// Initial guess is a linear combination of a
+// constant vector (to try to capture "smooth" eigenmodes of PDE problems)
+// and a random vector based on different random seeds.
+// ISSUE: should a different initial guess strategy be used?
+template <typename OperatorType, typename VectorType>
+void Lanczos<OperatorType, VectorType>::details_set_initial_guess(
+    VectorType &initial_guess, int seed) const
+{
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<double> dist(0, 1);
+  std::generate(initial_guess.begin(), initial_guess.end(),
+                [&]() { return 1 + dist(gen); });
 }
 
 } // namespace mfmg
