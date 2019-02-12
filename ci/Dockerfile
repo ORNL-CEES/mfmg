@@ -14,7 +14,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       git \
       lcov \
       zlib1g-dev \
-      liblapacke-dev \
       python2.7-dev \
       && \
       echo "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-6.0 main" > /etc/apt/sources.list.d/llvm.list && \
@@ -122,6 +121,26 @@ RUN export BOOST_VERSION=1.67.0 && \
     rm -rf ${BOOST_SOURCE_DIR}
 ENV BOOST_ROOT=${INSTALL_DIR}/boost
 
+# Install OpenBLAS (BLAS, Lapack, and Lapacke)
+RUN export OPENBLAS_VERSION=0.3.5 && \
+    export OPENBLAS_URL=https://github.com/xianyi/OpenBLAS/archive/v${OPENBLAS_VERSION}.tar.gz && \
+    export OPENBLAS_SHA256=0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85 && \
+    export OPENBLAS_ARCHIVE=${ARCHIVE}/openblas.tar.gz && \
+    export OPENBLAS_SOURCE_DIR=${SOURCE_DIR}/OpenBLAS-${OPENBLAS_VERSION} && \
+    export OPENBLAS_BUILD_DIR=${BUILD_DIR}/openblas && \
+    export OPENBLAS_INSTALL_DIR=${INSTALL_DIR}/openblas && \
+    wget --quiet ${OPENBLAS_URL} --output-document=${OPENBLAS_ARCHIVE} && \
+    echo "${OPENBLAS_SHA256} ${OPENBLAS_ARCHIVE}" | sha256sum -c && \
+    mkdir -p ${OPENBLAS_SOURCE_DIR} && \
+    tar -xf ${OPENBLAS_ARCHIVE} -C ${OPENBLAS_SOURCE_DIR} --strip-components=1 && \
+    cd ${OPENBLAS_SOURCE_DIR} && \
+    make -j${N_PROCS} DYNAMIC_ARCH=1 && \
+    make install PREFIX=${OPENBLAS_INSTALL_DIR} && \
+    rm -rf ${OPENBLAS_ARCHIVE} && \
+    rm -rf ${OPENBLAS_BUILD_DIR} && \
+    rm -rf ${OPENBLAS_SOURCE_DIR}
+ENV OPENBLAS_DIR=${INSTALL_DIR}/openblas
+
 # Install Trilinos 12.12.1
 RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
     export TRILINOS_URL=https://github.com/trilinos/Trilinos/archive/${TRILINOS_HASH}.tar.gz && \
@@ -156,6 +175,10 @@ RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
         -DTrilinos_ENABLE_MueLu=ON \
         -DTrilinos_ENABLE_Zoltan=ON \
         -DTrilinos_ENABLE_EXPLICIT_INSTANTIATION=ON \
+        -DBLAS_LIBRARY_NAMES="openblas" \
+        -DBLAS_LIBRARY_DIRS=${OPENBLAS_DIR}/lib \
+        -DLAPACK_LIBRARY_NAMES="openblas" \
+        -DLAPACK_LIBRARY_DIRS=${OPENBLAS_DIR}/lib \
         -DCMAKE_INSTALL_PREFIX=${TRILINOS_INSTALL_DIR} \
         ${TRILINOS_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
@@ -196,6 +219,8 @@ RUN export ARPACK_VERSION=3.6.3 && \
     cmake -DMPI=ON \
         -DBUILD_SHARED_LIBS=ON \
         -DCMAKE_INSTALL_PREFIX=${ARPACK_INSTALL_DIR} \
+        -DBLAS_LIBRARIES=${OPENBLAS_DIR}/lib/libopenblas.so \
+        -DLAPACK_DIR=${OPENBLAS_DIR} \
         ${ARPACK_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
     rm -rf ${ARPACK_ARCHIVE} && \
@@ -218,6 +243,8 @@ RUN export DEAL_II_HASH=9cd42e465767c5a8ceffddbbc17f6737503337ac && \
     mkdir -p ${DEAL_II_BUILD_DIR} && cd ${DEAL_II_BUILD_DIR} && \
     cmake -DCMAKE_BUILD_TYPE=DebugRelease \
         -DDEAL_II_WITH_MPI=ON \
+        -DDEAL_II_WITH_LAPACK=ON \
+        -DLAPACK_DIR=${OPENBLAS_DIR} \
         -DDEAL_II_WITH_P4EST=ON \
         -DP4EST_DIR=${P4EST_DIR} \
         -DDEAL_II_WITH_TRILINOS=ON \
@@ -234,6 +261,10 @@ RUN export DEAL_II_HASH=9cd42e465767c5a8ceffddbbc17f6737503337ac && \
     rm -rf ${DEAL_II_BUILD_DIR} && \
     rm -rf ${DEAL_II_SOURCE_DIR}
 ENV DEAL_II_DIR=${INSTALL_DIR}/dealii
+
+# deal.II does not export the include directory for BLAS/LAPACK, so add it to
+# CPATH
+ENV CPATH=${OPENBLAS_DIR}/include:${CPATH}
 
 # Append the option flag --allow-run-as-root to mpiexec
 RUN echo '#!/usr/bin/env bash' > /usr/local/bin/mpiexec && \
