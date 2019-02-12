@@ -69,11 +69,13 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
 
   // These have to be computed *after* push_back as it may invalidate iterators
   auto vold_start = _deflation_vecs.begin();
-  auto vnew_start = vold_start + num_old;
+  auto vold_end = vold_start + num_old;
+  auto vnew_start = vold_end;
+  auto vnew_end = vnew_start + num_new;
 
   // Orthogonalize new vectors with respect to old vectors
-  std::for_each(vnew_start, vnew_start + num_new, [&](auto &new_v) {
-    std::for_each(vold_start, vold_start + num_old,
+  std::for_each(vnew_start, vnew_end, [&](auto &new_v) {
+    std::for_each(vold_start, vold_end,
                   [&new_v](auto const &v) { new_v.add(-(new_v * v), v); });
   });
 
