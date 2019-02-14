@@ -76,8 +76,8 @@ private:
                                    std::vector<double> &evals,
                                    std::vector<double> &evecs) const;
 
-  bool details_check_convergence(double beta, const int num_requested,
-                                 double tol,
+  bool details_check_convergence(double beta, const int num_evecs,
+                                 const int num_requested, double tol,
                                  std::vector<double> const &evecs) const;
 
   void details_calc_evecs(const int num_requested, const int n,

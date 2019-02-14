@@ -212,12 +212,16 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
         (100 * (it - it_prev_check) > _percent_overshoot * it_prev_check);
     if (do_check)
     {
+      const int dim_hessenberg = it;
+      ASSERT((size_t)dim_hessenberg == t_maindiag.size(), "Internal error");
+
       // Calculate eigenpairs of tridiagonal matrix for convvergence test or at
       // last iteration
       details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested, evals,
                                   evecs_tridiag);
 
-      if (details_check_convergence(beta, num_requested, _tol, evecs_tridiag))
+      if (details_check_convergence(beta, dim_hessenberg, num_requested, _tol,
+                                    evecs_tridiag))
       {
         break;
       }
@@ -315,13 +319,11 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 /// \brief Lanczos solver: perform convergence check
 template <typename OperatorType, typename VectorType>
 bool Lanczos<OperatorType, VectorType>::details_check_convergence(
-    double beta, const int num_requested, double tol,
+    double beta, const int num_evecs, const int num_requested, double tol,
     std::vector<double> const &evecs) const
 {
-  const int n = evecs.size();
-
   // Must iterate at least until we have num_requested eigenpairs
-  if (n < num_requested)
+  if (num_evecs < num_requested)
     return false;
 
   bool is_converged = true;
@@ -333,7 +335,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
   // based on (estimate of) matrix norm or similar.
   for (int i = 0; i < num_requested; ++i)
   {
-    const double bound = beta * fabs(evecs[n - 1 + n * i]);
+    const double bound = beta * fabs(evecs[num_evecs - 1 + num_evecs * i]);
     is_converged = is_converged && bound <= tol;
   }
 
