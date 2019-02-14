@@ -24,8 +24,10 @@
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
-BOOST_DATA_TEST_CASE(lanczos, bdata::make({1, 2}) * bdata::make({false, true}),
-                     multiplicity, is_deflated)
+BOOST_DATA_TEST_CASE(lanczos,
+                     bdata::make({1, 2}) * bdata::make({false, true}) *
+                         bdata::make({1, 2, 3, 5}),
+                     multiplicity, is_deflated, n_distinct_eigenvalues)
 {
   using namespace mfmg;
 
@@ -33,13 +35,13 @@ BOOST_DATA_TEST_CASE(lanczos, bdata::make({1, 2}) * bdata::make({false, true}),
   using OperatorType = SimpleOperator<VectorType>;
 
   const int n = 1000;
-  const int n_distinct_eigenvalues = 3;
   const int n_eigenvectors = n_distinct_eigenvalues * multiplicity;
 
   OperatorType op(n, multiplicity);
 
   boost::property_tree::ptree lanczos_params;
   lanczos_params.put("is_deflated", is_deflated);
+  lanczos_params.put("num_eigenpairs", n_eigenvectors);
   if (is_deflated)
   {
     lanczos_params.put("num_cycles", multiplicity);
@@ -52,18 +54,19 @@ BOOST_DATA_TEST_CASE(lanczos, bdata::make({1, 2}) * bdata::make({false, true}),
       // Skip test when using regular Lanczos for multiplicities larger than 1
       return;
     }
-    lanczos_params.put("num_eigenpairs", n_eigenvectors);
   }
+
   lanczos_params.put("max_iterations", 200);
   lanczos_params.put("tolerance", 1e-2);
   lanczos_params.put("percent_overshoot", 5);
 
-  Lanczos<OperatorType, VectorType> solver(op, lanczos_params);
+  Lanczos<OperatorType, VectorType> solver(op);
 
-  solver.solve();
+  std::vector<double> computed_evals;
+  std::vector<VectorType> computed_evecs;
+  std::tie(computed_evals, computed_evecs) = solver.solve(lanczos_params);
 
   auto ref_evals = op.get_evals();
-  auto computed_evals = solver.get_evals();
 
   BOOST_TEST(computed_evals.size() == n_eigenvectors);
 

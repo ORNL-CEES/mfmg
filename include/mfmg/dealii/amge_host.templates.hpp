@@ -189,30 +189,27 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   else if (_eigensolver_type == "lanczos")
   {
     boost::property_tree::ptree lanczos_params;
+    lanczos_params.put("num_eigenpairs", n_eigenvectors);
+    lanczos_params.put("max_iterations", 200);
+    lanczos_params.put("tolerance", tolerance);
+    lanczos_params.put("percent_overshoot", 5);
 #if 0
     lanczos_params.put("is_deflated", true);
     lanczos_params.put("num_eigenpairs_per_cycle", 2);
     lanczos_params.put("num_cycles", 3);
-#else
-    lanczos_params.put("is_deflated", false);
-    lanczos_params.put("num_eigenpairs", n_eigenvectors);
 #endif
-    lanczos_params.put("max_iterations", 200);
-    lanczos_params.put("tolerance", tolerance);
-    lanczos_params.put("percent_overshoot", 5);
 
     Lanczos<dealii::SparseMatrix<double>, dealii::Vector<double>> solver(
-        agglomerate_system_matrix, lanczos_params);
+        agglomerate_system_matrix);
 
-    solver.solve();
-    ASSERT(n_eigenvectors == static_cast<unsigned int>(solver.num_evecs()),
+    std::vector<double> real_eigenvalues;
+    std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
+    ASSERT(n_eigenvectors == eigenvectors.size(),
            "Wrong number of computed eigenpairs");
 
-    // Copy the eigenvalues and the eigenvectors
+    // Copy real eigenvalues to complex
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
-      eigenvalues[i] = solver.get_eval(i);
-
-    eigenvectors = solver.get_evecs();
+      eigenvalues[i] = real_eigenvalues[i];
   }
   else
   {

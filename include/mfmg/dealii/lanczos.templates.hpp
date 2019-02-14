@@ -33,128 +33,101 @@ namespace mfmg
 
 /// \brief Lanczos solver: constructor
 template <typename OperatorType, typename VectorType>
-Lanczos<OperatorType, VectorType>::Lanczos(
-    OperatorType const &op, boost::property_tree::ptree const &params)
-    : _op(op)
+Lanczos<OperatorType, VectorType>::Lanczos(OperatorType const &op) : _op(op)
 {
-  _is_deflated = params.get<bool>("is_deflated");
-  _maxit = params.get<int>("max_iterations");
-  _tol = params.get<double>("tolerance");
-  _percent_overshoot = params.get<int>("percent_overshoot", 0);
-
-  assert(0 <= _percent_overshoot && _percent_overshoot <= 100);
-
-  if (_is_deflated)
-  {
-    _num_evecs_per_cycle = params.get<int>("num_eigenpairs_per_cycle");
-    _num_cycles = params.get<int>("num_cycles");
-
-    assert(_num_evecs_per_cycle >= 1);
-    assert(_num_cycles >= 1);
-    assert(_maxit >= _num_evecs_per_cycle &&
-           "maxit too small to produce required number of eigenvectors.");
-  }
-  else
-  {
-    _num_requested = params.get<int>("num_eigenpairs");
-
-    assert(_num_requested >= 1);
-    assert(_maxit >= _num_requested &&
-           "maxit too small to produce required number of eigenvectors.");
-  }
-
   assert(_op.m() == _op.n() && "Operator must be square");
-
-  assert(_maxit >= 0);
-  assert(_tol >= 0.);
-}
-
-/// \brief Lanczos solver: accessor for (approximate) eigenvalue
-template <typename OperatorType, typename VectorType>
-std::vector<double> const &Lanczos<OperatorType, VectorType>::get_evals() const
-{
-  return _evals;
-}
-
-template <typename OperatorType, typename VectorType>
-double Lanczos<OperatorType, VectorType>::get_eval(int i) const
-{
-  assert(i >= 0 && (size_t)i < _evals.size());
-  return _evals[i];
-}
-
-/// \brief Lanczos solver: accessor for (approximate) eigenvector
-template <typename OperatorType, typename VectorType>
-VectorType const &Lanczos<OperatorType, VectorType>::get_evec(int i) const
-{
-  assert(i >= 0 && (size_t)i < _evecs.size());
-  return _evecs[i];
-}
-
-/// \brief Lanczos solver: accessor for (approximate) eigenvectors
-template <typename OperatorType, typename VectorType>
-std::vector<VectorType> const &
-Lanczos<OperatorType, VectorType>::get_evecs() const
-{
-  return _evecs;
 }
 
 /// \brief Lanczos solver: perform Lanczos solve, use random initial guess
 template <typename OperatorType, typename VectorType>
-void Lanczos<OperatorType, VectorType>::solve()
+std::tuple<std::vector<double>, std::vector<VectorType>>
+Lanczos<OperatorType, VectorType>::solve(
+    boost::property_tree::ptree const &params) const
 {
-  // By default set initial guess to a random vector
-  VectorType initial_guess(_op.n());
+  const bool is_deflated = params.get<bool>("is_deflated", false);
 
-  if (!_is_deflated)
+  const int n_eigenvectors = params.get<int>("num_eigenpairs");
+
+  int num_cycles = 1;
+  int num_evecs_per_cycle = n_eigenvectors;
+  if (is_deflated)
   {
-    details_set_initial_guess(initial_guess);
-    details_solve_lanczos(_op, _num_requested, initial_guess, _evals, _evecs);
+    num_evecs_per_cycle = params.get<int>("num_eigenpairs_per_cycle");
+    num_cycles = params.get<int>("num_cycles");
   }
-  else
+
+  assert(num_cycles >= 1);
+  assert(num_evecs_per_cycle >= 1);
+
+  std::vector<double> evals;
+  std::vector<VectorType> evecs;
+
+  // Form deflated operator from original operator.
+  // NOTE: for regular Lanczos, it will never do any deflation
+  DeflatedOperator<OperatorType, VectorType> deflated_op(_op);
+
+  // Loop over Lanczos solves
+  VectorType initial_guess(_op.n());
+  for (int cycle = 0; cycle < num_cycles; ++cycle)
   {
-    // Form deflated operator from original operator
-    DeflatedOperator<OperatorType, VectorType> deflated_op(_op);
+    details_set_initial_guess(initial_guess, cycle);
 
-    // Loop over Lanczos solves
-    for (int cycle = 0; cycle < _num_cycles; ++cycle)
+    deflated_op.deflate(initial_guess);
+
+    std::vector<double> cycle_evals;
+    std::vector<VectorType> cycle_evecs;
+    std::tie(cycle_evals, cycle_evecs) = details_solve_lanczos(
+        deflated_op, num_evecs_per_cycle, params, initial_guess);
+
+    // Save the eigenpairs just calculated
+
+    // NOTE: throughout we use the term eigenpair (= eigenvector,
+    // eigenvalue), though the precise terminology should be "approximate
+    // eigenpairs" or "Ritz pairs."
+    for (int i = 0; i < num_evecs_per_cycle; ++i)
     {
-      details_set_initial_guess(initial_guess, cycle);
+      evals.push_back(cycle_evals[i]);
+      evecs.push_back(cycle_evecs[i]);
+    }
 
-      deflated_op.deflate(initial_guess);
-
-      std::vector<double> evals;
-      std::vector<VectorType> evecs;
-      details_solve_lanczos(deflated_op, _num_evecs_per_cycle, initial_guess,
-                            evals, evecs);
-
-      // Save the eigenpairs just calculated
-
-      // NOTE: throughout we use the term eigenpair (= eigenvector,
-      // eigenvalue), though the precise terminology should be "approximate
-      // eigenpairs" or "Ritz pairs."
-      for (int i = 0; i < _num_evecs_per_cycle; ++i)
-      {
-        _evals.push_back(evals[i]);
-        _evecs.push_back(evecs[i]);
-      }
-
-      // Add eigenvectors to the set of vectors being deflated out
-      if (cycle != _num_cycles - 1)
-        deflated_op.add_deflation_vecs(evecs);
+    // Add eigenvectors to the set of vectors being deflated out
+    // Do not deflate last cycle. For the regular Lanczos this means do not
+    // deflate ever.
+    if (cycle != num_cycles - 1)
+    {
+      deflated_op.add_deflation_vecs(cycle_evecs);
     }
   }
+
+  // Squeeze if num_cycles * num_eigenpairs_per_cycle > n_eigenvectors
+  evals.resize(n_eigenvectors);
+  evecs.resize(n_eigenvectors);
+
+  return std::make_tuple(evals, evecs);
 }
 
 /// \brief Lanczos solver: perform Lanczos solve
 template <typename OperatorType, typename VectorType>
 template <typename FullOperatorType>
-void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
+std::tuple<std::vector<double>, std::vector<VectorType>>
+Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     FullOperatorType const &op, const int num_requested,
-    VectorType const &initial_guess, std::vector<double> &evals,
-    std::vector<VectorType> &evecs) const
+    boost::property_tree::ptree const &params, VectorType const &initial_guess)
 {
+  const int maxit = params.get<int>("max_iterations");
+  const double tol = params.get<double>("tolerance");
+  const int percent_overshoot = params.get<int>("percent_overshoot", 0);
+
+  ASSERT(0 <= percent_overshoot && percent_overshoot < 100,
+         "Lanczos overshoot percentage should be in [0, 100)");
+  ASSERT(tol >= 0., "Lanczos tolerance must be non-negative");
+  ASSERT(maxit >= num_requested, "Lanczos max iterations is too small to "
+                                 "produce required number of eigenvectors.");
+
   const int n = op.n();
+
+  std::vector<double> evals;
+  std::vector<VectorType> evecs;
 
   // Initializations; first Lanczos vector.
   double alpha = 0;
@@ -174,7 +147,7 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
 
   // Lanczos iteration loop
   int it = 1;
-  for (int it_prev_check = 0; it <= _maxit; ++it)
+  for (int it_prev_check = 0; it <= maxit; ++it)
   {
     // Normalize lanczos vector
     assert(beta != 0); // TODO: set up better check for near-zero
@@ -207,20 +180,21 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     // Check convergence if requested
     // NOTE: an alternative here for p > 0 is
     // int((100./p)*ln(it)) > int((100./p)*ln(it-1))
-    const bool do_check =
-        it == 1 || it == _maxit ||
-        (100 * (it - it_prev_check) > _percent_overshoot * it_prev_check);
-    if (do_check)
+    bool const first_iteration = (it == 1);
+    bool const max_iterations_reached = (it == maxit);
+    bool const percent_overshoot_exceeded =
+        (100 * (it - it_prev_check) > percent_overshoot * it_prev_check);
+    if (first_iteration || max_iterations_reached || percent_overshoot_exceeded)
     {
       const int dim_hessenberg = it;
       ASSERT((size_t)dim_hessenberg == t_maindiag.size(), "Internal error");
 
-      // Calculate eigenpairs of tridiagonal matrix for convvergence test or at
+      // Calculate eigenpairs of tridiagonal matrix for convergence test or at
       // last iteration
-      details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested, evals,
-                                  evecs_tridiag);
+      std::tie(evals, evecs_tridiag) =
+          details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested);
 
-      if (details_check_convergence(beta, dim_hessenberg, num_requested, _tol,
+      if (details_check_convergence(beta, dim_hessenberg, num_requested, tol,
                                     evecs_tridiag))
       {
         break;
@@ -240,27 +214,32 @@ void Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   // operation differences.
   // ISSUE: we have not taken precautions here with regard to
   // potential impacts of loss of orthogonality of Lanczos vectors.
-  details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag, evecs);
+  evecs = details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag);
+
+  return std::make_tuple(evals, evecs);
 }
 
 /// \brief Lanczos solver: calculate eigenpairs from tridiagonal of Lanczos
 /// coefficients
 template <typename OperatorType, typename VectorType>
-void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
+std::tuple<std::vector<double>, std::vector<double>>
+Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::vector<double> const &t_maindiag, std::vector<double> const &t_offdiag,
-    const int num_requested, std::vector<double> &evals,
-    std::vector<double> &evecs) const
+    const int num_requested)
 {
   const int n = t_maindiag.size();
+
+  std::vector<double> evals;
+  std::vector<double> evecs; // flat array
 
   assert(n >= 1);
   assert(t_offdiag.size() == (size_t)(n - 1));
 
   // Allocate storage
   std::vector<double> matrix(n * n, 0.);
-  std::vector<double> t_evals_r(n, 0.);
-  std::vector<double> t_evals_i(n, 0.);
-  std::vector<double> t_evecs(n * n, 0.);
+  std::vector<double> t_evals_r(n);
+  std::vector<double> t_evals_i(n);
+  std::vector<double> t_evecs(n * n);
 
   // Copy diagonals of the tridiagonal matrix into the full matrix
   matrix[0] = t_maindiag[0];
@@ -272,11 +251,8 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   }
 
   // LAPACK eigenvalue/vector solve.
-
   // NOTE: this part can be replaced if desired with some platform-specific
   // library.
-  // NOTE: for accuracy we are using double here rather than double;
-  // may not be needed.
   // ISSUE: LAPACK has other solvers that might be more efficient here.
 
   // Do all in double, regardless of double (for now)
@@ -285,17 +261,17 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
       t_evals_i.data(), NULL, n, t_evecs.data(), n);
   ASSERT(!info, "Call to LAPACKE_dgeev failed.");
 
-  // Compute permutation for ascending order
-  std::vector<int> perm_index(n);
-  std::iota(perm_index.begin(), perm_index.end(), 0);
-  std::sort(perm_index.begin(), perm_index.end(),
-            [&](int i, int j) { return t_evals_r[i] < t_evals_r[j]; });
-
   // Save results.
   // FIXME: this does not follow details style, it should do a single thing
   // unconditionally
   if (n >= num_requested)
   {
+    // Compute permutation for ascending order
+    std::vector<int> perm_index(n);
+    std::iota(perm_index.begin(), perm_index.end(), 0);
+    std::sort(perm_index.begin(), perm_index.end(),
+              [&](int i, int j) { return t_evals_r[i] < t_evals_r[j]; });
+
     evals.resize(num_requested);
     evecs.resize(n * num_requested);
 
@@ -314,13 +290,15 @@ void Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
                      [norm](auto &v) { return v / norm; });
     }
   }
+
+  return std::make_tuple(evals, evecs);
 }
 
 /// \brief Lanczos solver: perform convergence check
 template <typename OperatorType, typename VectorType>
 bool Lanczos<OperatorType, VectorType>::details_check_convergence(
     double beta, const int num_evecs, const int num_requested, double tol,
-    std::vector<double> const &evecs) const
+    std::vector<double> const &evecs)
 {
   // Must iterate at least until we have num_requested eigenpairs
   if (num_evecs < num_requested)
@@ -335,7 +313,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
   // based on (estimate of) matrix norm or similar.
   for (int i = 0; i < num_requested; ++i)
   {
-    const double bound = beta * fabs(evecs[num_evecs - 1 + num_evecs * i]);
+    const double bound = beta * std::abs(evecs[num_evecs - 1 + num_evecs * i]);
     is_converged = is_converged && bound <= tol;
   }
 
@@ -345,17 +323,14 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
 /// \brief Lanczos solver: calculate full (approx) eigenvectors from tridiag
 /// eigenvectors
 template <typename OperatorType, typename VectorType>
-void Lanczos<OperatorType, VectorType>::details_calc_evecs(
+std::vector<VectorType> Lanczos<OperatorType, VectorType>::details_calc_evecs(
     const int num_requested, const int n,
     std::vector<VectorType> const &lanc_vectors,
-    std::vector<double> const &evecs_tridiag,
-    std::vector<VectorType> &evecs) const
+    std::vector<double> const &evecs_tridiag)
 {
-  assert(evecs.empty());
-
   auto dim = lanc_vectors[0].size();
 
-  evecs.resize(num_requested, VectorType(dim));
+  std::vector<VectorType> evecs(num_requested, VectorType(dim));
 
   // Matrix-matrix product to convert tridiagonal eigenvectors to operator
   // eigenvectors
@@ -365,20 +340,23 @@ void Lanczos<OperatorType, VectorType>::details_calc_evecs(
     for (int j = 0; j < n; ++j)
       evecs[i].add(evecs_tridiag[j + n * i], lanc_vectors[j]);
   }
+
+  return evecs;
 }
 
-// Initial guess is a linear combination of a
-// constant vector (to try to capture "smooth" eigenmodes of PDE problems)
-// and a random vector based on different random seeds.
-// ISSUE: should a different initial guess strategy be used?
 template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_set_initial_guess(
-    VectorType &initial_guess, int seed) const
+    VectorType &initial_guess, int seed)
 {
+  // Set initial guess to constant vector to try to capture "smooth" eigenmodes
+  // of PDE problems
+  initial_guess = 1.;
+
+  // Add random noise to the guess
   std::mt19937 gen(seed);
   std::uniform_real_distribution<double> dist(0, 1);
-  std::generate(initial_guess.begin(), initial_guess.end(),
-                [&]() { return 1 + dist(gen); });
+  std::transform(initial_guess.begin(), initial_guess.end(),
+                 initial_guess.begin(), [&](auto &v) { return v + dist(gen); });
 }
 
 } // namespace mfmg

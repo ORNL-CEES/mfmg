@@ -25,14 +25,18 @@ namespace mfmg
 //-----------------------------------------------------------------------------
 /// \brief Deflated operator
 ///
-///        Given an undeflated operator, a new operator is constructed
-///        with a subspace represented by a set of vectors projected out.
+/// Given an undeflated operator, a new operator is constructed
+/// with a subspace represented by a set of vectors projected out.
 
 template <typename OperatorType, typename VectorType>
 class DeflatedOperator
 {
 public:
   DeflatedOperator(OperatorType const &op);
+
+  DeflatedOperator(DeflatedOperator<OperatorType, VectorType> const &) = delete;
+  DeflatedOperator<OperatorType, VectorType> &
+  operator=(DeflatedOperator<OperatorType, VectorType> const &) = delete;
 
   // Operations
   void vmult(VectorType &y, VectorType const &x) const;
@@ -46,12 +50,7 @@ public:
 
 private:
   OperatorType const &_base_op; // reference to the base operator object
-
   std::vector<VectorType> _deflation_vecs; // vectors to deflate out
-
-  // Disallowed methods
-  DeflatedOperator(const DeflatedOperator<OperatorType, VectorType> &) = delete;
-  void operator=(const DeflatedOperator<OperatorType, VectorType> &) = delete;
 };
 
 } // namespace mfmg
