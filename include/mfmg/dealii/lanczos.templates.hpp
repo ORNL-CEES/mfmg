@@ -229,66 +229,44 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 {
   const int n = t_maindiag.size();
 
-  std::vector<double> evals;
-  std::vector<double> evecs; // flat array
-
   assert(n >= 1);
   assert(t_offdiag.size() == (size_t)(n - 1));
 
+  std::vector<double> evals;
+  std::vector<double> evecs; // flat array
+
+  if (n < num_requested)
+    return std::make_tuple(evals, evecs);
+
   // Allocate storage
   std::vector<double> matrix(n * n, 0.);
-  std::vector<double> t_evals_r(n);
-  std::vector<double> t_evals_i(n);
-  std::vector<double> t_evecs(n * n);
 
   // Copy diagonals of the tridiagonal matrix into the full matrix
   matrix[0] = t_maindiag[0];
   for (int i = 1; i < n; ++i)
   {
     matrix[i + n * i] = t_maindiag[i];
-    matrix[i + n * (i - 1)] = t_offdiag[i - 1];
     matrix[i - 1 + n * i] = t_offdiag[i - 1];
   }
 
-  // LAPACK eigenvalue/vector solve.
-  // NOTE: this part can be replaced if desired with some platform-specific
-  // library.
-  // ISSUE: LAPACK has other solvers that might be more efficient here.
-
-  // Do all in double, regardless of double (for now)
-  const lapack_int info = LAPACKE_dgeev(
-      LAPACK_COL_MAJOR, 'N', 'V', n, matrix.data(), n, t_evals_r.data(),
-      t_evals_i.data(), NULL, n, t_evecs.data(), n);
-  ASSERT(!info, "Call to LAPACKE_dgeev failed.");
+  // Eigenvalues are returned in ascending order
+  evals.resize(n);
+  const lapack_int info = LAPACKE_dsyev(LAPACK_COL_MAJOR, 'V', 'U', n,
+                                        matrix.data(), n, evals.data());
+  ASSERT(!info, "Call to LAPACKE_dsyev failed.");
 
   // Save results.
-  // FIXME: this does not follow details style, it should do a single thing
-  // unconditionally
-  if (n >= num_requested)
+  evals.resize(num_requested);
+  evecs.resize(n * num_requested);
+  for (int i = 0; i < num_requested; ++i)
   {
-    // Compute permutation for ascending order
-    std::vector<int> perm_index(n);
-    std::iota(perm_index.begin(), perm_index.end(), 0);
-    std::sort(perm_index.begin(), perm_index.end(),
-              [&](int i, int j) { return t_evals_r[i] < t_evals_r[j]; });
-
-    evals.resize(num_requested);
-    evecs.resize(n * num_requested);
-
-    for (int i = 0; i < num_requested; ++i)
-    {
-      const int si = perm_index[i];
-
-      evals[i] = t_evals_r[si];
-
-      auto first = evecs.begin() + n * i;
-      auto t_first = t_evecs.begin() + n * si;
-      auto t_last = t_first + n;
-      double const norm =
-          std::sqrt(std::inner_product(t_first, t_last, t_first, 0.));
-      std::transform(t_first, t_last, first,
-                     [norm](auto &v) { return v / norm; });
-    }
+    auto first = evecs.begin() + n * i;
+    auto t_first = matrix.begin() + n * i;
+    auto t_last = t_first + n;
+    double const norm =
+        std::sqrt(std::inner_product(t_first, t_last, t_first, 0.));
+    std::transform(t_first, t_last, first,
+                   [norm](auto &v) { return v / norm; });
   }
 
   return std::make_tuple(evals, evecs);
