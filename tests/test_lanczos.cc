@@ -71,7 +71,6 @@ BOOST_DATA_TEST_CASE(lanczos,
   BOOST_TEST(computed_evals.size() == n_eigenvectors);
 
   // Loop to ensure each Ritz value is near an eigenvalue.
-  // TODO: make a more complete check of correctness of result
   const double tolerance =
       lanczos_params.get<double>("tolerance"); // this may need adjustment
 

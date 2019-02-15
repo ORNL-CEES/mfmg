@@ -12,8 +12,6 @@
 #ifndef MFMG_LANCZOS_LANCZOS_HPP
 #define MFMG_LANCZOS_LANCZOS_HPP
 
-#include <mfmg/common/operator.hpp>
-
 #include <boost/property_tree/ptree.hpp>
 
 #include <memory>

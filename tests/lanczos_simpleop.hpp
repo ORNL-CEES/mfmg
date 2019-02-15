@@ -13,7 +13,6 @@
 #define MFMG_LANCZOS_SIMPLEOP_HPP
 
 #include <mfmg/common/exceptions.hpp>
-#include <mfmg/common/operator.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -37,6 +36,10 @@ public:
 
   SimpleOperator(size_t dim, size_t multiplicity = 1);
 
+  SimpleOperator(const SimpleOperator<VectorType> &) = delete;
+  SimpleOperator<VectorType> &
+  operator=(const SimpleOperator<VectorType> &) = delete;
+
   std::vector<double> get_evals() const;
 
   void vmult(VectorType &y, VectorType const &x) const;
@@ -50,10 +53,6 @@ private:
 
   // This will be a diagonal matrix; specify the diag entries here
   double diag_value_(size_t i) const { return 1 + i / _multiplicity; }
-
-  // Disallowed methods
-  SimpleOperator(const SimpleOperator<VectorType> &) = delete;
-  void operator=(const SimpleOperator<VectorType> &) = delete;
 }; // namespace mfmg
 
 } // namespace mfmg

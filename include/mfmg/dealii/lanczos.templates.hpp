@@ -13,8 +13,6 @@
 #define MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
 
 #include <algorithm>
-#include <cassert>
-#include <iostream>
 #include <random>
 #include <vector>
 
@@ -35,7 +33,7 @@ namespace mfmg
 template <typename OperatorType, typename VectorType>
 Lanczos<OperatorType, VectorType>::Lanczos(OperatorType const &op) : _op(op)
 {
-  assert(_op.m() == _op.n() && "Operator must be square");
+  ASSERT(_op.m() == _op.n(), "Operator must be square");
 }
 
 /// \brief Lanczos solver: perform Lanczos solve, use random initial guess
@@ -56,8 +54,9 @@ Lanczos<OperatorType, VectorType>::solve(
     num_cycles = params.get<int>("num_cycles");
   }
 
-  assert(num_cycles >= 1);
-  assert(num_evecs_per_cycle >= 1);
+  ASSERT(num_cycles >= 1, "Number of cycles must be positive");
+  ASSERT(num_evecs_per_cycle >= 1,
+         "Number of computed eigenpairs per cycle must be positive");
 
   std::vector<double> evals;
   std::vector<VectorType> evecs;
@@ -150,7 +149,8 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   for (int it_prev_check = 0; it <= maxit; ++it)
   {
     // Normalize lanczos vector
-    assert(beta != 0); // TODO: set up better check for near-zero
+    ASSERT(beta, "Internal error"); // TODO: set up better check for near-zero
+
     lanc_vectors[it - 1] /= beta;
 
     if (lanc_vectors.size() < static_cast<size_t>(it + 1))
@@ -204,7 +204,8 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
       it_prev_check = it;
     }
   }
-  assert(it >= num_requested);
+  ASSERT(it >= num_requested,
+         "Internal error: required number of iterations not reached");
 
   // Calculate full operator eigenvectors from tridiagonal eigenvectors.
   // ISSUE: may be needed to modify this code to not save all Lanczos vectors
@@ -229,8 +230,9 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 {
   const int n = t_maindiag.size();
 
-  assert(n >= 1);
-  assert(t_offdiag.size() == (size_t)(n - 1));
+  ASSERT(n >= 1, "Internal error: tridigonal matrix size must be positive");
+  ASSERT(t_offdiag.size() == (size_t)(n - 1),
+         "Internal error: mismatch in main and off-diagonal sizes");
 
   std::vector<double> evals;
   std::vector<double> evecs; // flat array

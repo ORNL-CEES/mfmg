@@ -208,8 +208,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
            "Wrong number of computed eigenpairs");
 
     // Copy real eigenvalues to complex
-    for (unsigned int i = 0; i < n_eigenvectors; ++i)
-      eigenvalues[i] = real_eigenvalues[i];
+    std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
+              eigenvalues.begin());
   }
   else
   {

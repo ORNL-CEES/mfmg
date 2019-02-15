@@ -12,7 +12,6 @@
 #ifndef MFMG_LANCZOS_DEFLATEDOP_TEMPLATE_HPP
 #define MFMG_LANCZOS_DEFLATEDOP_TEMPLATE_HPP
 
-#include <cassert>
 #include <cmath>
 
 #include "lanczos_deflatedop.hpp"
@@ -104,7 +103,8 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
 
     // FIXME: we are not accounting for possible rank deficiency here
     double norm = std::sqrt(dot_best);
-    assert(norm); // FIXME need better test for near-zero here.
+    ASSERT(norm, "Internal error: zero norm"); // FIXME need better test for
+                                               // near-zero here.
     _deflation_vecs[perm_ind[i]] /= norm;
 
     // Orthogonalize all later vectors against this one
