@@ -121,8 +121,8 @@ Lanczos<OperatorType, VectorType>::solve(
       sorted_evals[i] = evals[perm_index[i]];
       sorted_evecs[i] = evecs[perm_index[i]];
     }
-    std::swap(evals, sorted_evals);
-    std::swap(evecs, sorted_evecs);
+    evals = sorted_evals;
+    evecs = sorted_evecs;
   }
 
   return std::make_tuple(evals, evecs);

@@ -128,7 +128,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
-  auto eigensolver_type = _eigensolver_params.get("type", "arpack");
+  auto const eigensolver_type =
+      _eigensolver_params.get<std::string>("type", "arpack");
   if (eigensolver_type == "arpack")
   {
     // Make Identity mass matrix

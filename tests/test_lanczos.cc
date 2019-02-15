@@ -80,6 +80,15 @@ BOOST_DATA_TEST_CASE(lanczos,
   for (int i = 0; i < n_eigenvectors; i++)
     BOOST_TEST(computed_evals[i] == ref_evals[i], tt::tolerance(tolerance));
 
+  // Testing eigenvectors is tricky. Specifically, when multiplicity > 1, one
+  // gets a subspace of possible solutions. One way to test that is to
+  //   a) test that each eigenvector is indeed an eigenvector correponsding to
+  //   the eigenvalue
+  //   b) test that the eigenvectors corresponding to the same eigenvalue are
+  //   orthogonal
+  // In addition, from the numerical perspective, one should also care about
+  // scaling/normalization things. It is also unclear what tolerance should be
+  // used here.  For now, we are just happy to have something here.
   for (int i = 0; i < n_eigenvectors; i++)
   {
     VectorType result(n);
