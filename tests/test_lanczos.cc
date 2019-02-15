@@ -79,4 +79,12 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   for (int i = 0; i < n_eigenvectors; i++)
     BOOST_TEST(computed_evals[i] == ref_evals[i], tt::tolerance(tolerance));
+
+  for (int i = 0; i < n_eigenvectors; i++)
+  {
+    VectorType result(n);
+    op.vmult(result, computed_evecs[i]);
+    result.add(-computed_evals[i], computed_evecs[i]);
+    BOOST_TEST(result.l2_norm() < tolerance);
+  }
 }
