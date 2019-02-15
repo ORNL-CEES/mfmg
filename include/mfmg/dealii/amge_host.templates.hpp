@@ -13,6 +13,7 @@
 #define AMGE_HOST_TEMPLATES_HPP
 
 #include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/lanczos.templates.hpp>
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -83,9 +84,9 @@ struct NoOp
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-    std::string const eigensolver_type)
+    boost::property_tree::ptree const &eigensolver_params)
     : AMGe<dim, VectorType>(comm, dof_handler),
-      _eigensolver_type(eigensolver_type)
+      _eigensolver_params(eigensolver_params)
 {
 }
 
@@ -127,7 +128,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
-  if (_eigensolver_type == "arpack")
+  auto const eigensolver_type =
+      _eigensolver_params.get<std::string>("type", "arpack");
+  if (eigensolver_type == "arpack")
   {
     // Make Identity mass matrix
     dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
@@ -185,7 +188,39 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
                  inv_system_matrix, eigenvalues, eigenvectors);
   }
-  else
+  else if (eigensolver_type == "lanczos")
+  {
+    boost::property_tree::ptree lanczos_params;
+    lanczos_params.put("num_eigenpairs", n_eigenvectors);
+    lanczos_params.put("tolerance", tolerance);
+    lanczos_params.put("max_iterations",
+                       _eigensolver_params.get("max_iterations", 200));
+    lanczos_params.put("percent_overshoot",
+                       _eigensolver_params.get("percent_overshoot", 5));
+    bool is_deflated = _eigensolver_params.get("is_deflated", false);
+    if (is_deflated)
+    {
+      lanczos_params.put("is_deflated", true);
+      lanczos_params.put("num_cycles",
+                         _eigensolver_params.get<int>("num_cycles"));
+      lanczos_params.put(
+          "num_eigenpairs_per_cycle",
+          _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
+    }
+
+    Lanczos<dealii::SparseMatrix<double>, dealii::Vector<double>> solver(
+        agglomerate_system_matrix);
+
+    std::vector<double> real_eigenvalues;
+    std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
+    ASSERT(n_eigenvectors == eigenvectors.size(),
+           "Wrong number of computed eigenpairs");
+
+    // Copy real eigenvalues to complex
+    std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
+              eigenvalues.begin());
+  }
+  else if (eigensolver_type == "lapack")
   {
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
@@ -206,6 +241,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
       for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
         eigenvectors[i][j] = lapack_eigenvectors[j][i];
+  }
+  else
+  {
+    ASSERT(true, "Unknown eigensolver type");
   }
 
   // Compute the map between the local and the global dof indices.

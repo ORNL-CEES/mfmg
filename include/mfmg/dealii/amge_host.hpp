@@ -23,7 +23,8 @@ public:
   using ScalarType = typename VectorType::value_type;
 
   AMGe_host(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-            std::string const eigensolver_type = "arpack");
+            boost::property_tree::ptree const &eigensolver_params =
+                boost::property_tree::ptree());
 
   /**
    * Compute the eigenvalues and the eigenvectors. This functions takes as
@@ -103,7 +104,7 @@ private:
                            &dof_indices_maps,
                        std::vector<unsigned int> &n_local_eigenvectors);
 
-  std::string const _eigensolver_type;
+  boost::property_tree::ptree _eigensolver_params;
 };
 } // namespace mfmg
 
