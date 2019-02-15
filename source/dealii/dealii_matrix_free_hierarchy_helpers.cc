@@ -51,8 +51,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 
   auto eigensolver_params = params->get_child("eigensolver");
   AMGe_host<dim, DealIIMatrixFreeMeshEvaluator<dim>, VectorType> amge(
-      comm, dealii_mesh_evaluator->get_dof_handler(),
-      eigensolver_params.get("type", "arpack"));
+      comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params);
 
   auto agglomerate_params = params->get_child("agglomeration");
   int n_eigenvectors = eigensolver_params.get("number of eigenvectors", 1);
