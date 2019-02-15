@@ -102,6 +102,29 @@ Lanczos<OperatorType, VectorType>::solve(
   evals.resize(n_eigenvectors);
   evecs.resize(n_eigenvectors);
 
+  // Sort eigenvalues in ascending order if we run multiple Lanczos
+  // The reason is that while each Lanczos solve produces sorted eigenvalues,
+  // they may be the same, and thus need to be interleaved
+  if (num_cycles > 1)
+  {
+    std::vector<double> sorted_evals(n_eigenvectors);
+    std::vector<VectorType> sorted_evecs(n_eigenvectors);
+
+    // Compute permutation for ascending order
+    std::vector<int> perm_index(n_eigenvectors);
+    std::iota(perm_index.begin(), perm_index.end(), 0);
+    std::sort(perm_index.begin(), perm_index.end(),
+              [&](int i, int j) { return evals[i] < evals[j]; });
+
+    for (int i = 0; i < n_eigenvectors; i++)
+    {
+      sorted_evals[i] = evals[perm_index[i]];
+      sorted_evecs[i] = evecs[perm_index[i]];
+    }
+    std::swap(evals, sorted_evals);
+    std::swap(evecs, sorted_evecs);
+  }
+
   return std::make_tuple(evals, evecs);
 }
 
