@@ -61,7 +61,6 @@ struct NotAMatrix
   NotAMatrix(MeshEvaluator const &mesh_evaluator, DoFHandler &dof_handler,
              dealii::AffineConstraints<double> &constraints)
   {
-    dealii::SparsityPattern sparsity_pattern;
     mesh_evaluator.evaluate_agglomerate(dof_handler, constraints,
                                         sparsity_pattern, _matrix);
   }
@@ -88,6 +87,7 @@ struct NotAMatrix
   SizeType n() const { return _matrix.n(); }
 
 private:
+  dealii::SparsityPattern sparsity_pattern;
   MatrixType _matrix;
 };
 
