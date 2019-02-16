@@ -28,16 +28,10 @@
 
 #define MATRIX_FREE 1
 
-// APPROACH1: use UMFPACK to invert the matrix
-// APPROACH3: do not need invert, use ARPACK regular mode instead of
-//            shift-and-invert mode
-
-#define APPROACH1
-
 namespace mfmg
 {
 
-#if defined(APPROACH3)
+#if MATRIX_FREE
 struct NoOp
 {
   template <typename VectorType>
@@ -115,25 +109,17 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < size; ++i)
       agglomerate_mass_matrix.diag_element(i) = 1.;
 
-#if defined(APPROACH1)
+#if MATRIX_FREE
+    NoOp inv_system_matrix;
+#else
     dealii::SparseDirectUMFPACK inv_system_matrix;
     inv_system_matrix.initialize(agglomerate_system_matrix);
-#elif defined(APPROACH3)
-    NoOp inv_system_matrix;
 #endif
 
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
-#if defined(APPROACH1)
-    // We want the eigenvalues of the smallest magnitudes but we need to ask for
-    // the ones with the largest magnitudes because they are computed for the
-    // inverse of the matrix we care about.
-    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
-        dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
-    dealii::ArpackSolver::AdditionalData additional_data(
-        n_arnoldi_vectors, which_eigenvalues, symmetric);
-#elif defined(APPROACH3)
+#if MATRIX_FREE
     dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
         dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
     // We want to solve a standard eigenvalue problem A*x = lambda*x
@@ -144,6 +130,14 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
         problem_type);
+#else
+    // We want the eigenvalues of the smallest magnitudes but we need to ask for
+    // the ones with the largest magnitudes because they are computed for the
+    // inverse of the matrix we care about.
+    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+        dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
+    dealii::ArpackSolver::AdditionalData additional_data(
+        n_arnoldi_vectors, which_eigenvalues, symmetric);
 #endif
     dealii::ArpackSolver solver(solver_control, additional_data);
 
