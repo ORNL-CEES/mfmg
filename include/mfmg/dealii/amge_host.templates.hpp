@@ -26,6 +26,8 @@
 
 #include <EpetraExt_MatrixMatrix.h>
 
+#define MATRIX_FREE 1
+
 // APPROACH1: use UMFPACK to invert the matrix
 // APPROACH2: use CG to invert
 // APPROACH3: do not need invert, use ARPACK regular mode instead of
@@ -222,6 +224,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else if (eigensolver_type == "lapack")
   {
+#if MATRIX_FREE
+    throw std::runtime_error(
+        "LAPACK not available as eigensolver in matrix-free mode");
+#else
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
     full_matrix.copy_from(agglomerate_system_matrix);
@@ -241,6 +247,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
       for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
         eigenvectors[i][j] = lapack_eigenvectors[j][i];
+#endif
   }
   else
   {
