@@ -26,7 +26,7 @@
 
 #include <EpetraExt_MatrixMatrix.h>
 
-#define MATRIX_FREE 1
+#define MATRIX_FREE 0
 
 namespace mfmg
 {
