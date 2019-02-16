@@ -29,7 +29,6 @@
 #define MATRIX_FREE 1
 
 // APPROACH1: use UMFPACK to invert the matrix
-// APPROACH2: use CG to invert
 // APPROACH3: do not need invert, use ARPACK regular mode instead of
 //            shift-and-invert mode
 
@@ -37,37 +36,6 @@
 
 namespace mfmg
 {
-
-#if defined(APPROACH2)
-template <typename MatrixType>
-struct WrapInverse
-{
-  // NOTE I'd have liked to have SolverCG as data member but I gave up for now
-  // because it was getting very frustrating
-  // * SolverCG::solve is not marked as const so I'd have to make the solver
-  // mutable
-  // * The Solver base class takes a non const reference to SolverControl
-  WrapInverse(MatrixType const &sparse_matrix, unsigned int max_iterations,
-              double tolerance)
-      : _sparse_matrix(sparse_matrix), _max_iterations(max_iterations),
-        _tolerance(tolerance)
-  {
-  }
-  // template <typename VectorType>
-  using VectorType = dealii::Vector<double>;
-  void vmult(VectorType &dst, const VectorType &src) const
-  {
-    // Unefficient but that will do for now
-    dealii::SolverControl solver_control(_max_iterations, _tolerance);
-    dealii::SolverCG<VectorType> solver(solver_control);
-    solver.solve(_sparse_matrix, dst, src, dealii::PreconditionIdentity());
-  }
-
-  MatrixType const &_sparse_matrix;
-  unsigned int const _max_iterations;
-  double const _tolerance;
-};
-#endif
 
 #if defined(APPROACH3)
 struct NoOp
@@ -150,9 +118,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 #if defined(APPROACH1)
     dealii::SparseDirectUMFPACK inv_system_matrix;
     inv_system_matrix.initialize(agglomerate_system_matrix);
-#elif defined(APPROACH2)
-    WrapInverse<dealii::SparseMatrix<value_type>> inv_system_matrix(
-        agglomerate_system_matrix, 1000 * n_dofs_agglomerate, .1 * tolerance);
 #elif defined(APPROACH3)
     NoOp inv_system_matrix;
 #endif
@@ -160,7 +125,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
-#if defined(APPROACH1) || defined(APPROACH2)
+#if defined(APPROACH1)
     // We want the eigenvalues of the smallest magnitudes but we need to ask for
     // the ones with the largest magnitudes because they are computed for the
     // inverse of the matrix we care about.
