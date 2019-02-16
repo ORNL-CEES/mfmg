@@ -52,6 +52,45 @@ struct NoOp
   }
 };
 
+struct NotAMatrix
+{
+  using MatrixType = dealii::SparseMatrix<double>;
+  using SizeType = MatrixType::size_type;
+
+  template <typename MeshEvaluator, typename DoFHandler>
+  NotAMatrix(MeshEvaluator const &mesh_evaluator, DoFHandler &dof_handler,
+             dealii::AffineConstraints<double> &constraints)
+  {
+    dealii::SparsityPattern sparsity_pattern;
+    mesh_evaluator.evaluate_agglomerate(dof_handler, constraints,
+                                        sparsity_pattern, _matrix);
+  }
+
+  template <typename VectorType>
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    _matrix.vmult(dst, src);
+  }
+
+  std::vector<double> get_diag_elements() const
+  {
+    unsigned int const size = _matrix.m();
+    std::vector<double> diag_elements(size);
+    for (unsigned int i = 0; i < size; ++i)
+    {
+      diag_elements[i] = _matrix.diag_element(i);
+    }
+    return diag_elements;
+  }
+
+  SizeType m() const { return _matrix.m(); }
+
+  SizeType n() const { return _matrix.n(); }
+
+private:
+  MatrixType _matrix;
+};
+
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
     MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
@@ -78,6 +117,11 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
+#if MATRIX_FREE
+  NotAMatrix agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
+                                       agglomerate_constraints);
+  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
+#else
   dealii::SparsityPattern agglomerate_sparsity_pattern;
   dealii::SparseMatrix<value_type> agglomerate_system_matrix;
 
@@ -91,6 +135,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<ScalarType> diag_elements(size);
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
+#endif
 
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
@@ -166,7 +211,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
           _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
     }
 
-    Lanczos<dealii::SparseMatrix<double>, dealii::Vector<double>> solver(
+    using MatrixType = decltype(agglomerate_system_matrix);
+    Lanczos<MatrixType, dealii::Vector<double>> solver(
         agglomerate_system_matrix);
 
     std::vector<double> real_eigenvalues;
