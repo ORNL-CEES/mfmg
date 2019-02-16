@@ -40,7 +40,6 @@ struct Identity
   }
 };
 
-#if MATRIX_FREE
 struct NoOp
 {
   template <typename VectorType>
@@ -52,7 +51,6 @@ struct NoOp
     throw std::runtime_error("should never get here");
   }
 };
-#endif
 
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
