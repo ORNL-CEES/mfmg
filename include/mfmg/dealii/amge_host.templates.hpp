@@ -48,7 +48,7 @@ struct NoOp
     std::ignore = src;
     std::ignore = dst;
     // Raise an error to make sure nobody uses this by inadvertance
-    throw std::runtime_error("should never get here");
+    throw std::logic_error("should never get here");
   }
 };
 
