@@ -251,7 +251,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else
   {
-    ASSERT(true, "Unknown eigensolver type");
+    ASSERT(true, "Unknown eigensolver type '" + eigensolver_type + "'");
   }
 
   // Compute the map between the local and the global dof indices.
