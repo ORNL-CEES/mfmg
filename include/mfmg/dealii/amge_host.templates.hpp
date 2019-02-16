@@ -120,10 +120,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
 #if MATRIX_FREE
-    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+    auto const which_eigenvalues =
         dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
     // We want to solve a standard eigenvalue problem A*x = lambda*x
-    dealii::ArpackSolver::WhichEigenvalueProblem problem_type =
+    auto const problem_type =
         dealii::ArpackSolver::WhichEigenvalueProblem::standard;
     // We want to use ARPACK's regular mode to avoid having to compute inverses.
     auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
@@ -134,7 +134,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     // We want the eigenvalues of the smallest magnitudes but we need to ask for
     // the ones with the largest magnitudes because they are computed for the
     // inverse of the matrix we care about.
-    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+    auto const which_eigenvalues =
         dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric);
