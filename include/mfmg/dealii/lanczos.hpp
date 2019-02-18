@@ -55,6 +55,11 @@ private:
                                         const int num_requested, double tol,
                                         std::vector<double> const &evecs);
 
+  static bool
+  details_check_convergence_stupid(std::vector<double> const &old_evals,
+                                   std::vector<double> const &new_evals,
+                                   double tolerance);
+
   static std::vector<VectorType>
   details_calc_evecs(const int num_requested, const int n,
                      std::vector<VectorType> const &lanc_vectors,

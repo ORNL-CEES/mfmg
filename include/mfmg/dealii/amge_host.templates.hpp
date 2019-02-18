@@ -192,7 +192,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   {
     boost::property_tree::ptree lanczos_params;
     lanczos_params.put("num_eigenpairs", n_eigenvectors);
-    lanczos_params.put("tolerance", tolerance);
+    // lanczos_params.put("tolerance", tolerance);
+    lanczos_params.put("tolerance", 1e-6);
     lanczos_params.put("max_iterations",
                        _eigensolver_params.get("max_iterations", 200));
     lanczos_params.put("percent_overshoot",

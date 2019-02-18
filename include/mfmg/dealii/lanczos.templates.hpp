@@ -214,8 +214,18 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
 
       // Calculate eigenpairs of tridiagonal matrix for convergence test or at
       // last iteration
-      std::tie(evals, evecs_tridiag) =
+      std::vector<double> iteration_evals;
+      std::tie(iteration_evals, evecs_tridiag) =
           details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested);
+
+      // Stupid heuristic check
+      // Cause the regular may do "interesting" things when run long enough
+      if (evals.size() == num_requested &&
+          details_check_convergence_stupid(evals, iteration_evals, tol))
+      {
+        break;
+      }
+      evals = iteration_evals;
 
       if (details_check_convergence(beta, dim_hessenberg, num_requested, tol,
                                     evecs_tridiag))
@@ -241,7 +251,7 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   evecs = details_calc_evecs(num_requested, it, lanc_vectors, evecs_tridiag);
 
   return std::make_tuple(evals, evecs);
-}
+} // namespace mfmg
 
 /// \brief Lanczos solver: calculate eigenpairs from tridiagonal of Lanczos
 /// coefficients
@@ -319,6 +329,21 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
     const double bound = beta * std::abs(evecs[num_evecs - 1 + num_evecs * i]);
     is_converged = is_converged && bound <= tol;
   }
+
+  return is_converged;
+}
+
+/// \brief Lanczos solver: perform convergence check (stupid version)
+template <typename OperatorType, typename VectorType>
+bool Lanczos<OperatorType, VectorType>::details_check_convergence_stupid(
+    std::vector<double> const &old_evals, std::vector<double> const &new_evals,
+    double tolerance)
+{
+  ASSERT(old_evals.size() == new_evals.size(), "Size mismatch");
+
+  bool is_converged = false;
+  for (int i = 0; i < old_evals.size(); i++)
+    is_converged |= (std::abs(old_evals[i] / new_evals[i] - 1.0) < tolerance);
 
   return is_converged;
 }
