@@ -63,6 +63,7 @@ struct WrapMatrixOp
   {
     mesh_evaluator.evaluate_agglomerate(dof_handler, constraints,
                                         _sparsity_pattern, _matrix);
+    ASSERT(_matrix.m() == _matrix.n(), "requires a square matrix");
   }
 
   template <typename VectorType>
