@@ -161,57 +161,17 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
-  // Map between the cells on the boundary and the faces on the boundary and the
-  // associated boundary id.
-  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
-           std::vector<std::pair<unsigned int, unsigned int>>>
-      boundary_ids;
   for (auto cell : _dof_handler.active_cell_iterators())
     if (cell->user_index() == agglomerate_id)
-    {
       agglomerate.push_back(cell);
-      if (cell->at_boundary())
-      {
-        for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
-             ++f)
-        {
-          if (cell->face(f)->at_boundary())
-          {
-            boundary_ids[cell].push_back(
-                std::make_pair(f, cell->face(f)->boundary_id()));
-          }
-        }
-      }
-    }
 
-  // If the agglomerate has hanging nodes, the patch is bigger than
-  // what we may expect because we cannot create a coarse triangulation with
-  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
-  // cells.
-  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
-      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
-
-  // Copy the boundary IDs to the agglomerate triangulation
-  for (auto const &boundary : boundary_ids)
-  {
-    auto const boundary_cell = boundary.first;
-    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
-    {
-      if (agglomerate_cell.second == boundary_cell)
-      {
-        for (auto &boundary_face : boundary.second)
-          agglomerate_cell.first->face(boundary_face.first)
-              ->set_boundary_id(boundary_face.second);
-
-        break;
-      }
-    }
-  }
+  build_agglomerate_triangulation(agglomerate, agglomerate_triangulation,
+                                  agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>
 void AMGe<dim, VectorType>::build_agglomerate_triangulation(
-    std::vector<unsigned int> cell_index,
+    std::vector<unsigned int> const &cell_index,
     dealii::Triangulation<dim> &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -219,55 +179,15 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
-  // Map between the cells on the boundary and the faces on the boundary and the
-  // associated boundary id.
-  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
-           std::vector<std::pair<unsigned int, unsigned int>>>
-      boundary_ids;
-  auto cell_begin = _dof_handler.begin_active();
-  for (auto offset : cell_index)
+  for (auto cell_id : cell_index)
   {
-    auto cell = cell_begin;
-    for (unsigned int i = 0; i < offset; ++i)
-      ++cell;
+    auto cell = _dof_handler.begin_active();
+    std::advance(cell, cell_id);
     agglomerate.push_back(cell);
-    if (cell->at_boundary())
-    {
-      for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
-           ++f)
-      {
-        if (cell->face(f)->at_boundary())
-        {
-          boundary_ids[cell].push_back(
-              std::make_pair(f, cell->face(f)->boundary_id()));
-        }
-      }
-    }
   }
 
-  // If the agglomerate has hanging nodes, the patch is bigger than
-  // what we may expect because we cannot create a coarse triangulation with
-  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
-  // cells.
-  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
-      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
-
-  // Copy the boundary IDs to the agglomerate triangulation
-  for (auto const &boundary : boundary_ids)
-  {
-    auto const boundary_cell = boundary.first;
-    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
-    {
-      if (agglomerate_cell.second == boundary_cell)
-      {
-        for (auto &boundary_face : boundary.second)
-          agglomerate_cell.first->face(boundary_face.first)
-              ->set_boundary_id(boundary_face.second);
-
-        break;
-      }
-    }
-  }
+  build_agglomerate_triangulation(agglomerate, agglomerate_triangulation,
+                                  agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>
@@ -804,6 +724,59 @@ AMGe<dim, VectorType>::compute_restriction_sparsity_pattern(
   sp.compress();
 
   return sp;
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> const
+        &agglomerate,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
+{
+  // Map between the cells on the boundary and the faces on the boundary and the
+  // associated boundary id.
+  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
+           std::vector<std::pair<unsigned int, unsigned int>>>
+      boundary_ids;
+  for (auto cell : agglomerate)
+    if (cell->at_boundary())
+    {
+      for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
+           ++f)
+      {
+        if (cell->face(f)->at_boundary())
+        {
+          boundary_ids[cell].push_back(
+              std::make_pair(f, cell->face(f)->boundary_id()));
+        }
+      }
+    }
+
+  // If the agglomerate has hanging nodes, the patch is bigger than
+  // what we may expect because we cannot create a coarse triangulation with
+  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
+  // cells.
+  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
+      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+
+  // Copy the boundary IDs to the agglomerate triangulation
+  for (auto const &boundary : boundary_ids)
+  {
+    auto const boundary_cell = boundary.first;
+    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
+    {
+      if (agglomerate_cell.second == boundary_cell)
+      {
+        for (auto &boundary_face : boundary.second)
+          agglomerate_cell.first->face(boundary_face.first)
+              ->set_boundary_id(boundary_face.second);
+
+        break;
+      }
+    }
+  }
 }
 } // namespace mfmg
 

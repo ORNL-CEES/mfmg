@@ -57,7 +57,7 @@ public:
           &agglomerate_to_global_tria_map) const;
 
   void build_agglomerate_triangulation(
-      std::vector<unsigned int> cell_index,
+      std::vector<unsigned int> const &cell_index,
       dealii::Triangulation<dim> &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -139,6 +139,14 @@ private:
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
+
+  void build_agglomerate_triangulation(
+      std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &agglomerate,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map) const;
 
   mutable unsigned int _n_agglomerates;
 };
