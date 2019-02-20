@@ -446,24 +446,11 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global_eig(
     std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps,
     std::vector<unsigned int> &n_local_eigenvectors)
 {
-  // Because the system is SPD, we know that all the eigenvalues are real.
-  unsigned int const old_size = eigenvalues.size();
-  unsigned int const n_new_eigenvalues =
-      copy_data.local_eigenvalues.end() - copy_data.local_eigenvalues.begin();
-  eigenvalues.resize(old_size + n_new_eigenvalues);
-  std::transform(copy_data.local_eigenvalues.begin(),
-                 copy_data.local_eigenvalues.end(),
-                 eigenvalues.begin() + old_size,
-                 [](std::complex<double> eig) { return eig.real(); });
+  copy_local_to_global(copy_data, eigenvectors, diag_elements, dof_indices_maps,
+                       n_local_eigenvectors);
 
   eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
                       copy_data.local_eigenvectors.end());
-
-  diag_elements.push_back(copy_data.diag_elements);
-
-  dof_indices_maps.push_back(copy_data.local_dof_indices_map);
-
-  n_local_eigenvectors.push_back(copy_data.local_eigenvectors.size());
 }
 } // namespace mfmg
 
