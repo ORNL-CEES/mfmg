@@ -157,8 +157,9 @@ BOOST_DATA_TEST_CASE(
     bdata::make({"hyper_cube", "hyper_ball"}) * bdata::make({false, true}) *
         bdata::make({"None", "Reverse Cuthill_McKee"}) *
         bdata::make<std::string>({"DealIIMeshEvaluator",
-                                  "DealIIMatrixFreeMeshEvaluator"}),
-    mesh, distort_random, reordering, mesh_evaluator_type)
+                                  "DealIIMatrixFreeMeshEvaluator"}) *
+        bdata::make<std::string>({"lapack"}),
+    mesh, distort_random, reordering, mesh_evaluator_type, eigensolver)
 {
   // TODO investigate why there is large difference in convergence rate when
   // running in parallel.
@@ -176,7 +177,7 @@ BOOST_DATA_TEST_CASE(
       params->put("smoother.type", "Chebyshev");
     }
 
-    params->put("eigensolver.type", "lapack");
+    params->put("eigensolver.type", eigensolver);
     params->put("agglomeration.nz", 2);
     params->put("laplace.n_refinements", 2);
     params->put("laplace.mesh", mesh);
@@ -187,37 +188,42 @@ BOOST_DATA_TEST_CASE(
         is_matrix_free ? test<mfmg::DealIIMatrixFreeMeshEvaluator<dim>>(params)
                        : test<mfmg::DealIIMeshEvaluator<dim>>(params);
 
+    std::string distort_random_str =
+        (distort_random ? "distort" : "no_distort");
+    std::string matrix_free_str =
+        (is_matrix_free ? "matrix-free" : "matrix-full");
+
     // This is a gold standard test. Not the greatest but it makes sure we don't
     // break the code
-    std::map<std::tuple<std::string, bool, std::string>, double> ref_solution;
-    ref_solution[std::make_tuple("hyper_cube", false, "None")] =
-        is_matrix_free ? 0.1482630509 : 0.0491724046;
-    ref_solution[std::make_tuple("hyper_cube", false,
-                                 "Reverse Cuthill_McKee")] =
-        is_matrix_free ? 0.1482630509 : 0.0491724046;
-    ref_solution[std::make_tuple("hyper_cube", true, "None")] =
-        is_matrix_free ? 0.1575262224 : 0.0488984875;
-    ref_solution[std::make_tuple("hyper_cube", true, "Reverse Cuthill_McKee")] =
-        is_matrix_free ? 0.1575262224 : 0.0488984875;
-    ref_solution[std::make_tuple("hyper_ball", false, "None")] =
-        ref_solution[std::make_tuple("hyper_ball", false,
-                                     "Reverse Cuthill_McKee")] =
-            is_matrix_free ? 0.3022004744 : 0.1146629782;
-    ref_solution[std::make_tuple("hyper_ball", true, "None")] =
-        is_matrix_free ? 0.2977841482 : 0.1024334788;
-    ref_solution[std::make_tuple("hyper_ball", true, "Reverse Cuthill_McKee")] =
-        is_matrix_free ? 0.2977841482 : 0.1024334788;
+    //   (geometry, distortion, reordering, eigensolver, matrix-free)
+    std::map<std::tuple<std::string, std::string, std::string, std::string,
+                        std::string>,
+             double>
+        ref_solution;
+    // clang-format off
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "lapack" , "matrix-full")] = 0.0491724046;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "lapack" , "matrix-free")] = 0.1482630509;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "lapack" , "matrix-full")] = 0.0491724046;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "lapack" , "matrix-free")] = 0.1482630509;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "lapack" , "matrix-full")] = 0.0488984875;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "lapack" , "matrix-free")] = 0.1575262224;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "lapack" , "matrix-full")] = 0.0488984875;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "lapack" , "matrix-free")] = 0.1575262224;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lapack" , "matrix-full")] = 0.1146629782;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lapack" , "matrix-free")] = 0.3022004744;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lapack" , "matrix-full")] = 0.1146629782;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lapack" , "matrix-free")] = 0.3022004744;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lapack" , "matrix-full")] = 0.1024334788;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lapack" , "matrix-free")] = 0.2977841482;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lapack" , "matrix-full")] = 0.1024334788;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lapack" , "matrix-free")] = 0.2977841482;
+    // clang-format on
 
-    if (mesh == std::string("hyper_cube"))
-      BOOST_TEST(
-          conv_rate ==
-              ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-          tt::tolerance(1e-6));
-    else
-      BOOST_TEST(
-          conv_rate ==
-              ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-          tt::tolerance(1e-6));
+    BOOST_TEST(
+        conv_rate ==
+            ref_solution[std::make_tuple(mesh, distort_random_str, reordering,
+                                         eigensolver, matrix_free_str)],
+        tt::tolerance(1e-6));
   }
 }
 
