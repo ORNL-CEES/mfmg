@@ -52,14 +52,14 @@ struct NoOp
   }
 };
 
-struct NotAMatrix
+struct WrapMatrixOp
 {
   using MatrixType = dealii::SparseMatrix<double>;
   using SizeType = MatrixType::size_type;
 
   template <typename MeshEvaluator, typename DoFHandler>
-  NotAMatrix(MeshEvaluator const &mesh_evaluator, DoFHandler &dof_handler,
-             dealii::AffineConstraints<double> &constraints)
+  WrapMatrixOp(MeshEvaluator const &mesh_evaluator, DoFHandler &dof_handler,
+               dealii::AffineConstraints<double> &constraints)
   {
     mesh_evaluator.evaluate_agglomerate(dof_handler, constraints,
                                         _sparsity_pattern, _matrix);
@@ -116,8 +116,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
 #if MATRIX_FREE
-  NotAMatrix agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
-                                       agglomerate_constraints);
+  WrapMatrixOp agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
+                                         agglomerate_constraints);
   auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
 #else
   using value_type = typename VectorType::value_type;
