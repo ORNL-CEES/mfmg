@@ -78,9 +78,11 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
   _amge.reset(new AMGe_host<dim, DealIIMeshEvaluator<dim>, VectorType>(
       comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params));
   auto agglomerate_params = params->get_child("agglomeration");
-  // TODO make it work with MPI
   if (fast_ap)
   {
+    // TODO make it work with MPI
+    ASSERT(dealii::Utilities::MPI::n_mpi_processes(comm) == 1,
+           "fast_ap only works in serial");
     std::vector<double> eigenvalues;
     _eigenvector_matrix.reset(new dealii::TrilinosWrappers::SparseMatrix());
     std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
@@ -208,7 +210,7 @@ DealIIHierarchyHelpers<dim, VectorType>::fast_multiply_transpose()
 {
   Epetra_CrsMatrix *ap = nullptr;
   // We want to use functions that have been deprecated in deal.II but they
-  // won't be removed in the foreseeable
+  // won't be removed in the foreseeable future
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   Epetra_Map range_map = _eigenvector_matrix->domain_partitioner();
   Epetra_Map domain_map = _eigenvector_matrix->range_partitioner();
