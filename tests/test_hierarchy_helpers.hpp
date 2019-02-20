@@ -71,7 +71,7 @@ public:
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override final
   {
-    return 1. + p[0];
+    return 1. + std::abs(p[0]);
   }
 };
 
@@ -86,7 +86,7 @@ public:
   {
     double value = 1.;
     for (unsigned int d = 0; d < dim; ++d)
-      value += (1. + d) * p[d];
+      value += (1. + d) * std::abs(p[d]);
 
     return value;
   }
