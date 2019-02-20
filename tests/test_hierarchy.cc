@@ -73,10 +73,6 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
       laplace._dof_handler, laplace._constraints, a, material_property);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
-  pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
-  pcout << "Operator complexity: " << hierarchy.operator_complexity()
-        << std::endl;
-
   // We want to do 20 V-cycle iterations. The rhs of is zero.
   // Use D(istributed)Vector because deal has its own Vector class
   DVector residual(rhs);
