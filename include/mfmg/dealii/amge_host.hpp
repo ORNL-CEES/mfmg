@@ -102,7 +102,8 @@ public:
       std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
           &eigenvector_sparse_matrix,
       std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
-          &delta_eigenvector_matrix);
+          &delta_eigenvector_matrix,
+      std::vector<double> &eigenvalues);
 
 private:
   /**

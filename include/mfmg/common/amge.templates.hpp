@@ -442,7 +442,7 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
                 eigenvectors[pos][j]);
         // Fill eigenvector sparse matrix
         eigenvector_sparse_matrix->add(local_range.first + pos, global_pos,
-                                       eigenvectors[pos][j]);
+                                       eigenvalues[pos] * eigenvectors[pos][j]);
         // Fill delta eigenvector sparse matrix
         delta_eigenvector_matrix->set(
             local_range.first + pos, global_pos,

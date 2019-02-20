@@ -361,7 +361,8 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
     std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
         &eigenvector_sparse_matrix,
     std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
-        &delta_eigenvector_matrix)
+        &delta_eigenvector_matrix,
+    std::vector<double> &eigenvalues)
 {
   // Flag the cells to build agglomerates.
   unsigned int const n_agglomerates =
@@ -370,7 +371,6 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   // Parallel part of the setup.
   std::vector<unsigned int> agglomerate_ids(n_agglomerates);
   std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
-  std::vector<double> eigenvalues;
   std::vector<dealii::Vector<double>> eigenvectors;
   std::vector<std::vector<ScalarType>> diag_elements;
   std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
