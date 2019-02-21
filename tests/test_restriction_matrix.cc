@@ -340,6 +340,6 @@ BOOST_DATA_TEST_CASE(weight_sum, bdata::make({"lapack", "lanczos"}),
       e[i] = 1.;
     e.compress(::dealii::VectorOperation::insert);
     restrictor_matrix.vmult(ee, e);
-    BOOST_TEST(ee.l1_norm() == 1., tt::tolerance(1e-4));
+    BOOST_TEST(ee.l1_norm() == 1., tt::tolerance(2e-4));
   }
 }
