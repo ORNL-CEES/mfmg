@@ -192,7 +192,13 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   {
     boost::property_tree::ptree lanczos_params;
     lanczos_params.put("num_eigenpairs", n_eigenvectors);
-    lanczos_params.put("tolerance", tolerance);
+    // We are having trouble with Lanczos when tolerance is too tight.
+    // Typically, it results in spurious eigenvalues (so far, only noticed 0).
+    // This seems to be the result of producing too many Lanczos vectors. For
+    // hierarchy_3d tests, any tolerance below 1e-5 (e.g., 1e-6) produces this
+    // problem. Thus, we try to work around it here. It is still unclear how
+    // robust this is.
+    lanczos_params.put("tolerance", std::max(tolerance, 1e-4));
     lanczos_params.put("max_iterations",
                        _eigensolver_params.get("max_iterations", 200));
     lanczos_params.put("percent_overshoot",
