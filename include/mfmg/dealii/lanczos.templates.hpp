@@ -268,7 +268,13 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   std::vector<double> sub_diagonal_aux = sub_diagonal;
   std::vector<double> evecs_aux(n * n);
 
-  // Eigenvalues are returned in ascending order
+  // As the matrix is symmetric and tridiagonal, we use DSTEV LAPACK routine,
+  // which computes all eigenvalues and, optionally, eigenvectors of a real
+  // symmetric tridiagonal matrix A.
+  //   http://www.netlib.org/lapack/explore-html/d7/d48/dstev_8f.html
+  // It guarantees that the eigenvalues are returned in ascending order.
+  // NOTE: as some arguments are invalidated during the routine, we make a copy
+  // of the off-diagonal prior to the call.
   const lapack_int info =
       LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n, evals.data(),
                     sub_diagonal_aux.data(), evecs_aux.data(), n);
