@@ -26,48 +26,20 @@
 
 #include <EpetraExt_MatrixMatrix.h>
 
-// APPROACH1: use UMFPACK to invert the matrix
-// APPROACH2: use CG to invert
-// APPROACH3: do not need invert, use ARPACK regular mode instead of
-//            shift-and-invert mode
-
-#define APPROACH1
+#define MATRIX_FREE 0
 
 namespace mfmg
 {
 
-#if defined(APPROACH2)
-template <typename MatrixType>
-struct WrapInverse
+struct Identity
 {
-  // NOTE I'd have liked to have SolverCG as data member but I gave up for now
-  // because it was getting very frustrating
-  // * SolverCG::solve is not marked as const so I'd have to make the solver
-  // mutable
-  // * The Solver base class takes a non const reference to SolverControl
-  WrapInverse(MatrixType const &sparse_matrix, unsigned int max_iterations,
-              double tolerance)
-      : _sparse_matrix(sparse_matrix), _max_iterations(max_iterations),
-        _tolerance(tolerance)
-  {
-  }
-  // template <typename VectorType>
-  using VectorType = dealii::Vector<double>;
+  template <typename VectorType>
   void vmult(VectorType &dst, const VectorType &src) const
   {
-    // Unefficient but that will do for now
-    dealii::SolverControl solver_control(_max_iterations, _tolerance);
-    dealii::SolverCG<VectorType> solver(solver_control);
-    solver.solve(_sparse_matrix, dst, src, dealii::PreconditionIdentity());
+    dst = src;
   }
-
-  MatrixType const &_sparse_matrix;
-  unsigned int const _max_iterations;
-  double const _tolerance;
 };
-#endif
 
-#if defined(APPROACH3)
 struct NoOp
 {
   template <typename VectorType>
@@ -76,10 +48,49 @@ struct NoOp
     std::ignore = src;
     std::ignore = dst;
     // Raise an error to make sure nobody uses this by inadvertance
-    throw std::runtime_error("should never get here");
+    throw std::logic_error("should never get here");
   }
 };
-#endif
+
+struct WrapMatrixOp
+{
+  using MatrixType = dealii::SparseMatrix<double>;
+  using SizeType = MatrixType::size_type;
+
+  template <typename MeshEvaluator, typename DoFHandler>
+  WrapMatrixOp(MeshEvaluator const &mesh_evaluator, DoFHandler &dof_handler,
+               dealii::AffineConstraints<double> &constraints)
+  {
+    mesh_evaluator.evaluate_agglomerate(dof_handler, constraints,
+                                        _sparsity_pattern, _matrix);
+    ASSERT(_matrix.m() == _matrix.n(), "requires a square matrix");
+  }
+
+  template <typename VectorType>
+  void vmult(VectorType &dst, const VectorType &src) const
+  {
+    _matrix.vmult(dst, src);
+  }
+
+  std::vector<double> get_diag_elements() const
+  {
+    unsigned int const size = _matrix.m();
+    std::vector<double> diag_elements(size);
+    for (unsigned int i = 0; i < size; ++i)
+    {
+      diag_elements[i] = _matrix.diag_element(i);
+    }
+    return diag_elements;
+  }
+
+  SizeType m() const { return _matrix.m(); }
+
+  SizeType n() const { return _matrix.n(); }
+
+private:
+  dealii::SparsityPattern _sparsity_pattern;
+  MatrixType _matrix;
+};
 
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
@@ -103,10 +114,14 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         &patch_to_global_map,
     MeshEvaluator const &evaluator) const
 {
-  using value_type = typename VectorType::value_type;
-
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
+#if MATRIX_FREE
+  WrapMatrixOp agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
+                                         agglomerate_constraints);
+  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
+#else
+  using value_type = typename VectorType::value_type;
   dealii::SparsityPattern agglomerate_sparsity_pattern;
   dealii::SparseMatrix<value_type> agglomerate_system_matrix;
 
@@ -120,6 +135,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<ScalarType> diag_elements(size);
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
+#endif
 
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
@@ -133,50 +149,37 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   if (eigensolver_type == "arpack")
   {
     // Make Identity mass matrix
-    dealii::SparsityPattern agglomerate_mass_sparsity_pattern;
-    dealii::SparseMatrix<ScalarType> agglomerate_mass_matrix;
-    std::vector<std::vector<unsigned int>> column_indices(
-        size, std::vector<unsigned int>(1));
-    for (unsigned int i = 0; i < size; ++i)
-      column_indices[i][0] = i;
-    agglomerate_mass_sparsity_pattern.copy_from(
-        size, size, column_indices.begin(), column_indices.end());
-    agglomerate_mass_matrix.reinit(agglomerate_mass_sparsity_pattern);
-    for (unsigned int i = 0; i < size; ++i)
-      agglomerate_mass_matrix.diag_element(i) = 1.;
+    Identity agglomerate_mass_matrix;
 
-#if defined(APPROACH1)
+#if MATRIX_FREE
+    NoOp inv_system_matrix;
+#else
     dealii::SparseDirectUMFPACK inv_system_matrix;
     inv_system_matrix.initialize(agglomerate_system_matrix);
-#elif defined(APPROACH2)
-    WrapInverse<dealii::SparseMatrix<value_type>> inv_system_matrix(
-        agglomerate_system_matrix, 1000 * n_dofs_agglomerate, .1 * tolerance);
-#elif defined(APPROACH3)
-    NoOp inv_system_matrix;
 #endif
 
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
-#if defined(APPROACH1) || defined(APPROACH2)
-    // We want the eigenvalues of the smallest magnitudes but we need to ask for
-    // the ones with the largest magnitudes because they are computed for the
-    // inverse of the matrix we care about.
-    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
-        dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
-    dealii::ArpackSolver::AdditionalData additional_data(
-        n_arnoldi_vectors, which_eigenvalues, symmetric);
-#elif defined(APPROACH3)
-    dealii::ArpackSolver::WhichEigenvalues which_eigenvalues =
+#if MATRIX_FREE
+    auto const which_eigenvalues =
         dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
     // We want to solve a standard eigenvalue problem A*x = lambda*x
-    dealii::ArpackSolver::WhichEigenvalueProblem problem_type =
+    auto const problem_type =
         dealii::ArpackSolver::WhichEigenvalueProblem::standard;
     // We want to use ARPACK's regular mode to avoid having to compute inverses.
-    int const arpack_mode = 1;
+    auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
         problem_type);
+#else
+    // We want the eigenvalues of the smallest magnitudes but we need to ask for
+    // the ones with the largest magnitudes because they are computed for the
+    // inverse of the matrix we care about.
+    auto const which_eigenvalues =
+        dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
+    dealii::ArpackSolver::AdditionalData additional_data(
+        n_arnoldi_vectors, which_eigenvalues, symmetric);
 #endif
     dealii::ArpackSolver solver(solver_control, additional_data);
 
@@ -208,7 +211,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
           _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
     }
 
-    Lanczos<dealii::SparseMatrix<double>, dealii::Vector<double>> solver(
+    using MatrixType = decltype(agglomerate_system_matrix);
+    Lanczos<MatrixType, dealii::Vector<double>> solver(
         agglomerate_system_matrix);
 
     std::vector<double> real_eigenvalues;
@@ -222,6 +226,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else if (eigensolver_type == "lapack")
   {
+#if MATRIX_FREE
+    throw std::runtime_error(
+        "LAPACK not available as eigensolver in matrix-free mode");
+#else
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
     full_matrix.copy_from(agglomerate_system_matrix);
@@ -241,10 +249,11 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
       for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
         eigenvectors[i][j] = lapack_eigenvectors[j][i];
+#endif
   }
   else
   {
-    ASSERT(true, "Unknown eigensolver type");
+    ASSERT(true, "Unknown eigensolver type '" + eigensolver_type + "'");
   }
 
   // Compute the map between the local and the global dof indices.
