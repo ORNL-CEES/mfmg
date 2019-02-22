@@ -21,6 +21,7 @@
 #include <deal.II/lac/la_parallel_vector.h>
 
 #include <boost/property_tree/info_parser.hpp>
+#include <boost/test/data/test_case.hpp>
 
 #include <random>
 
@@ -28,6 +29,8 @@
 #include "main.cc"
 
 namespace utf = boost::unit_test;
+namespace bdata = boost::unit_test::data;
+namespace tt = boost::test_tools;
 
 template <int dim>
 class DummyMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
@@ -279,7 +282,8 @@ private:
 
 // FIXME relaxed tolerance from 1e-14 to 1e-4 for this test to pass while using
 // ARPACK's regular mode instead of shift-and-invert
-BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
+BOOST_DATA_TEST_CASE(weight_sum, bdata::make({"lapack", "lanczos"}),
+                     eigensolver)
 {
   // Check that the weight sum is equal to one
   unsigned int constexpr dim = 2;
@@ -295,6 +299,7 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("eigensolver.type", eigensolver);
   params->put("eigensolver.number of eigenvectors", 1);
   auto agglomerate_ptree = params->get_child("agglomeration");
   int n_eigenvectors =
@@ -311,7 +316,8 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
 
   TestMeshEvaluator<dim> evaluator(laplace._dof_handler, laplace._constraints,
                                    laplace._system_matrix);
-  mfmg::AMGe_host<dim, MeshEvaluator, DVector> amge(comm, laplace._dof_handler);
+  mfmg::AMGe_host<dim, MeshEvaluator, DVector> amge(
+      comm, laplace._dof_handler, params->get_child("eigensolver"));
 
   auto locally_relevant_global_diag = evaluator.get_diagonal();
 
@@ -334,6 +340,6 @@ BOOST_AUTO_TEST_CASE(weight_sum, *utf::tolerance(1e-4))
       e[i] = 1.;
     e.compress(::dealii::VectorOperation::insert);
     restrictor_matrix.vmult(ee, e);
-    BOOST_TEST(ee.l1_norm() == 1.);
+    BOOST_TEST(ee.l1_norm() == 1., tt::tolerance(2e-4));
   }
 }

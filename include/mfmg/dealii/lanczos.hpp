@@ -47,8 +47,8 @@ private:
                         VectorType const &initial_guess);
 
   static std::tuple<std::vector<double>, std::vector<double>>
-  details_calc_tridiag_epairs(std::vector<double> const &t_maindiag,
-                              std::vector<double> const &t_offdiag,
+  details_calc_tridiag_epairs(std::vector<double> const &main_diagonal,
+                              std::vector<double> const &sub_diagonal,
                               const int num_requested);
 
   static bool details_check_convergence(double beta, const int num_evecs,

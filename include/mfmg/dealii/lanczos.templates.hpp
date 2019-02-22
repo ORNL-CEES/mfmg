@@ -161,8 +161,8 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   if (lanc_vectors.size() < 1)
     lanc_vectors.push_back(initial_guess);
 
-  std::vector<double> t_maindiag;
-  std::vector<double> t_offdiag;
+  std::vector<double> main_diagonal;
+  std::vector<double> sub_diagonal;
 
   std::vector<double>
       evecs_tridiag; // eigenvectors of tridiagonal matrix, stored in flat array
@@ -189,12 +189,12 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     if (it != 1)
     {
       lanc_vectors[it].add(-beta, lanc_vectors[it - 2]);
-      t_offdiag.push_back(beta);
+      sub_diagonal.push_back(beta);
     }
 
     alpha = lanc_vectors[it - 1] * lanc_vectors[it]; // = tridiag_{it,it}
 
-    t_maindiag.push_back(alpha);
+    main_diagonal.push_back(alpha);
 
     lanc_vectors[it].add(-alpha, lanc_vectors[it - 1]);
 
@@ -210,12 +210,12 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
     if (first_iteration || max_iterations_reached || percent_overshoot_exceeded)
     {
       const int dim_hessenberg = it;
-      ASSERT((size_t)dim_hessenberg == t_maindiag.size(), "Internal error");
+      ASSERT((size_t)dim_hessenberg == main_diagonal.size(), "Internal error");
 
       // Calculate eigenpairs of tridiagonal matrix for convergence test or at
       // last iteration
-      std::tie(evals, evecs_tridiag) =
-          details_calc_tridiag_epairs(t_maindiag, t_offdiag, num_requested);
+      std::tie(evals, evecs_tridiag) = details_calc_tridiag_epairs(
+          main_diagonal, sub_diagonal, num_requested);
 
       if (details_check_convergence(beta, dim_hessenberg, num_requested, tol,
                                     evecs_tridiag))
@@ -248,13 +248,13 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
 template <typename OperatorType, typename VectorType>
 std::tuple<std::vector<double>, std::vector<double>>
 Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
-    std::vector<double> const &t_maindiag, std::vector<double> const &t_offdiag,
-    const int num_requested)
+    std::vector<double> const &main_diagonal,
+    std::vector<double> const &sub_diagonal, const int num_requested)
 {
-  const int n = t_maindiag.size();
+  const int n = main_diagonal.size();
 
   ASSERT(n >= 1, "Internal error: tridigonal matrix size must be positive");
-  ASSERT(t_offdiag.size() == (size_t)(n - 1),
+  ASSERT(sub_diagonal.size() == (size_t)(n - 1),
          "Internal error: mismatch in main and off-diagonal sizes");
 
   std::vector<double> evals;
@@ -263,22 +263,22 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   if (n < num_requested)
     return std::make_tuple(evals, evecs);
 
-  // Allocate storage
-  std::vector<double> matrix(n * n, 0.);
+  // dstyev destroys storage
+  evals = main_diagonal;
+  std::vector<double> sub_diagonal_aux = sub_diagonal;
+  std::vector<double> evecs_aux(n * n);
 
-  // Copy diagonals of the tridiagonal matrix into the full matrix
-  matrix[0] = t_maindiag[0];
-  for (int i = 1; i < n; ++i)
-  {
-    matrix[i + n * i] = t_maindiag[i];
-    matrix[i - 1 + n * i] = t_offdiag[i - 1];
-  }
-
-  // Eigenvalues are returned in ascending order
-  evals.resize(n);
-  const lapack_int info = LAPACKE_dsyev(LAPACK_COL_MAJOR, 'V', 'U', n,
-                                        matrix.data(), n, evals.data());
-  ASSERT(!info, "Call to LAPACKE_dsyev failed.");
+  // As the matrix is symmetric and tridiagonal, we use DSTEV LAPACK routine,
+  // which computes all eigenvalues and, optionally, eigenvectors of a real
+  // symmetric tridiagonal matrix A.
+  //   http://www.netlib.org/lapack/explore-html/d7/d48/dstev_8f.html
+  // It guarantees that the eigenvalues are returned in ascending order.
+  // NOTE: as some arguments are invalidated during the routine, we make a copy
+  // of the off-diagonal prior to the call.
+  const lapack_int info =
+      LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n, evals.data(),
+                    sub_diagonal_aux.data(), evecs_aux.data(), n);
+  ASSERT(!info, "Call to LAPACKE_dstev failed.");
 
   // Save results.
   evals.resize(num_requested);
@@ -286,11 +286,11 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   for (int i = 0; i < num_requested; ++i)
   {
     auto first = evecs.begin() + n * i;
-    auto t_first = matrix.begin() + n * i;
-    auto t_last = t_first + n;
+    auto aux_first = evecs_aux.begin() + n * i;
+    auto aux_last = aux_first + n;
     double const norm =
-        std::sqrt(std::inner_product(t_first, t_last, t_first, 0.));
-    std::transform(t_first, t_last, first,
+        std::sqrt(std::inner_product(aux_first, aux_last, aux_first, 0.));
+    std::transform(aux_first, aux_last, first,
                    [norm](auto &v) { return v / norm; });
   }
 
