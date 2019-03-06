@@ -337,9 +337,6 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
     using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
     int constexpr dim = mfmg::DealIIMeshEvaluator<2>::_dim;
 
-    dealii::ConditionalOStream pcout(
-        std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
-
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
