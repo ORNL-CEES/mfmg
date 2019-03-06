@@ -95,8 +95,13 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
   std::vector<std::set<unsigned int>> agg_cell_set(_n_agglomerates);
   for (auto cell : filtered_iterators_range)
   {
-    agg_cell_id[cell->user_index() - 1].push_back(cell->active_cell_index());
-    agg_cell_set[cell->user_index() - 1].insert(cell->active_cell_index());
+    // The cell used_index 0 is reserved for artificial cell however to fill in
+    // the vector we need to decrease the user_index by one to make sure that we
+    // start filling the vector from the beginning.
+    unsigned int const agg_index = cell->user_index() - 1;
+    unsigned int const active_cell_index = cell->active_cell_index();
+    agg_cell_id[agg_index].push_back(active_cell_index);
+    agg_cell_set[agg_index].insert(active_cell_index);
   }
 
   dealii::DynamicSparsityPattern connectivity;

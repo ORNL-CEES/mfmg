@@ -56,6 +56,12 @@ public:
                typename dealii::DoFHandler<dim>::active_cell_iterator>
           &agglomerate_to_global_tria_map) const;
 
+  /**
+   * Create a Triangulation \p agglomerate_triangulation assoicated with an
+   * agglomerate formed of a given vector of cell indices \p cell_index and a
+   * map that matches cells in the local triangulation with cells in the global
+   * triangulation.
+   */
   void build_agglomerate_triangulation(
       std::vector<unsigned int> const &cell_index,
       dealii::Triangulation<dim> &agglomerate_triangulation,
@@ -140,6 +146,11 @@ private:
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
 
+  /**
+   * This function contains the implementation that is common between the other
+   * public functions wit the same name. The input is a vector of active cell
+   * iterator \p agglomerate.
+   */
   void build_agglomerate_triangulation(
       std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &agglomerate,
