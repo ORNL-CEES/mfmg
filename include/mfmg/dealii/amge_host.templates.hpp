@@ -130,37 +130,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   auto const eigensolver_type =
       _eigensolver_params.get<std::string>("type", "arpack");
-  if (eigensolver_type == "arpack")
-  {
-    // Make Identity mass matrix
-    Identity agglomerate_mass_matrix;
-
-    NoOp inv_system_matrix;
-
-    dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
-    unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
-    bool const symmetric = true;
-    auto const which_eigenvalues =
-        dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
-    // We want to solve a standard eigenvalue problem A*x = lambda*x
-    auto const problem_type =
-        dealii::ArpackSolver::WhichEigenvalueProblem::standard;
-    // We want to use ARPACK's regular mode to avoid having to compute inverses.
-    auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
-    dealii::ArpackSolver::AdditionalData additional_data(
-        n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
-        problem_type);
-    dealii::ArpackSolver solver(solver_control, additional_data);
-
-    // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
-    // one.
-    dealii::Vector<double> initial_vector(n_dofs_agglomerate);
-    evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
-    solver.set_initial_vector(initial_vector);
-    solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
-                 inv_system_matrix, eigenvalues, eigenvectors);
-  }
-  else if (eigensolver_type == "lanczos")
+  if (eigensolver_type == "lanczos")
   {
     boost::property_tree::ptree lanczos_params;
     lanczos_params.put("num_eigenpairs", n_eigenvectors);
@@ -198,6 +168,11 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     // Copy real eigenvalues to complex
     std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
               eigenvalues.begin());
+  }
+  else if (eigensolver_type == "arpack")
+  {
+    throw std::runtime_error(
+        "ARPACK not available as eigensolver in matrix-free mode");
   }
   else if (eigensolver_type == "lapack")
   {
