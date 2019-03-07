@@ -26,8 +26,6 @@
 
 #include <EpetraExt_MatrixMatrix.h>
 
-#define MATRIX_FREE 0
-
 namespace mfmg
 {
 
@@ -116,11 +114,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
-#if MATRIX_FREE
-  WrapMatrixOp agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
-                                         agglomerate_constraints);
-  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
-#else
   using value_type = typename VectorType::value_type;
   dealii::SparsityPattern agglomerate_sparsity_pattern;
   dealii::SparseMatrix<value_type> agglomerate_system_matrix;
@@ -135,7 +128,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<ScalarType> diag_elements(size);
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
-#endif
 
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
@@ -151,28 +143,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     // Make Identity mass matrix
     Identity agglomerate_mass_matrix;
 
-#if MATRIX_FREE
-    NoOp inv_system_matrix;
-#else
     dealii::SparseDirectUMFPACK inv_system_matrix;
     inv_system_matrix.initialize(agglomerate_system_matrix);
-#endif
 
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
-#if MATRIX_FREE
-    auto const which_eigenvalues =
-        dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
-    // We want to solve a standard eigenvalue problem A*x = lambda*x
-    auto const problem_type =
-        dealii::ArpackSolver::WhichEigenvalueProblem::standard;
-    // We want to use ARPACK's regular mode to avoid having to compute inverses.
-    auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
-    dealii::ArpackSolver::AdditionalData additional_data(
-        n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
-        problem_type);
-#else
     // We want the eigenvalues of the smallest magnitudes but we need to ask for
     // the ones with the largest magnitudes because they are computed for the
     // inverse of the matrix we care about.
@@ -180,7 +156,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
     dealii::ArpackSolver::AdditionalData additional_data(
         n_arnoldi_vectors, which_eigenvalues, symmetric);
-#endif
     dealii::ArpackSolver solver(solver_control, additional_data);
 
     // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
@@ -232,10 +207,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else if (eigensolver_type == "lapack")
   {
-#if MATRIX_FREE
-    throw std::runtime_error(
-        "LAPACK not available as eigensolver in matrix-free mode");
-#else
     // Use Lapack to compute the eigenvalues
     dealii::LAPACKFullMatrix<double> full_matrix;
     full_matrix.copy_from(agglomerate_system_matrix);
@@ -255,7 +226,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     for (unsigned int i = 0; i < n_eigenvectors; ++i)
       for (unsigned int j = 0; j < n_dofs_agglomerate; ++j)
         eigenvectors[i][j] = lapack_eigenvectors[j][i];
-#endif
   }
   else
   {
