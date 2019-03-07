@@ -117,7 +117,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
   auto const eigensolver_type =
-      _eigensolver_params.get<std::string>("type", "arpack");
+      _eigensolver_params.get<std::string>("type", "lancsoz");
   if (eigensolver_type == "lanczos")
   {
     boost::property_tree::ptree lanczos_params;
