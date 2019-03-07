@@ -19,6 +19,8 @@
 #include <mfmg/dealii/dealii_solver.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
+#include <deal.II/lac/trilinos_precondition.h>
+
 namespace mfmg
 {
 // copy/paste from DealIIMatrixFreeHierarchyHelpers::get_global_operator()
