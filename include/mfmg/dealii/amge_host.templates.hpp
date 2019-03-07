@@ -38,18 +38,6 @@ struct Identity
   }
 };
 
-struct NoOp
-{
-  template <typename VectorType>
-  void vmult(VectorType &dst, const VectorType &src) const
-  {
-    std::ignore = src;
-    std::ignore = dst;
-    // Raise an error to make sure nobody uses this by inadvertance
-    throw std::logic_error("should never get here");
-  }
-};
-
 struct WrapMatrixOp
 {
   using MatrixType = dealii::SparseMatrix<double>;
