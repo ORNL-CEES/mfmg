@@ -109,12 +109,9 @@ typedef std::tuple<mfmg::DealIIMeshEvaluator<2>,
     mesh_evaluator_types;
 BOOST_AUTO_TEST_CASE_TEMPLATE(benchmark, MeshEvaluator, mesh_evaluator_types)
 {
-  int constexpr dim = MeshEvaluator::_dim;
-
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  if (std::is_same<MeshEvaluator,
-                   mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value)
+  if (mfmg::is_matrix_free<MeshEvaluator>::value)
   {
     params->put("smoother.type", "Chebyshev");
   }
@@ -124,12 +121,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(benchmark, MeshEvaluator, mesh_evaluator_types)
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(ml, MeshEvaluator, mesh_evaluator_types)
 {
-  int constexpr dim = MeshEvaluator::_dim;
-
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  if (std::is_same<MeshEvaluator,
-                   mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value)
+  if (mfmg::is_matrix_free<MeshEvaluator>::value)
   {
     params->put("smoother.type", "Chebyshev");
   }
@@ -254,15 +248,11 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(zoltan, MeshEvaluator, mesh_evaluator_types)
 {
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
-    int constexpr dim = MeshEvaluator::_dim;
-
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
 
-    bool const is_matrix_free =
-        std::is_same<MeshEvaluator,
-                     mfmg::DealIIMatrixFreeMeshEvaluator<dim>>::value;
+    bool constexpr is_matrix_free = mfmg::is_matrix_free<MeshEvaluator>::value;
     if (is_matrix_free)
     {
       params->put("smoother.type", "Chebyshev");
