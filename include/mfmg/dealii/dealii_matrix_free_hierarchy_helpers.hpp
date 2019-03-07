@@ -12,13 +12,12 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
 #define MFMG_DEALII_MATRIX_FREE_HIERARCHY_HELPERS_HPP
 
-#include <mfmg/dealii/dealii_hierarchy_helpers.hpp>
+#include <mfmg/common/hierarchy_helpers.hpp>
 
 namespace mfmg
 {
 template <int dim, typename VectorType>
-class DealIIMatrixFreeHierarchyHelpers
-    : public DealIIHierarchyHelpers<dim, VectorType>
+class DealIIMatrixFreeHierarchyHelpers : public HierarchyHelpers<VectorType>
 {
 public:
   using vector_type = VectorType;
@@ -33,6 +32,13 @@ public:
   std::shared_ptr<Smoother<vector_type>> build_smoother(
       std::shared_ptr<Operator<vector_type> const> op,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
+
+  std::shared_ptr<Solver<vector_type>> build_coarse_solver(
+      std::shared_ptr<Operator<vector_type> const> op,
+      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+
+private:
+  std::shared_ptr<Operator<vector_type>> _global_operator;
 };
 } // namespace mfmg
 
