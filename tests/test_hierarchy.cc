@@ -184,6 +184,13 @@ BOOST_DATA_TEST_CASE(
     params->put("laplace.distort_random", distort_random);
     params->put("laplace.reordering", reordering);
 
+    if (is_matrix_free && eigensolver == "lapack")
+    {
+      // skipping since LAPACK eigensolver is not available in matrix-free mode
+      std::cout << "skip\n";
+      return;
+    }
+
     double const conv_rate =
         is_matrix_free ? test<mfmg::DealIIMatrixFreeMeshEvaluator<dim>>(params)
                        : test<mfmg::DealIIMeshEvaluator<dim>>(params);
