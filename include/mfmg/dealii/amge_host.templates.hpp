@@ -100,17 +100,139 @@ AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>
+template <typename Triangulation>
 std::tuple<std::vector<std::complex<double>>,
            std::vector<dealii::Vector<double>>,
            std::vector<typename VectorType::value_type>,
            std::vector<dealii::types::global_dof_index>>
 AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     unsigned int n_eigenvectors, double tolerance,
-    dealii::Triangulation<dim> const &agglomerate_triangulation,
+    Triangulation const &agglomerate_triangulation,
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    MeshEvaluator const &evaluator) const
+    MeshEvaluator const &evaluator,
+    typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
+                                  std::is_class<Triangulation>::value,
+                              int>) const
+{
+  dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
+  dealii::AffineConstraints<double> agglomerate_constraints;
+  WrapMatrixOp agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
+                                         agglomerate_constraints);
+  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
+
+  // Compute the eigenvalues and the eigenvectors
+  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
+  std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
+  std::vector<dealii::Vector<double>> eigenvectors(
+      n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
+
+  auto const eigensolver_type =
+      _eigensolver_params.get<std::string>("type", "arpack");
+  if (eigensolver_type == "arpack")
+  {
+    // Make Identity mass matrix
+    Identity agglomerate_mass_matrix;
+
+    NoOp inv_system_matrix;
+
+    dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
+    unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
+    bool const symmetric = true;
+    auto const which_eigenvalues =
+        dealii::ArpackSolver::WhichEigenvalues::smallest_magnitude;
+    // We want to solve a standard eigenvalue problem A*x = lambda*x
+    auto const problem_type =
+        dealii::ArpackSolver::WhichEigenvalueProblem::standard;
+    // We want to use ARPACK's regular mode to avoid having to compute inverses.
+    auto const arpack_mode = dealii::ArpackSolver::Mode::regular;
+    dealii::ArpackSolver::AdditionalData additional_data(
+        n_arnoldi_vectors, which_eigenvalues, symmetric, arpack_mode,
+        problem_type);
+    dealii::ArpackSolver solver(solver_control, additional_data);
+
+    // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
+    // one.
+    dealii::Vector<double> initial_vector(n_dofs_agglomerate);
+    evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
+    solver.set_initial_vector(initial_vector);
+    solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
+                 inv_system_matrix, eigenvalues, eigenvectors);
+  }
+  else if (eigensolver_type == "lanczos")
+  {
+    boost::property_tree::ptree lanczos_params;
+    lanczos_params.put("num_eigenpairs", n_eigenvectors);
+    // We are having trouble with Lanczos when tolerance is too tight.
+    // Typically, it results in spurious eigenvalues (so far, only noticed 0).
+    // This seems to be the result of producing too many Lanczos vectors. For
+    // hierarchy_3d tests, any tolerance below 1e-5 (e.g., 1e-6) produces this
+    // problem. Thus, we try to work around it here. It is still unclear how
+    // robust this is.
+    lanczos_params.put("tolerance", std::max(tolerance, 1e-4));
+    lanczos_params.put("max_iterations",
+                       _eigensolver_params.get("max_iterations", 200));
+    lanczos_params.put("percent_overshoot",
+                       _eigensolver_params.get("percent_overshoot", 5));
+    bool is_deflated = _eigensolver_params.get("is_deflated", false);
+    if (is_deflated)
+    {
+      lanczos_params.put("is_deflated", true);
+      lanczos_params.put("num_cycles",
+                         _eigensolver_params.get<int>("num_cycles"));
+      lanczos_params.put(
+          "num_eigenpairs_per_cycle",
+          _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
+    }
+
+    using MatrixType = decltype(agglomerate_system_matrix);
+    Lanczos<MatrixType, dealii::Vector<double>> solver(
+        agglomerate_system_matrix);
+
+    std::vector<double> real_eigenvalues;
+    std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
+    ASSERT(n_eigenvectors == eigenvectors.size(),
+           "Wrong number of computed eigenpairs");
+
+    // Copy real eigenvalues to complex
+    std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
+              eigenvalues.begin());
+  }
+  else if (eigensolver_type == "lapack")
+  {
+    throw std::runtime_error(
+        "LAPACK not available as eigensolver in matrix-free mode");
+  }
+  else
+  {
+    ASSERT(true, "Unknown eigensolver type '" + eigensolver_type + "'");
+  }
+
+  // Compute the map between the local and the global dof indices.
+  std::vector<dealii::types::global_dof_index> dof_indices_map =
+      this->compute_dof_index_map(patch_to_global_map, agglomerate_dof_handler);
+
+  return std::make_tuple(eigenvalues, eigenvectors, diag_elements,
+                         dof_indices_map);
+}
+
+template <int dim, typename MeshEvaluator, typename VectorType>
+template <typename Triangulation>
+std::tuple<std::vector<std::complex<double>>,
+           std::vector<dealii::Vector<double>>,
+           std::vector<typename VectorType::value_type>,
+           std::vector<dealii::types::global_dof_index>>
+AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
+    unsigned int n_eigenvectors, double tolerance,
+    Triangulation const &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator> const
+        &patch_to_global_map,
+    MeshEvaluator const &evaluator,
+    typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
+                                  std::is_class<Triangulation>::value,
+                              int>) const
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
@@ -149,9 +271,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     dealii::SolverControl solver_control(n_dofs_agglomerate, tolerance);
     unsigned int const n_arnoldi_vectors = 2 * n_eigenvectors + 2;
     bool const symmetric = true;
-    // We want the eigenvalues of the smallest magnitudes but we need to ask for
-    // the ones with the largest magnitudes because they are computed for the
-    // inverse of the matrix we care about.
+    // We want the eigenvalues of the smallest magnitudes but we need to ask
+    // for the ones with the largest magnitudes because they are computed for
+    // the inverse of the matrix we care about.
     auto const which_eigenvalues =
         dealii::ArpackSolver::WhichEigenvalues::largest_magnitude;
     dealii::ArpackSolver::AdditionalData additional_data(

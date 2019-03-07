@@ -13,6 +13,7 @@
 #define AMGE_HOST_HPP
 
 #include <mfmg/common/amge.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 
 namespace mfmg
 {
@@ -41,16 +42,35 @@ public:
    * the diagonal elements of the local system matrix, and a vector that maps
    * the dof indices from the local problem to the global problem.
    */
+  template <typename Triangulation>
   std::tuple<std::vector<std::complex<double>>,
              std::vector<dealii::Vector<double>>, std::vector<ScalarType>,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
       unsigned int n_eigenvectors, double tolerance,
-      dealii::Triangulation<dim> const &agglomerate_triangulation,
+      Triangulation const &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      MeshEvaluator const &evaluator) const;
+      MeshEvaluator const &evaluator,
+      typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<Triangulation>::value,
+                                int> = 0) const;
+
+  template <typename Triangulation>
+  std::tuple<std::vector<std::complex<double>>,
+             std::vector<dealii::Vector<double>>, std::vector<ScalarType>,
+             std::vector<dealii::types::global_dof_index>>
+  compute_local_eigenvectors(
+      unsigned int n_eigenvectors, double tolerance,
+      Triangulation const &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &patch_to_global_map,
+      MeshEvaluator const &evaluator,
+      typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<Triangulation>::value,
+                                int> = 0) const;
 
   /**
    *  Build the agglomerates and their associated triangulations.
