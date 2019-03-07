@@ -37,7 +37,7 @@ public:
       std::shared_ptr<Operator<vector_type> const> op,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
 
-protected:
+private:
   std::shared_ptr<Operator<vector_type>> _global_operator;
 };
 } // namespace mfmg
