@@ -19,6 +19,8 @@
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 
+#include <type_traits>
+
 namespace mfmg
 {
 template <int dim>
@@ -47,6 +49,18 @@ private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
   mutable bool _matrix_initialized = false;
 };
+
+// Type traits
+template <typename T>
+struct is_matrix_free : std::false_type
+{
+};
+
+template <int dim>
+struct is_matrix_free<DealIIMatrixFreeMeshEvaluator<dim>> : std::true_type
+{
+};
+
 } // namespace mfmg
 
 #endif
