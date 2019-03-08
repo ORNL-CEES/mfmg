@@ -17,6 +17,8 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/affine_constraints.h>
 #include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 
 #include <type_traits>
@@ -27,6 +29,8 @@ template <int dim>
 class DealIIMatrixFreeMeshEvaluator : public DealIIMeshEvaluator<dim>
 {
 public:
+  using size_type = dealii::types::global_dof_index;
+
   DealIIMatrixFreeMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                                 dealii::AffineConstraints<double> &constraints);
 
@@ -44,6 +48,39 @@ public:
 
   dealii::LinearAlgebra::distributed::Vector<double>
   get_diagonal_inverse() const;
+
+  // FIXME get rid of template argument and make it virtual so that it
+  // eventually becomes the customization point that the user overrides
+  template <typename Vector>
+  void matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                                        Vector const &src, Vector &dst) const
+  {
+    dealii::SparsityPattern sparsity_pattern;
+    dealii::SparseMatrix<typename Vector::value_type> system_matrix;
+    dealii::AffineConstraints<double> constraints;
+    this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,
+                               system_matrix);
+    system_matrix.vmult(dst, src);
+  }
+
+  // FIXME throw an error to force the user to implement that member function in
+  // the derived class
+  virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
+      dealii::DoFHandler<dim> &dof_handler) const
+  {
+    dealii::AffineConstraints<double> constraints;
+    dealii::SparsityPattern sparsity_pattern;
+    dealii::SparseMatrix<double> system_matrix;
+    this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,
+                               system_matrix);
+    size_type const size = dof_handler.n_dofs();
+    std::vector<double> diag_elements(size);
+    for (size_type i = 0; i < size; ++i)
+    {
+      diag_elements[i] = system_matrix.diag_element(i);
+    }
+    return diag_elements;
+  }
 
 private:
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
