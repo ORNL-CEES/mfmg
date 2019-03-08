@@ -106,12 +106,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
   dealii::AffineConstraints<double> agglomerate_constraints;
-  WrapMatrixOp agglomerate_system_matrix(evaluator, agglomerate_dof_handler,
-                                         agglomerate_constraints);
-  auto const diag_elements = agglomerate_system_matrix.get_diag_elements();
+  WrapMatrixOp agglomerate_operator(evaluator, agglomerate_dof_handler,
+                                    agglomerate_constraints);
+  auto const diag_elements = agglomerate_operator.get_diag_elements();
 
   // Compute the eigenvalues and the eigenvectors
-  unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
+  unsigned int const n_dofs_agglomerate = agglomerate_operator.m();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
@@ -144,9 +144,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
           _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
     }
 
-    using MatrixType = decltype(agglomerate_system_matrix);
-    Lanczos<MatrixType, dealii::Vector<double>> solver(
-        agglomerate_system_matrix);
+    Lanczos<WrapMatrixOp, dealii::Vector<double>> solver(agglomerate_operator);
 
     std::vector<double> real_eigenvalues;
     std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
