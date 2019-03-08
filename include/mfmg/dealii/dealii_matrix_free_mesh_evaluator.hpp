@@ -30,6 +30,7 @@ class DealIIMatrixFreeMeshEvaluator : public DealIIMeshEvaluator<dim>
 {
 public:
   using size_type = dealii::types::global_dof_index;
+  static int constexpr _dim = dim;
 
   DealIIMatrixFreeMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                                 dealii::AffineConstraints<double> &constraints);
