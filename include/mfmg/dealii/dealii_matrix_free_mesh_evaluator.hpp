@@ -106,12 +106,6 @@ public:
   }
 };
 
-// Type traits
-template <typename T>
-struct is_matrix_free : std::false_type
-{
-};
-
 template <int dim>
 struct is_matrix_free<DealIIMatrixFreeMeshEvaluator<dim>> : std::true_type
 {
