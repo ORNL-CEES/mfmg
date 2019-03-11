@@ -32,26 +32,14 @@ template <int dim, typename VectorType>
 void DealIIMatrixFreeOperator<dim, VectorType>::vmult(
     VectorType &dst, VectorType const &src) const
 {
-  _mesh_evaluator->get_dim() == 2
-      ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
-            _mesh_evaluator)
-            ->apply(src, dst)
-      : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
-            _mesh_evaluator)
-            ->apply(src, dst);
+  _mesh_evaluator->apply(src, dst);
 }
 
 template <int dim, typename VectorType>
 typename DealIIMatrixFreeOperator<dim, VectorType>::size_type
 DealIIMatrixFreeOperator<dim, VectorType>::m() const
 {
-  return _mesh_evaluator->get_dim() == 2
-             ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
-                   _mesh_evaluator)
-                   ->m()
-             : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
-                   _mesh_evaluator)
-                   ->m();
+  return _mesh_evaluator->m();
 }
 
 template <int dim, typename VectorType>
@@ -139,15 +127,7 @@ template <int dim, typename VectorType>
 std::shared_ptr<VectorType>
 DealIIMatrixFreeOperator<dim, VectorType>::build_range_vector() const
 {
-  auto range_vector =
-      _mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
-                _mesh_evaluator)
-                ->build_range_vector()
-          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
-                _mesh_evaluator)
-                ->build_range_vector();
-  return range_vector;
+  return _mesh_evaluator->build_range_vector();
 }
 
 template <int dim, typename VectorType>
@@ -168,15 +148,7 @@ template <int dim, typename VectorType>
 typename DealIIMatrixFreeOperator<dim, VectorType>::vector_type
 DealIIMatrixFreeOperator<dim, VectorType>::get_diagonal_inverse() const
 {
-  auto diagonal_inverse =
-      _mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<2>>(
-                _mesh_evaluator)
-                ->get_diagonal_inverse()
-          : std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<3>>(
-                _mesh_evaluator)
-                ->get_diagonal_inverse();
-  return diagonal_inverse;
+  return _mesh_evaluator->get_diagonal_inverse();
 }
 } // namespace mfmg
 
