@@ -85,7 +85,8 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_smoother(
     std::shared_ptr<Operator<VectorType> const> op,
     std::shared_ptr<boost::property_tree::ptree const> params)
 {
-  return std::make_shared<DealIIMatrixFreeSmoother<VectorType>>(op, params);
+  return std::make_shared<DealIIMatrixFreeSmoother<dim, VectorType>>(op,
+                                                                     params);
 }
 
 template <int dim, typename VectorType>

@@ -15,8 +15,8 @@
 
 namespace mfmg
 {
-template <typename VectorType>
-DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
+template <int dim, typename VectorType>
+DealIIMatrixFreeSmoother<dim, VectorType>::DealIIMatrixFreeSmoother(
     std::shared_ptr<Operator<vector_type> const> op,
     std::shared_ptr<boost::property_tree::ptree const> params)
     : Smoother<VectorType>(op, params)
@@ -62,9 +62,9 @@ DealIIMatrixFreeSmoother<VectorType>::DealIIMatrixFreeSmoother(
   }
 }
 
-template <typename VectorType>
-void DealIIMatrixFreeSmoother<VectorType>::apply(VectorType const &b,
-                                                 VectorType &x) const
+template <int dim, typename VectorType>
+void DealIIMatrixFreeSmoother<dim, VectorType>::apply(VectorType const &b,
+                                                      VectorType &x) const
 {
   // r = -(b - Ax)
   vector_type r(b);
@@ -80,4 +80,4 @@ void DealIIMatrixFreeSmoother<VectorType>::apply(VectorType const &b,
 } // namespace mfmg
 
 // Explicit Instantiation
-INSTANTIATE_VECTORTYPE(TUPLE(DealIIMatrixFreeSmoother))
+INSTANTIATE_DIM_VECTORTYPE(TUPLE(DealIIMatrixFreeSmoother))

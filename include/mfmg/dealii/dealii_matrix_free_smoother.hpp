@@ -24,12 +24,12 @@
 
 namespace mfmg
 {
-template <typename VectorType>
+template <int dim, typename VectorType>
 class DealIIMatrixFreeSmoother : public Smoother<VectorType>
 {
 public:
   using vector_type = VectorType;
-  using operator_type = DealIIMatrixFreeOperator<VectorType>;
+  using operator_type = DealIIMatrixFreeOperator<dim, VectorType>;
   using preconditioner_type = dealii::DiagonalMatrix<VectorType>;
   using chebyshev_preconditioner =
       dealii::PreconditionChebyshev<operator_type, vector_type,
