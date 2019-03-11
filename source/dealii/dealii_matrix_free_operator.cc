@@ -148,7 +148,7 @@ template <int dim, typename VectorType>
 typename DealIIMatrixFreeOperator<dim, VectorType>::vector_type
 DealIIMatrixFreeOperator<dim, VectorType>::get_diagonal_inverse() const
 {
-  return _mesh_evaluator->get_diagonal_inverse();
+  return _mesh_evaluator->matrix_free_get_diagonal_inverse();
 }
 } // namespace mfmg
 

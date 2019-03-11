@@ -44,9 +44,6 @@ public:
 
   dealii::types::global_dof_index m() const;
 
-  dealii::LinearAlgebra::distributed::Vector<double>
-  get_diagonal_inverse() const;
-
   // FIXME get rid of template argument and make it virtual so that it
   // eventually becomes the customization point that the user overrides
   template <typename Vector>
@@ -89,6 +86,25 @@ public:
     dealii::TrilinosWrappers::SparseMatrix system_matrix;
     this->evaluate_global(dof_handler, constraints, system_matrix);
     system_matrix.vmult(dst, src);
+  }
+
+  virtual dealii::LinearAlgebra::distributed::Vector<double>
+  matrix_free_get_diagonal_inverse() const
+  {
+    dealii::DoFHandler<dim> dof_handler;
+    dealii::AffineConstraints<double> constraints;
+    dealii::TrilinosWrappers::SparseMatrix system_matrix;
+    this->evaluate_global(dof_handler, constraints, system_matrix);
+    dealii::IndexSet locally_owned_dofs =
+        system_matrix.locally_owned_domain_indices();
+    dealii::LinearAlgebra::distributed::Vector<double> diagonal(
+        locally_owned_dofs, system_matrix.get_mpi_communicator());
+    for (auto const index : locally_owned_dofs)
+    {
+      diagonal[index] = 1. / system_matrix.diag_element(index);
+    }
+    diagonal.compress(dealii::VectorOperation::insert);
+    return diagonal;
   }
 
 private:
