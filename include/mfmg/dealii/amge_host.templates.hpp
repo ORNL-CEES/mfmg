@@ -160,41 +160,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
       _eigensolver_params.get<std::string>("type", "lancsoz");
   if (eigensolver_type == "lanczos")
   {
-    boost::property_tree::ptree lanczos_params;
-    lanczos_params.put("num_eigenpairs", n_eigenvectors);
-    // We are having trouble with Lanczos when tolerance is too tight.
-    // Typically, it results in spurious eigenvalues (so far, only noticed 0).
-    // This seems to be the result of producing too many Lanczos vectors. For
-    // hierarchy_3d tests, any tolerance below 1e-5 (e.g., 1e-6) produces this
-    // problem. Thus, we try to work around it here. It is still unclear how
-    // robust this is.
-    lanczos_params.put("tolerance", std::max(tolerance, 1e-4));
-    lanczos_params.put("max_iterations",
-                       _eigensolver_params.get("max_iterations", 200));
-    lanczos_params.put("percent_overshoot",
-                       _eigensolver_params.get("percent_overshoot", 5));
-    bool is_deflated = _eigensolver_params.get("is_deflated", false);
-    if (is_deflated)
-    {
-      lanczos_params.put("is_deflated", true);
-      lanczos_params.put("num_cycles",
-                         _eigensolver_params.get<int>("num_cycles"));
-      lanczos_params.put(
-          "num_eigenpairs_per_cycle",
-          _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
-    }
-
-    Lanczos<AgglomerateOperator, dealii::Vector<double>> solver(
-        agglomerate_operator);
-
-    std::vector<double> real_eigenvalues;
-    std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
-    ASSERT(n_eigenvectors == eigenvectors.size(),
-           "Wrong number of computed eigenpairs");
-
-    // Copy real eigenvalues to complex
-    std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
-              eigenvalues.begin());
+    lanczos_compute_eigenvalues_and_eigenvectors(
+        n_eigenvectors, tolerance, _eigensolver_params, agglomerate_operator,
+        eigenvalues, eigenvectors);
   }
   else if (eigensolver_type == "arpack")
   {
@@ -292,42 +260,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else if (eigensolver_type == "lanczos")
   {
-    boost::property_tree::ptree lanczos_params;
-    lanczos_params.put("num_eigenpairs", n_eigenvectors);
-    // We are having trouble with Lanczos when tolerance is too tight.
-    // Typically, it results in spurious eigenvalues (so far, only noticed 0).
-    // This seems to be the result of producing too many Lanczos vectors. For
-    // hierarchy_3d tests, any tolerance below 1e-5 (e.g., 1e-6) produces this
-    // problem. Thus, we try to work around it here. It is still unclear how
-    // robust this is.
-    lanczos_params.put("tolerance", std::max(tolerance, 1e-4));
-    lanczos_params.put("max_iterations",
-                       _eigensolver_params.get("max_iterations", 200));
-    lanczos_params.put("percent_overshoot",
-                       _eigensolver_params.get("percent_overshoot", 5));
-    bool is_deflated = _eigensolver_params.get("is_deflated", false);
-    if (is_deflated)
-    {
-      lanczos_params.put("is_deflated", true);
-      lanczos_params.put("num_cycles",
-                         _eigensolver_params.get<int>("num_cycles"));
-      lanczos_params.put(
-          "num_eigenpairs_per_cycle",
-          _eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
-    }
-
-    using MatrixType = decltype(agglomerate_system_matrix);
-    Lanczos<MatrixType, dealii::Vector<double>> solver(
-        agglomerate_system_matrix);
-
-    std::vector<double> real_eigenvalues;
-    std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
-    ASSERT(n_eigenvectors == eigenvectors.size(),
-           "Wrong number of computed eigenpairs");
-
-    // Copy real eigenvalues to complex
-    std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
-              eigenvalues.begin());
+    lanczos_compute_eigenvalues_and_eigenvectors(
+        n_eigenvectors, tolerance, _eigensolver_params,
+        agglomerate_system_matrix, eigenvalues, eigenvectors);
   }
   else if (eigensolver_type == "lapack")
   {
