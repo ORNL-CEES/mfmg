@@ -43,14 +43,6 @@ DealIIMatrixFreeMeshEvaluator<dim>::get_matrix() const
 }
 
 template <int dim>
-void DealIIMatrixFreeMeshEvaluator<dim>::apply(
-    dealii::LinearAlgebra::distributed::Vector<double> const &src,
-    dealii::LinearAlgebra::distributed::Vector<double> &dst) const
-{
-  _sparse_matrix->vmult(dst, src);
-}
-
-template <int dim>
 std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
 DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
 {

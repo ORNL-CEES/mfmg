@@ -32,7 +32,7 @@ template <int dim, typename VectorType>
 void DealIIMatrixFreeOperator<dim, VectorType>::vmult(
     VectorType &dst, VectorType const &src) const
 {
-  _mesh_evaluator->apply(src, dst);
+  _mesh_evaluator->matrix_free_evaluate_global(src, dst);
 }
 
 template <int dim, typename VectorType>

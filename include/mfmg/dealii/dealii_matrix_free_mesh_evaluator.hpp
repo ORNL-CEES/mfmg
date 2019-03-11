@@ -39,9 +39,6 @@ public:
 
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
 
-  void apply(dealii::LinearAlgebra::distributed::Vector<double> const &src,
-             dealii::LinearAlgebra::distributed::Vector<double> &dst) const;
-
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
 
@@ -81,6 +78,17 @@ public:
       diag_elements[i] = system_matrix.diag_element(i);
     }
     return diag_elements;
+  }
+
+  virtual void matrix_free_evaluate_global(
+      dealii::LinearAlgebra::distributed::Vector<double> const &src,
+      dealii::LinearAlgebra::distributed::Vector<double> &dst) const
+  {
+    dealii::DoFHandler<dim> dof_handler;
+    dealii::AffineConstraints<double> constraints;
+    dealii::TrilinosWrappers::SparseMatrix system_matrix;
+    this->evaluate_global(dof_handler, constraints, system_matrix);
+    system_matrix.vmult(dst, src);
   }
 
 private:
