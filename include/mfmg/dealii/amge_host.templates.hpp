@@ -449,8 +449,10 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global_eig(
   copy_local_to_global(copy_data, eigenvectors, diag_elements, dof_indices_maps,
                        n_local_eigenvectors);
 
-  eigenvectors.insert(eigenvectors.end(), copy_data.local_eigenvectors.begin(),
-                      copy_data.local_eigenvectors.end());
+  std::transform(copy_data.local_eigenvalues.begin(),
+                 copy_data.local_eigenvalues.end(),
+                 std::back_inserter(eigenvalues),
+                 [](std::complex<double> const &z) { return z.real(); });
 }
 } // namespace mfmg
 

@@ -91,7 +91,6 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
   auto filtered_iterators_range =
       filter_iterators(_dof_handler.active_cell_iterators(),
                        dealii::IteratorFilters::LocallyOwnedCell());
-  std::vector<std::vector<unsigned int>> agg_cell_id(_n_agglomerates);
   std::vector<std::set<unsigned int>> agg_cell_set(_n_agglomerates);
   for (auto cell : filtered_iterators_range)
   {
@@ -100,7 +99,6 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
     // start filling the vector from the beginning.
     unsigned int const agg_index = cell->user_index() - 1;
     unsigned int const active_cell_index = cell->active_cell_index();
-    agg_cell_id[agg_index].push_back(active_cell_index);
     agg_cell_set[agg_index].insert(active_cell_index);
   }
 
@@ -114,30 +112,29 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
   // cells of the agglomerate which are on the boundary with another agglomerate
   // and another one composed of cells on other agglomerates that share a
   // boundary with the current agglomerate
-  std::vector<std::vector<unsigned int>> interior_agglomerates(_n_agglomerates);
-  std::vector<std::vector<unsigned int>> halo_agglomerates(_n_agglomerates);
-  for (unsigned int i = 0; i < _n_agglomerates; ++i)
+  std::vector<std::vector<unsigned int>> interior_agglomerates;
+  std::vector<std::vector<unsigned int>> halo_agglomerates;
+  for (auto const &agg_cell : agg_cell_set)
   {
-    unsigned int const n_cells_agg = agg_cell_id[i].size();
     std::vector<unsigned int> interior_boundary_cells;
     std::vector<unsigned int> halo_cells;
     std::set<unsigned int> halo_cells_in_agg;
-    for (unsigned int j = 0; j < n_cells_agg; ++j)
+    for (auto const &agg_cell_it : agg_cell)
     {
       bool cell_in_agg = false;
       // Get the connectivity for the current cell
-      auto connectivity_begin = connectivity.begin(agg_cell_id[i][j]);
-      auto connectivity_end = connectivity.end(agg_cell_id[i][j]);
+      auto connectivity_begin = connectivity.begin(agg_cell_it);
+      auto connectivity_end = connectivity.end(agg_cell_it);
       for (auto connectivity_it = connectivity_begin;
            connectivity_it != connectivity_end; ++connectivity_it)
       {
         // Cells that are on the boundary of agglomerates and have in their
         // connectivity cells that are not part of the agglomerates
-        if (agg_cell_set[i].count(connectivity_it->column()) == 0)
+        if (agg_cell.count(connectivity_it->column()) == 0)
         {
           if (cell_in_agg == false)
           {
-            interior_boundary_cells.push_back(agg_cell_id[i][j]);
+            interior_boundary_cells.push_back(agg_cell_it);
             cell_in_agg = true;
           }
           if (halo_cells_in_agg.count(connectivity_it->column()) == 0)
@@ -149,8 +146,8 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
       }
     }
 
-    interior_agglomerates[i] = interior_boundary_cells;
-    halo_agglomerates[i] = halo_cells;
+    interior_agglomerates.emplace_back(interior_boundary_cells);
+    halo_agglomerates.emplace_back(halo_cells);
   }
 
   return {interior_agglomerates, halo_agglomerates};
@@ -406,7 +403,8 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
 
   // Build the sparse matrices
   restriction_sparse_matrix->reinit(restriction_sp);
-  eigenvector_sparse_matrix->reinit(restriction_sp);
+  eigenvector_sparse_matrix.reset(
+      new dealii::TrilinosWrappers::SparseMatrix(restriction_sp));
   // The sparsity pattern is different than for the other sparse matrices
   // because some of the entries that do not correspond to agglomerate boundary
   // are zeros. Because reinit requires the SparsityPattern which is harder to
@@ -770,17 +768,17 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
   for (auto const &boundary : boundary_ids)
   {
     auto const boundary_cell = boundary.first;
-    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
-    {
-      if (agglomerate_cell.second == boundary_cell)
-      {
-        for (auto &boundary_face : boundary.second)
-          agglomerate_cell.first->face(boundary_face.first)
-              ->set_boundary_id(boundary_face.second);
 
-        break;
-      }
-    }
+    auto agg_cell =
+        std::find_if(agglomerate_to_global_tria_map.begin(),
+                     agglomerate_to_global_tria_map.end(),
+                     [&](auto const &agglomerate_cell) {
+                       return (agglomerate_cell.second == boundary_cell);
+                     });
+    if (agg_cell != agglomerate_to_global_tria_map.end())
+      for (auto &boundary_face : boundary.second)
+        agg_cell->first->face(boundary_face.first)
+            ->set_boundary_id(boundary_face.second);
   }
 }
 } // namespace mfmg

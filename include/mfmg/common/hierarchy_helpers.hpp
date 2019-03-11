@@ -12,6 +12,7 @@
 #ifndef MFMG_HIERARCHY_HELPERS_HPP
 #define MFMG_HIERARCHY_HELPERS_HPP
 
+#include <mfmg/common/exceptions.hpp>
 #include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/operator.hpp>
 #include <mfmg/common/smoother.hpp>
@@ -40,6 +41,8 @@ public:
 
   virtual std::shared_ptr<Operator<vector_type>> fast_multiply_transpose()
   {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
     return nullptr;
   }
 

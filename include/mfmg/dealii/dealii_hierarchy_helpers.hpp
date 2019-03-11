@@ -45,10 +45,7 @@ public:
 
 private:
   std::shared_ptr<Operator<vector_type>> _global_operator;
-  std::unique_ptr<AMGe_host<dim, DealIIMeshEvaluator<dim>, vector_type>> _amge;
-  std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix> _eigenvector_matrix;
-  std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
-      _delta_correction_matrix;
+  std::shared_ptr<Operator<vector_type>> _ap_operator;
 };
 } // namespace mfmg
 
