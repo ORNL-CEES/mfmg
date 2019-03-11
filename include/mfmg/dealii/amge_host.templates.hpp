@@ -80,6 +80,52 @@ AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
 {
 }
 
+namespace
+{
+template <typename AgglomerateOperator>
+void lanczos_compute_eigenvalues_and_eigenvectors(
+    unsigned int n_eigenvectors, double tolerance,
+    boost::property_tree::ptree const &eigensolver_params,
+    AgglomerateOperator const &agglomerate_operator,
+    std::vector<std::complex<double>> &eigenvalues,
+    std::vector<dealii::Vector<double>> &eigenvectors)
+{
+  boost::property_tree::ptree lanczos_params;
+  lanczos_params.put("num_eigenpairs", n_eigenvectors);
+  // We are having trouble with Lanczos when tolerance is too tight.
+  // Typically, it results in spurious eigenvalues (so far, only noticed 0).
+  // This seems to be the result of producing too many Lanczos vectors. For
+  // hierarchy_3d tests, any tolerance below 1e-5 (e.g., 1e-6) produces this
+  // problem. Thus, we try to work around it here. It is still unclear how
+  // robust this is.
+  lanczos_params.put("tolerance", std::max(tolerance, 1e-4));
+  lanczos_params.put("max_iterations",
+                     eigensolver_params.get("max_iterations", 200));
+  lanczos_params.put("percent_overshoot",
+                     eigensolver_params.get("percent_overshoot", 5));
+  bool is_deflated = eigensolver_params.get("is_deflated", false);
+  if (is_deflated)
+  {
+    lanczos_params.put("is_deflated", true);
+    lanczos_params.put("num_cycles", eigensolver_params.get<int>("num_cycles"));
+    lanczos_params.put("num_eigenpairs_per_cycle",
+                       eigensolver_params.get<int>("num_eigenpairs_per_cycle"));
+  }
+
+  Lanczos<AgglomerateOperator, dealii::Vector<double>> solver(
+      agglomerate_operator);
+
+  std::vector<double> real_eigenvalues;
+  std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
+  ASSERT(n_eigenvectors == eigenvectors.size(),
+         "Wrong number of computed eigenpairs");
+
+  // Copy real eigenvalues to complex
+  std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
+            eigenvalues.begin());
+}
+} // namespace
+
 template <int dim, typename MeshEvaluator, typename VectorType>
 template <typename Triangulation>
 std::tuple<std::vector<std::complex<double>>,
