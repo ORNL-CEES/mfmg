@@ -32,8 +32,12 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
 {
   if (this->_global_operator == nullptr)
   {
-    this->_global_operator.reset(
-        new DealIIMatrixFreeOperator<VectorType>(mesh_evaluator));
+    auto matrix_free_mesh_evaluator =
+        std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
+            mesh_evaluator);
+    ASSERT(matrix_free_mesh_evaluator != nullptr, "downcasting failed");
+    this->_global_operator.reset(new DealIIMatrixFreeOperator<dim, VectorType>(
+        matrix_free_mesh_evaluator));
   }
 
   return this->_global_operator;
