@@ -41,6 +41,14 @@ public:
    * The function returns the complex eigenvalues, the associated eigenvectors,
    * the diagonal elements of the local system matrix, and a vector that maps
    * the dof indices from the local problem to the global problem.
+   *
+   * NOTE: MeshEvaluator is a template argument of the AMGe_host and therefore
+   * cannot be used to provide separate specializations depending on whether
+   * the mesh evaluator is matrix-free or not. The Triangulation template
+   * parameter was introduced for that purpose with a dummy condition
+   * `is_class<Triangulation>` which is always true for
+   * `dealii:Triangulation<dim>`. This may not be the most elegant way to
+   * leverage SFINAE but it does what we want.
    */
   template <typename Triangulation>
   std::tuple<std::vector<std::complex<double>>,
