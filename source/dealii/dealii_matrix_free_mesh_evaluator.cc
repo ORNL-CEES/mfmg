@@ -18,8 +18,7 @@ template <int dim>
 DealIIMatrixFreeMeshEvaluator<dim>::DealIIMatrixFreeMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
     dealii::AffineConstraints<double> &constraints)
-    : DealIIMeshEvaluator<dim>{dof_handler, constraints},
-      _sparse_matrix{std::make_shared<dealii::TrilinosWrappers::SparseMatrix>()}
+    : DealIIMeshEvaluator<dim>{dof_handler, constraints}
 {
 }
 
@@ -27,19 +26,6 @@ template <int dim>
 std::string DealIIMatrixFreeMeshEvaluator<dim>::get_mesh_evaluator_type() const
 {
   return "DealIIMatrixFreeMeshEvaluator";
-}
-
-template <int dim>
-std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
-DealIIMatrixFreeMeshEvaluator<dim>::get_matrix() const
-{
-  if (!_matrix_initialized)
-  {
-    this->evaluate_global(this->_dof_handler, this->_constraints,
-                          *_sparse_matrix);
-    _matrix_initialized = true;
-  }
-  return _sparse_matrix;
 }
 
 template <int dim>

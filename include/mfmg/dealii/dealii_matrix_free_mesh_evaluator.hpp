@@ -37,8 +37,6 @@ public:
 
   std::string get_mesh_evaluator_type() const override final;
 
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> get_matrix() const;
-
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
 
@@ -106,10 +104,6 @@ public:
     diagonal.compress(dealii::VectorOperation::insert);
     return diagonal;
   }
-
-private:
-  std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> _sparse_matrix;
-  mutable bool _matrix_initialized = false;
 };
 
 // Type traits
