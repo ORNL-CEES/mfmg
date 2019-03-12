@@ -229,7 +229,7 @@ RUN export ARPACK_VERSION=3.6.3 && \
 ENV ARPACK_DIR=${INSTALL_DIR}/arpack
 
 # Install deal.II
-RUN export DEAL_II_HASH=9cd42e465767c5a8ceffddbbc17f6737503337ac && \
+RUN export DEAL_II_HASH=89057dff516849b67f737355ff697f6407acc579 && \
     export DEAL_II_URL=https://github.com/dealii/dealii/archive/${DEAL_II_HASH}.tar.gz && \
     export DEAL_II_ARCHIVE=${ARCHIVE_DIR}/dealii.tar.gz && \
     export DEAL_II_SOURCE_DIR=${SOURCE_DIR}/dealii && \
@@ -254,6 +254,7 @@ RUN export DEAL_II_HASH=9cd42e465767c5a8ceffddbbc17f6737503337ac && \
         -DDEAL_II_WITH_CUDA=ON \
         -DDEAL_II_WITH_CXX14=ON \
         -DDEAL_II_WITH_CXX17=OFF \
+        -DDEAL_II_COMPONENT_EXAMPLES=OFF \
         -DCMAKE_INSTALL_PREFIX=${DEAL_II_INSTALL_DIR} \
         ${DEAL_II_SOURCE_DIR} && \
     make -j${N_PROCS} install && \
