@@ -16,7 +16,10 @@
 #include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_operator.hpp>
 #include <mfmg/dealii/dealii_matrix_free_smoother.hpp>
+#include <mfmg/dealii/dealii_solver.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
+
+#include <deal.II/lac/trilinos_precondition.h>
 
 namespace mfmg
 {
@@ -29,8 +32,12 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
 {
   if (this->_global_operator == nullptr)
   {
-    this->_global_operator.reset(
-        new DealIIMatrixFreeOperator<VectorType>(mesh_evaluator));
+    auto matrix_free_mesh_evaluator =
+        std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
+            mesh_evaluator);
+    ASSERT(matrix_free_mesh_evaluator != nullptr, "downcasting failed");
+    this->_global_operator.reset(new DealIIMatrixFreeOperator<dim, VectorType>(
+        matrix_free_mesh_evaluator));
   }
 
   return this->_global_operator;
@@ -78,7 +85,17 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_smoother(
     std::shared_ptr<Operator<VectorType> const> op,
     std::shared_ptr<boost::property_tree::ptree const> params)
 {
-  return std::make_shared<DealIIMatrixFreeSmoother<VectorType>>(op, params);
+  return std::make_shared<DealIIMatrixFreeSmoother<dim, VectorType>>(op,
+                                                                     params);
+}
+
+template <int dim, typename VectorType>
+std::shared_ptr<Solver<VectorType>>
+DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_coarse_solver(
+    std::shared_ptr<Operator<VectorType> const> op,
+    std::shared_ptr<boost::property_tree::ptree const> params)
+{
+  return std::make_shared<DealIISolver<VectorType>>(op, params);
 }
 } // namespace mfmg
 

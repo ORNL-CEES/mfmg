@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE eigenvectors
 
-#include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/amge_host.templates.hpp> // FIXME would prefer .hpp header over the .templates.hpp but was gettting linkime error
 #include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 #include <deal.II/distributed/tria.h>

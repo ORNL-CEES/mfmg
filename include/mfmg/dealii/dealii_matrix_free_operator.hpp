@@ -12,8 +12,8 @@
 #ifndef MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 #define MFMG_DEALII_MATRIX_FREE_OPERATOR_HPP
 
-#include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/operator.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 
 #include <deal.II/base/subscriptor.h>
 
@@ -23,7 +23,7 @@ namespace mfmg
 // n(), and el(i, j) to be used as the MatrixType template argument of
 // dealii::PreconditionerChebyshev.  The methods n() and el() aren't actually
 // called, they throw a not implemented exception.
-template <typename VectorType>
+template <int dim, typename VectorType>
 class DealIIMatrixFreeOperator : public Operator<VectorType>,
                                  public dealii::Subscriptor
 {
@@ -32,8 +32,8 @@ public:
   using size_type = typename VectorType::size_type;
   using value_type = typename VectorType::value_type;
 
-  DealIIMatrixFreeOperator(
-      std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
+  DealIIMatrixFreeOperator(std::shared_ptr<DealIIMatrixFreeMeshEvaluator<dim>>
+                               matrix_free_mesh_evaluator);
 
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override final;
@@ -65,7 +65,7 @@ public:
   vector_type get_diagonal_inverse() const;
 
 private:
-  std::shared_ptr<MeshEvaluator> _mesh_evaluator;
+  std::shared_ptr<DealIIMatrixFreeMeshEvaluator<dim>> _mesh_evaluator;
 };
 } // namespace mfmg
 

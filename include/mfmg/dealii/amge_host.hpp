@@ -13,6 +13,7 @@
 #define AMGE_HOST_HPP
 
 #include <mfmg/common/amge.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 
 namespace mfmg
 {
@@ -40,17 +41,44 @@ public:
    * The function returns the complex eigenvalues, the associated eigenvectors,
    * the diagonal elements of the local system matrix, and a vector that maps
    * the dof indices from the local problem to the global problem.
+   *
+   * NOTE: MeshEvaluator is a template argument of the AMGe_host and therefore
+   * cannot be used to provide separate specializations depending on whether
+   * the mesh evaluator is matrix-free or not. The Triangulation template
+   * parameter was introduced for that purpose with a dummy condition
+   * `is_class<Triangulation>` which is always true for
+   * `dealii:Triangulation<dim>`. This may not be the most elegant way to
+   * leverage SFINAE but it does what we want.
    */
+  template <typename Triangulation>
   std::tuple<std::vector<std::complex<double>>,
              std::vector<dealii::Vector<double>>, std::vector<ScalarType>,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
       unsigned int n_eigenvectors, double tolerance,
-      dealii::Triangulation<dim> const &agglomerate_triangulation,
+      Triangulation const &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      MeshEvaluator const &evaluator) const;
+      MeshEvaluator const &evaluator,
+      typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<Triangulation>::value,
+                                int> = 0) const;
+
+  template <typename Triangulation>
+  std::tuple<std::vector<std::complex<double>>,
+             std::vector<dealii::Vector<double>>, std::vector<ScalarType>,
+             std::vector<dealii::types::global_dof_index>>
+  compute_local_eigenvectors(
+      unsigned int n_eigenvectors, double tolerance,
+      Triangulation const &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &patch_to_global_map,
+      MeshEvaluator const &evaluator,
+      typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<Triangulation>::value,
+                                int> = 0) const;
 
   /**
    *  Build the agglomerates and their associated triangulations.

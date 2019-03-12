@@ -18,8 +18,7 @@ template <int dim>
 DealIIMatrixFreeMeshEvaluator<dim>::DealIIMatrixFreeMeshEvaluator(
     dealii::DoFHandler<dim> &dof_handler,
     dealii::AffineConstraints<double> &constraints)
-    : DealIIMeshEvaluator<dim>{dof_handler, constraints},
-      _sparse_matrix{std::make_shared<dealii::TrilinosWrappers::SparseMatrix>()}
+    : DealIIMeshEvaluator<dim>{dof_handler, constraints}
 {
 }
 
@@ -27,27 +26,6 @@ template <int dim>
 std::string DealIIMatrixFreeMeshEvaluator<dim>::get_mesh_evaluator_type() const
 {
   return "DealIIMatrixFreeMeshEvaluator";
-}
-
-template <int dim>
-std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
-DealIIMatrixFreeMeshEvaluator<dim>::get_matrix() const
-{
-  if (!_matrix_initialized)
-  {
-    this->evaluate_global(this->_dof_handler, this->_constraints,
-                          *_sparse_matrix);
-    _matrix_initialized = true;
-  }
-  return _sparse_matrix;
-}
-
-template <int dim>
-void DealIIMatrixFreeMeshEvaluator<dim>::apply(
-    dealii::LinearAlgebra::distributed::Vector<double> const &src,
-    dealii::LinearAlgebra::distributed::Vector<double> &dst) const
-{
-  _sparse_matrix->vmult(dst, src);
 }
 
 template <int dim>
@@ -74,22 +52,6 @@ template <int dim>
 dealii::types::global_dof_index DealIIMatrixFreeMeshEvaluator<dim>::m() const
 {
   return (this->_dof_handler).n_dofs();
-}
-
-template <int dim>
-dealii::LinearAlgebra::distributed::Vector<double>
-DealIIMatrixFreeMeshEvaluator<dim>::get_diagonal_inverse() const
-{
-  auto matrix = this->get_matrix();
-  dealii::IndexSet locally_owned_dofs = matrix->locally_owned_domain_indices();
-  dealii::LinearAlgebra::distributed::Vector<double> diagonal_inverse(
-      locally_owned_dofs, matrix->get_mpi_communicator());
-  for (auto const index : locally_owned_dofs)
-  {
-    diagonal_inverse[index] = 1. / matrix->diag_element(index);
-  }
-  diagonal_inverse.compress(dealii::VectorOperation::insert);
-  return diagonal_inverse;
 }
 } // namespace mfmg
 
