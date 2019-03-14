@@ -157,7 +157,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
   auto const eigensolver_type =
-      _eigensolver_params.get<std::string>("type", "lancsoz");
+      _eigensolver_params.get<std::string>("type", "lanczos");
   if (eigensolver_type == "lanczos")
   {
     lanczos_compute_eigenvalues_and_eigenvectors(
@@ -176,7 +176,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else
   {
-    ASSERT(true, "Unknown eigensolver type '" + eigensolver_type + "'");
+    ASSERT(false, "Unknown eigensolver type '" + eigensolver_type + "'");
   }
 
   // Compute the map between the local and the global dof indices.
@@ -288,7 +288,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else
   {
-    ASSERT(true, "Unknown eigensolver type '" + eigensolver_type + "'");
+    ASSERT(false, "Unknown eigensolver type '" + eigensolver_type + "'");
   }
 
   // Compute the map between the local and the global dof indices.
