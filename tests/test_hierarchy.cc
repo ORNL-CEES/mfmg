@@ -113,7 +113,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(benchmark, MeshEvaluator, mesh_evaluator_types)
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   if (mfmg::is_matrix_free<MeshEvaluator>::value)
   {
-    return; // FIXME temporarily disabling in matrix-free mode
     params->put("smoother.type", "Chebyshev");
   }
 
@@ -126,7 +125,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(ml, MeshEvaluator, mesh_evaluator_types)
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   if (mfmg::is_matrix_free<MeshEvaluator>::value)
   {
-    return; // FIXME temporarily disabling in matrix-free mode
     params->put("smoother.type", "Chebyshev");
   }
 
@@ -249,7 +247,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(zoltan, MeshEvaluator, mesh_evaluator_types)
     bool constexpr is_matrix_free = mfmg::is_matrix_free<MeshEvaluator>::value;
     if (is_matrix_free)
     {
-      return; // FIXME temporarily disabling in matrix-free mode
       params->put("smoother.type", "Chebyshev");
     }
 
