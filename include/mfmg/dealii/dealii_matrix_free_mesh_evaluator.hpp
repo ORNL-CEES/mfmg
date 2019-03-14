@@ -20,6 +20,7 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/vector.h>
 
 #include <type_traits>
 
@@ -42,14 +43,15 @@ public:
 
   dealii::types::global_dof_index m() const;
 
-  // FIXME get rid of template argument and make it virtual so that it
-  // eventually becomes the customization point that the user overrides
-  template <typename Vector>
-  void matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
-                                        Vector const &src, Vector &dst) const
+  // FIXME throw an error to force the user to implement that member function in
+  // the derived class
+  virtual void
+  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                                   dealii::Vector<double> const &src,
+                                   dealii::Vector<double> &dst) const
   {
     dealii::SparsityPattern sparsity_pattern;
-    dealii::SparseMatrix<typename Vector::value_type> system_matrix;
+    dealii::SparseMatrix<double> system_matrix;
     dealii::AffineConstraints<double> constraints;
     this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,
                                system_matrix);

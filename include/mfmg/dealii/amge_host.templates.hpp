@@ -50,8 +50,8 @@ struct MatrixFreeAgglomerateOperator
   {
   }
 
-  template <typename VectorType>
-  void vmult(VectorType &dst, const VectorType &src) const
+  void vmult(dealii::Vector<double> &dst,
+             const dealii::Vector<double> &src) const
   {
     _mesh_evaluator.matrix_free_evaluate_agglomerate(_dof_handler, src, dst);
   }
