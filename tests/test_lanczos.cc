@@ -24,9 +24,16 @@
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
+#if 1
 BOOST_DATA_TEST_CASE(lanczos,
                      bdata::make({1, 2}) * bdata::make({false, true}) *
                          bdata::make({1, 2, 3, 5}),
+#else
+//FIX
+BOOST_DATA_TEST_CASE(lanczos,
+                     bdata::make({1}) * bdata::make({false}) *
+                         bdata::make({4}),
+#endif
                      multiplicity, is_deflated, n_distinct_eigenvalues)
 {
   using namespace mfmg;
@@ -56,9 +63,16 @@ BOOST_DATA_TEST_CASE(lanczos,
     }
   }
 
-  lanczos_params.put("max_iterations", 200);
-  lanczos_params.put("tolerance", 1e-2);
+  //lanczos_params.put("max_iterations", 200);
+  //lanczos_params.put("tolerance", 1e-2);
+  lanczos_params.put("max_iterations", 700);
+  lanczos_params.put("tolerance", 1e-11);
+#if 1
   lanczos_params.put("percent_overshoot", 5);
+#else
+//FIX
+  lanczos_params.put("percent_overshoot", 0);
+#endif
 
   Lanczos<OperatorType, VectorType> solver(op);
 

@@ -16,6 +16,14 @@
 #include <random>
 #include <vector>
 
+//FIX
+//#define VERBOSE
+#ifdef VERBOSE
+#include <iostream>
+#include <iomanip>
+#endif
+
+
 #include "lanczos.hpp"
 #include "lanczos_deflatedop.templates.hpp"
 
@@ -217,6 +225,11 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
       std::tie(evals, evecs_tridiag) = details_calc_tridiag_epairs(
           main_diagonal, sub_diagonal, num_requested);
 
+#ifdef VERBOSE
+      std::cout << std::setw(4);
+      std::cout << it << " T " << " ";
+#endif
+
       if (details_check_convergence(beta, dim_hessenberg, num_requested, tol,
                                     evecs_tridiag))
       {
@@ -260,8 +273,13 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   std::vector<double> evals;
   std::vector<double> evecs; // flat array
 
-  if (n < num_requested)
+  if (n < num_requested) {
+#ifdef VERBOSE
+    std::cout << std::endl;
+    std::cout << std::endl;
+#endif
     return std::make_tuple(evals, evecs);
+  }
 
   // dstyev destroys storage
   evals = main_diagonal;
@@ -280,6 +298,158 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
                     sub_diagonal_aux.data(), evecs_aux.data(), n);
   ASSERT(!info, "Call to LAPACKE_dstev failed.");
 
+#ifdef VERBOSE
+  std::cout << std::fixed << std::setprecision(15);
+  for (int i=0; i<num_requested; ++i)
+    std::cout << evals[i] << " ";
+  std::cout << std::endl;
+#endif
+
+  // The following approach is taken from Cullum and Willoughby vol. 1,
+  // to identify and remove spurious and redundant eigenvalues.
+  // Here one computes the eigenvalues of the tridiagonal matrix T
+  // and also the matrix T2 formed from removing the first row and col
+  // of T.  If an eigenvalue of T is not repeated, and it is also
+  // an eigenvalue of T2, then it is considered spurious.
+  //
+  // The C/W algorithm has other nuances which may necessitate more
+  // revisions of the simplified algoithm implemented here.
+
+
+  // The following tolerance may need adjustment, however this doesn't
+  // seem critical (cf. C/W vol. 1). Cullum/Willoughby use 1e-12.
+  const double tol2 = 5.e-12;
+
+  // Identify repeated eigenvalues.
+  // A "marked" eigenvalue here is nonrepeated or first of a set of repeated.
+
+  std::vector<bool> is_repeated(n);
+  std::vector<bool> is_marked(n);
+
+  for (int i = 0; i < n; ++i) {
+    is_repeated[i] = (i>0 && evals[i-1] >= evals[i] - tol2) ||
+                     (i<n-1 && evals[i+1] <= evals[i] + tol2);
+    is_marked[i] = 0==i || evals[i-1] < evals[i] - tol2;
+  } // i
+
+  // Identify spurious eigenvalues.
+
+  std::vector<bool> is_spurious(n);
+  const int n2 = n - 1;
+
+  if (n2 >= 1 && n2 >= num_requested) {
+
+    // Solve an eigenproblem based on deleting the first row and col
+    // of the original tridiag matrix.
+    // (only need evals, not evecs, so a different LAPACK call may be adequate)
+
+    std::vector<double> evals2;
+    std::vector<double> evecs2;
+
+    evals2 = main_diagonal;
+    evals2.erase(evals2.begin());
+    std::vector<double> sub_diagonal_aux = sub_diagonal;
+    sub_diagonal_aux.erase(sub_diagonal_aux.begin());
+    std::vector<double> evecs_aux(n2 * n2);
+
+    const lapack_int info =
+        LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n2, evals2.data(),
+                    sub_diagonal_aux.data(), evecs_aux.data(), n2);
+    ASSERT(!info, "Call to LAPACKE_dstev failed.");
+
+#ifdef VERBOSE
+    std::cout << "    " << " T2" << " ";
+    for (int i=0; i<num_requested; ++i)
+      std::cout << evals2[i] << " ";
+#endif
+
+    // Loop over original eigenvalues to check for spuriousness..
+    // NOTE: assuming here evals and evals2 are in ascending order.
+
+    int j_start = 0;
+
+    for (int i = 0; i < n; ++i) {
+
+      is_spurious[i] = false;
+
+      // A repeated eigenvalue of T is never spurious.
+
+      if (is_repeated[i])
+        continue;
+
+      // Seek matching T2 eigenvalue. If found, then eval[i] is spurious.
+      // Note the looping is rigged here to avoid an O(n^2) algorithm.
+
+      for (int j = j_start; j < n2; ++j) {
+
+        const bool is_t2j_below = evals2[j] < evals[i] - tol2;
+        if (is_t2j_below) {
+          // For the next i, evals[i] will be >= this one,
+          // so not examining this j for next i will be ok.
+          j_start = j;
+          continue;
+        }
+
+        const bool is_t2j_above = evals2[j] > evals[i] + tol2;
+        if (is_t2j_above)
+          // we have passed up evals[i], so no match.
+          break;
+
+        // in interval surrounding evals[i], thus evals[i] spurious.
+        is_spurious[i] = true;
+        break;
+
+      } // n2
+
+    } // n
+
+#ifdef VERBOSE
+    std::cout << std::endl;
+    std::cout << "    " << "   " << " ";
+    for (int i=0; i<num_requested; ++i) {
+      std::cout << std::setw(17);
+      std::cout << (is_spurious[i] ? "S" :
+                    is_marked[i] ? "M" :
+                    is_repeated[i] ? "R" : " ") << " ";
+    }
+#endif
+
+
+  } // n2
+
+  // Purge spurious and redundant eigenvalues.
+
+  int num_available = n;
+
+  for (int i = n-1; i >= 0; --i) {
+    if (is_spurious[i] || !is_marked[i]) {
+      evals.erase(evals.begin() + i);
+      evecs_aux.erase(evecs_aux.begin() + n*i, evecs_aux.begin() + n*(i+1));
+      num_available--;
+    }
+  }
+
+  // Not enough, so return empty.
+
+  if (num_available < num_requested) {
+    std::vector<double> evals;
+    std::vector<double> evecs;
+#ifdef VERBOSE
+    std::cout << std::endl;
+    std::cout << std::endl;
+#endif
+    return std::make_tuple(evals, evecs);
+  }
+
+#ifdef VERBOSE
+  std::cout << std::endl;
+  std::cout << "    " << "   " << " ";
+  for (int i=0; i<num_requested; ++i)
+    std::cout << evals[i] << " ";
+  std::cout << std::endl;
+  std::cout << std::endl;
+#endif
+
   // Save results.
   evals.resize(num_requested);
   evecs.resize(n * num_requested);
@@ -293,7 +463,6 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::transform(aux_first, aux_last, first,
                    [norm](auto &v) { return v / norm; });
   }
-
   return std::make_tuple(evals, evecs);
 }
 
