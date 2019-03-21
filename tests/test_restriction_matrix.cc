@@ -310,7 +310,8 @@ BOOST_DATA_TEST_CASE(weight_sum, bdata::make({"lapack", "lanczos"}),
   std::shared_ptr<dealii::Function<dim>> material_property =
       std::make_shared<ConstantMaterialProperty<dim>>();
   auto laplace_ptree = params->get_child("laplace");
-  Laplace<dim, DVector> laplace(comm, 1);
+  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
+  Laplace<dim, DVector> laplace(comm, fe_degree);
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 

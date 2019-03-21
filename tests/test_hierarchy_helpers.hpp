@@ -141,10 +141,11 @@ public:
   static int constexpr dim = MeshEvaluator::_dim;
   TestMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                     dealii::AffineConstraints<double> &constraints,
+                    unsigned int fe_degree,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
                     std::shared_ptr<dealii::Function<dim>> material_property)
-      : MeshEvaluator(dof_handler, constraints), _matrix(matrix),
-        _material_property(material_property)
+      : MeshEvaluator(dof_handler, constraints), _fe_degree(fe_degree),
+        _matrix(matrix), _material_property(material_property)
   {
   }
 
@@ -163,7 +164,7 @@ public:
       dealii::SparsityPattern &system_sparsity_pattern,
       dealii::SparseMatrix<double> &system_matrix) const override final
   {
-    unsigned int const fe_degree = 1;
+    unsigned int const fe_degree = _fe_degree;
     dealii::FE_Q<dim> fe(fe_degree);
     dof_handler.distribute_dofs(fe);
 
@@ -222,7 +223,8 @@ public:
   }
 
 private:
-  const dealii::TrilinosWrappers::SparseMatrix &_matrix;
+  unsigned const _fe_degree;
+  dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
 };
 
