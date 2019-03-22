@@ -21,7 +21,8 @@ void main_(std::shared_ptr<boost::property_tree::ptree> params)
   Source<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
-  Laplace<dim, DVector> laplace(comm, 1);
+  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
+  Laplace<dim, DVector> laplace(comm, fe_degree);
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
 
@@ -38,7 +39,8 @@ void main_(std::shared_ptr<boost::property_tree::ptree> params)
 
   std::shared_ptr<MeshEvaluator> evaluator(
       new TestMeshEvaluator<mfmg::DealIIMeshEvaluator<dim>>(
-          laplace._dof_handler, laplace._constraints, a, material_property));
+          laplace._dof_handler, laplace._constraints, fe_degree, a,
+          material_property));
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   pcout << "Grid complexity    : " << hierarchy.grid_complexity() << std::endl;
