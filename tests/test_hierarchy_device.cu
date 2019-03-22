@@ -127,11 +127,13 @@ class TestMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
 public:
   TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler,
                     dealii::AffineConstraints<double> &constraints,
+                    unsigned int fe_degree,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
                     std::shared_ptr<dealii::Function<dim>> material_property,
                     mfmg::CudaHandle &cuda_handle)
       : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints),
-        _comm(comm), _matrix(matrix), _material_property(material_property)
+        _comm(comm), _fe_degree(fe_degree), _matrix(matrix),
+        _material_property(material_property)
   {
   }
 
@@ -179,7 +181,7 @@ public:
       dealii::AffineConstraints<double> &constraints,
       mfmg::SparseMatrixDevice<double> &system_matrix) const override final
   {
-    unsigned int const fe_degree = 1;
+    unsigned int const fe_degree = _fe_degree;
     dealii::FE_Q<dim> fe(fe_degree);
     dof_handler.distribute_dofs(fe);
 
@@ -248,6 +250,7 @@ public:
 
 private:
   MPI_Comm _comm;
+  unsigned const _fe_degree;
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
 };
