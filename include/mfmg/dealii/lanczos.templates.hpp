@@ -355,9 +355,11 @@ template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_set_initial_guess(
     VectorType &initial_guess, int seed)
 {
-  // Add random noise to the guess. Each element of the initial guess is scale
-  // by a random non-zero factor. This ensures that entries that have been set
-  // to zero because they are associated with constrained dofs stay null.
+  // Modify initial guess with a random noise by multiplying each entry of the
+  // vector with a random value from a uniform distribution. This specific
+  // procedure guarantees that zero entries of the vector stay zero, which is
+  // important for situations where they are associated with constrained dofs in
+  // Deal.II
   std::mt19937 gen(seed);
   std::uniform_real_distribution<double> dist(0, 1);
   std::transform(initial_guess.begin(), initial_guess.end(),
