@@ -40,7 +40,7 @@ Lanczos<OperatorType, VectorType>::Lanczos(OperatorType const &op) : _op(op)
 template <typename OperatorType, typename VectorType>
 std::tuple<std::vector<double>, std::vector<VectorType>>
 Lanczos<OperatorType, VectorType>::solve(
-    boost::property_tree::ptree const &params) const
+    boost::property_tree::ptree const &params, VectorType initial_guess) const
 {
   const bool is_deflated = params.get<bool>("is_deflated", false);
 
@@ -66,10 +66,14 @@ Lanczos<OperatorType, VectorType>::solve(
   DeflatedOperator<OperatorType, VectorType> deflated_op(_op);
 
   // Loop over Lanczos solves
-  VectorType initial_guess(_op.n());
   for (int cycle = 0; cycle < num_cycles; ++cycle)
   {
-    details_set_initial_guess(initial_guess, cycle);
+    // For the first cycle, we use the untouched user-provided initial guess.
+    // This is consistent with what's done in ARPACK and this avoid any bad
+    // suprise where the initial guess provided is different than the initial
+    // guess used.
+    if (cycle > 0)
+      details_set_initial_guess(initial_guess, cycle);
 
     deflated_op.deflate(initial_guess);
 
@@ -351,15 +355,16 @@ template <typename OperatorType, typename VectorType>
 void Lanczos<OperatorType, VectorType>::details_set_initial_guess(
     VectorType &initial_guess, int seed)
 {
-  // Set initial guess to constant vector to try to capture "smooth" eigenmodes
-  // of PDE problems
-  initial_guess = 1.;
-
-  // Add random noise to the guess
+  // Modify initial guess with a random noise by multiplying each entry of the
+  // vector with a random value from a uniform distribution. This specific
+  // procedure guarantees that zero entries of the vector stay zero, which is
+  // important for situations where they are associated with constrained dofs in
+  // Deal.II
   std::mt19937 gen(seed);
   std::uniform_real_distribution<double> dist(0, 1);
   std::transform(initial_guess.begin(), initial_guess.end(),
-                 initial_guess.begin(), [&](auto &v) { return v + dist(gen); });
+                 initial_guess.begin(),
+                 [&](auto &v) { return (1. + dist(gen)) * v; });
 }
 
 } // namespace mfmg

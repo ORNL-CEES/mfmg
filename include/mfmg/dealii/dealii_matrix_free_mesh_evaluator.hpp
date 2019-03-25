@@ -61,9 +61,10 @@ public:
   // FIXME throw an error to force the user to implement that member function in
   // the derived class
   virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
-      dealii::DoFHandler<dim> &dof_handler) const
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::AffineConstraints<double> &constraints) const
   {
-    dealii::AffineConstraints<double> constraints;
+    constraints.clear();
     dealii::SparsityPattern sparsity_pattern;
     dealii::SparseMatrix<double> system_matrix;
     this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,

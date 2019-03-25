@@ -45,8 +45,10 @@ struct MatrixFreeAgglomerateOperator
 
   template <typename DoFHandler>
   MatrixFreeAgglomerateOperator(MeshEvaluator const &mesh_evaluator,
-                                DoFHandler &dof_handler)
-      : _mesh_evaluator{mesh_evaluator}, _dof_handler{dof_handler}
+                                DoFHandler &dof_handler,
+                                dealii::AffineConstraints<double> &constraints)
+      : _mesh_evaluator(mesh_evaluator), _dof_handler(dof_handler),
+        _constraints(constraints)
   {
   }
 
@@ -58,7 +60,8 @@ struct MatrixFreeAgglomerateOperator
 
   std::vector<double> get_diag_elements() const
   {
-    return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_dof_handler);
+    return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_dof_handler,
+                                                                _constraints);
   }
 
   size_type m() const { return _dof_handler.n_dofs(); }
@@ -69,6 +72,7 @@ private:
   MeshEvaluator const &_mesh_evaluator;
   static int constexpr dim = MeshEvaluator::_dim;
   dealii::DoFHandler<dim> &_dof_handler;
+  dealii::AffineConstraints<double> &_constraints;
 };
 
 template <int dim, typename MeshEvaluator, typename VectorType>
@@ -87,6 +91,7 @@ void lanczos_compute_eigenvalues_and_eigenvectors(
     unsigned int n_eigenvectors, double tolerance,
     boost::property_tree::ptree const &eigensolver_params,
     AgglomerateOperator const &agglomerate_operator,
+    dealii::Vector<double> const &initial_guess,
     std::vector<std::complex<double>> &eigenvalues,
     std::vector<dealii::Vector<double>> &eigenvectors)
 {
@@ -116,7 +121,8 @@ void lanczos_compute_eigenvalues_and_eigenvectors(
       agglomerate_operator);
 
   std::vector<double> real_eigenvalues;
-  std::tie(real_eigenvalues, eigenvectors) = solver.solve(lanczos_params);
+  std::tie(real_eigenvalues, eigenvectors) =
+      solver.solve(lanczos_params, initial_guess);
   ASSERT(n_eigenvectors == eigenvectors.size(),
          "Wrong number of computed eigenpairs");
 
@@ -144,9 +150,11 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
                               int>) const
 {
   dealii::DoFHandler<dim> agglomerate_dof_handler(agglomerate_triangulation);
+  dealii::AffineConstraints<double> agglomerate_constraints;
 
   using AgglomerateOperator = MatrixFreeAgglomerateOperator<MeshEvaluator>;
-  AgglomerateOperator agglomerate_operator(evaluator, agglomerate_dof_handler);
+  AgglomerateOperator agglomerate_operator(evaluator, agglomerate_dof_handler,
+                                           agglomerate_constraints);
 
   auto const diag_elements = agglomerate_operator.get_diag_elements();
 
@@ -158,11 +166,13 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
   auto const eigensolver_type =
       _eigensolver_params.get<std::string>("type", "lanczos");
+  dealii::Vector<double> initial_vector(n_dofs_agglomerate);
+  evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
   if (eigensolver_type == "lanczos")
   {
     lanczos_compute_eigenvalues_and_eigenvectors(
         n_eigenvectors, tolerance, _eigensolver_params, agglomerate_operator,
-        eigenvalues, eigenvectors);
+        initial_vector, eigenvalues, eigenvectors);
   }
   else if (eigensolver_type == "arpack")
   {
@@ -228,6 +238,8 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   std::vector<dealii::Vector<double>> eigenvectors(
       n_eigenvectors, dealii::Vector<double>(n_dofs_agglomerate));
 
+  dealii::Vector<double> initial_vector(n_dofs_agglomerate);
+  evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
   auto const eigensolver_type =
       _eigensolver_params.get<std::string>("type", "arpack");
   if (eigensolver_type == "arpack")
@@ -252,8 +264,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
 
     // Compute the eigenvectors. Arpack outputs eigenvectors with a L2 norm of
     // one.
-    dealii::Vector<double> initial_vector(n_dofs_agglomerate);
-    evaluator.set_initial_guess(agglomerate_constraints, initial_vector);
     solver.set_initial_vector(initial_vector);
     solver.solve(agglomerate_system_matrix, agglomerate_mass_matrix,
                  inv_system_matrix, eigenvalues, eigenvectors);
@@ -262,7 +272,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   {
     lanczos_compute_eigenvalues_and_eigenvectors(
         n_eigenvectors, tolerance, _eigensolver_params,
-        agglomerate_system_matrix, eigenvalues, eigenvectors);
+        agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
   }
   else if (eigensolver_type == "lapack")
   {
