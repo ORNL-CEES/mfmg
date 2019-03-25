@@ -62,9 +62,19 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   Lanczos<OperatorType, VectorType> solver(op);
 
+  VectorType initial_guess(n);
+  initial_guess = 1.;
+
+  // Add random noise to the guess
+  std::mt19937 gen(0);
+  std::uniform_real_distribution<double> dist(0, 1);
+  std::transform(initial_guess.begin(), initial_guess.end(),
+                 initial_guess.begin(), [&](auto &v) { return v + dist(gen); });
+
   std::vector<double> computed_evals;
   std::vector<VectorType> computed_evecs;
-  std::tie(computed_evals, computed_evecs) = solver.solve(lanczos_params);
+  std::tie(computed_evals, computed_evecs) =
+      solver.solve(lanczos_params, initial_guess);
 
   auto ref_evals = op.get_evals();
 

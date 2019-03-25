@@ -35,7 +35,8 @@ public:
 
   // Operations
   std::tuple<std::vector<double>, std::vector<VectorType>>
-  solve(boost::property_tree::ptree const &params) const;
+  solve(boost::property_tree::ptree const &params,
+        VectorType initial_guess) const;
 
 private:
   OperatorType const &_op; // reference to operator object to use
