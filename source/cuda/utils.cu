@@ -367,7 +367,7 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 {
   // First gather the number of elements each proc will send
   int comm_size;
-  MPI_Comm_size(&communicator, &comm_size);
+  MPI_Comm_size(communicator, &comm_size);
   if (comm_size > 1)
   {
     all_gather(communicator, send_count, send_buffer, recv_count, recv_buffer);
