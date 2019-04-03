@@ -14,6 +14,11 @@ FIND_PACKAGE(Boost 1.65.1 REQUIRED COMPONENTS ${Boost_COMPONENTS})
 #### deal.II #################################################################
 FIND_PACKAGE(deal.II 9.0 REQUIRED PATHS ${DEAL_II_DIR})
 
+IF(NOT DEAL_II_WITH_TRILINOS)
+  MESSAGE(FATAL_ERROR 
+          "Error! deal.II must be compiled with Trilinos support.")
+ENDIF()
+
 # If deal.II was configured in DebugRelease mode, then if mfmg was configured
 # in Debug mode, we link against the Debug version of deal.II. If mfmg was
 # configured in Release mode, we link against the Release version of deal.II. If
