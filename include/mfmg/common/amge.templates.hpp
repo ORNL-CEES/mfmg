@@ -17,6 +17,7 @@
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/grid/filtered_iterator.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/lac/sparsity_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -59,10 +60,11 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
     // Always use the same seed for Zoltan
     Zoltan_Srand(ZOLTAN_RAND_INIT, NULL);
 #endif
-    unsigned int const n_agglomerates =
+    unsigned int const n_desired_agglomerates =
         ptree.get<unsigned int>("n_agglomerates");
 
-    return build_agglomerates_partitioner(partitioner_type, n_agglomerates);
+    return build_agglomerates_partitioner(partitioner_type,
+                                          n_desired_agglomerates);
   }
   else if (partitioner_type == "block")
   {
@@ -82,6 +84,72 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates(
 }
 
 template <int dim, typename VectorType>
+std::pair<std::vector<std::vector<unsigned int>>,
+          std::vector<std::vector<unsigned int>>>
+AMGe<dim, VectorType>::build_boundary_agglomerates() const
+{
+  auto filtered_iterators_range =
+      filter_iterators(_dof_handler.active_cell_iterators(),
+                       dealii::IteratorFilters::LocallyOwnedCell());
+  std::vector<std::set<unsigned int>> agg_cell_set(_n_agglomerates);
+  for (auto cell : filtered_iterators_range)
+  {
+    // The cell used_index 0 is reserved for artificial cell however to fill in
+    // the vector we need to decrease the user_index by one to make sure that we
+    // start filling the vector from the beginning.
+    unsigned int const agg_index = cell->user_index() - 1;
+    unsigned int const active_cell_index = cell->active_cell_index();
+    agg_cell_set[agg_index].insert(active_cell_index);
+  }
+
+  dealii::DynamicSparsityPattern connectivity;
+  dealii::GridTools::get_vertex_connectivity_of_cells(
+      _dof_handler.get_triangulation(), connectivity);
+
+  // TODO do this using multithreading. Maybe it's better to do everything in
+  // the following for loop
+  // Each agglomerate will create two new agglomerates: one composed of the
+  // cells of the agglomerate which are on the boundary with another agglomerate
+  // and another one composed of cells on other agglomerates that share a
+  // boundary with the current agglomerate
+  std::vector<std::vector<unsigned int>> interior_agglomerates;
+  std::vector<std::vector<unsigned int>> halo_agglomerates;
+  for (auto const &agg_cell : agg_cell_set)
+  {
+    std::vector<unsigned int> interior_boundary_cells;
+    std::set<unsigned int> halo_cells_in_agg;
+    for (auto const &agg_cell_it : agg_cell)
+    {
+      bool cell_in_agg = false;
+      // Get the connectivity for the current cell
+      auto connectivity_begin = connectivity.begin(agg_cell_it);
+      auto connectivity_end = connectivity.end(agg_cell_it);
+      for (auto connectivity_it = connectivity_begin;
+           connectivity_it != connectivity_end; ++connectivity_it)
+      {
+        // Cells that are on the boundary of agglomerates and have in their
+        // connectivity cells that are not part of the agglomerates
+        if (agg_cell.count(connectivity_it->column()) == 0)
+        {
+          if (cell_in_agg == false)
+          {
+            interior_boundary_cells.push_back(agg_cell_it);
+            cell_in_agg = true;
+          }
+          halo_cells_in_agg.insert(connectivity_it->column());
+        }
+      }
+    }
+
+    interior_agglomerates.emplace_back(interior_boundary_cells);
+    halo_agglomerates.emplace_back(halo_cells_in_agg.begin(),
+                                   halo_cells_in_agg.end());
+  }
+
+  return {interior_agglomerates, halo_agglomerates};
+}
+
+template <int dim, typename VectorType>
 void AMGe<dim, VectorType>::build_agglomerate_triangulation(
     unsigned int agglomerate_id,
     dealii::Triangulation<dim> &agglomerate_triangulation,
@@ -91,52 +159,33 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
-  // Map between the cells on the boundary and the faces on the boundary and the
-  // associated boundary id.
-  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
-           std::vector<std::pair<unsigned int, unsigned int>>>
-      boundary_ids;
   for (auto cell : _dof_handler.active_cell_iterators())
     if (cell->user_index() == agglomerate_id)
-    {
       agglomerate.push_back(cell);
-      if (cell->at_boundary())
-      {
-        for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
-             ++f)
-        {
-          if (cell->face(f)->at_boundary())
-          {
-            boundary_ids[cell].push_back(
-                std::make_pair(f, cell->face(f)->boundary_id()));
-          }
-        }
-      }
-    }
 
-  // If the agglomerate has hanging nodes, the patch is bigger than
-  // what we may expect because we cannot create a coarse triangulation with
-  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
-  // cells.
-  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
-      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+  build_agglomerate_triangulation(agglomerate, agglomerate_triangulation,
+                                  agglomerate_to_global_tria_map);
+}
 
-  // Copy the boundary IDs to the agglomerate triangulation
-  for (auto const &boundary : boundary_ids)
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    std::vector<unsigned int> const &cell_index,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
+{
+  std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
+      agglomerate;
+  for (auto cell_id : cell_index)
   {
-    auto const boundary_cell = boundary.first;
-    for (auto &agglomerate_cell : agglomerate_to_global_tria_map)
-    {
-      if (agglomerate_cell.second == boundary_cell)
-      {
-        for (auto &boundary_face : boundary.second)
-          agglomerate_cell.first->face(boundary_face.first)
-              ->set_boundary_id(boundary_face.second);
-
-        break;
-      }
-    }
+    auto cell = _dof_handler.begin_active();
+    std::advance(cell, cell_id);
+    agglomerate.push_back(cell);
   }
+
+  build_agglomerate_triangulation(agglomerate, agglomerate_triangulation,
+                                  agglomerate_to_global_tria_map);
 }
 
 template <int dim, typename VectorType>
@@ -325,6 +374,125 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
 }
 
 template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
+    std::vector<typename VectorType::value_type> const &eigenvalues,
+    std::vector<dealii::Vector<typename VectorType::value_type>> const
+        &eigenvectors,
+    std::vector<std::vector<typename VectorType::value_type>> const
+        &diag_elements,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps,
+    std::vector<unsigned int> const &n_local_eigenvectors,
+    dealii::LinearAlgebra::distributed::Vector<
+        typename VectorType::value_type> const &locally_relevant_global_diag,
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        restriction_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &eigenvector_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &delta_eigenvector_matrix) const
+{
+  // Compute the sparsity pattern (Epetra_FECrsGraph)
+  dealii::TrilinosWrappers::SparsityPattern restriction_sp =
+      compute_restriction_sparsity_pattern(eigenvectors, dof_indices_maps,
+                                           n_local_eigenvectors);
+
+  // Build the sparse matrices
+  restriction_sparse_matrix->reinit(restriction_sp);
+  eigenvector_sparse_matrix.reset(
+      new dealii::TrilinosWrappers::SparseMatrix(restriction_sp));
+  // The sparsity pattern is different than for the other sparse matrices
+  // because some of the entries that do not correspond to agglomerate boundary
+  // are zeros. Because reinit requires the SparsityPattern which is harder to
+  // compute, we instead use the constructor that computes the SparsityPattern
+  // when compress() is called).
+  delta_eigenvector_matrix.reset(new dealii::TrilinosWrappers::SparseMatrix(
+      eigenvector_sparse_matrix->locally_owned_range_indices(),
+      eigenvector_sparse_matrix->locally_owned_domain_indices(),
+      eigenvector_sparse_matrix->get_mpi_communicator()));
+
+  std::pair<dealii::types::global_dof_index,
+            dealii::types::global_dof_index> const local_range =
+      restriction_sp.local_range();
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  unsigned int pos = 0;
+  ASSERT(n_agglomerates == dof_indices_maps.size(),
+         "dof_indices_maps has the wrong size: " +
+             std::to_string(dof_indices_maps.size()) + " instead of " +
+             std::to_string(n_agglomerates));
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_local_eig = n_local_eigenvectors[i];
+    for (unsigned int k = 0; k < n_local_eig; ++k)
+    {
+      unsigned int const n_elem = eigenvectors[pos].size();
+      ASSERT(n_elem == dof_indices_maps[i].size(),
+             "dof_indices_maps[i] has the wrong size: " +
+                 std::to_string(dof_indices_maps[i].size()) + " instead of " +
+                 std::to_string(n_elem));
+      for (unsigned int j = 0; j < n_elem; ++j)
+      {
+        dealii::types::global_dof_index const global_pos =
+            dof_indices_maps[i][j];
+        // Fill restriction sparse matrix
+        restriction_sparse_matrix->add(
+            local_range.first + pos, global_pos,
+            diag_elements[i][j] / locally_relevant_global_diag[global_pos] *
+                eigenvectors[pos][j]);
+        // Fill eigenvector sparse matrix
+        eigenvector_sparse_matrix->add(local_range.first + pos, global_pos,
+                                       eigenvalues[pos] * eigenvectors[pos][j]);
+        // Fill delta eigenvector sparse matrix
+        delta_eigenvector_matrix->set(
+            local_range.first + pos, global_pos,
+            (diag_elements[i][j] / locally_relevant_global_diag[global_pos] -
+             1.) *
+                eigenvectors[pos][j]);
+      }
+      ++pos;
+    }
+  }
+
+  // Compress the matrices
+  restriction_sparse_matrix->compress(dealii::VectorOperation::add);
+  eigenvector_sparse_matrix->compress(dealii::VectorOperation::add);
+  delta_eigenvector_matrix->compress(dealii::VectorOperation::insert);
+
+#if MFMG_DEBUG
+  // Check that the sum of the weight matrices is the identity
+  auto locally_owned_dofs =
+      locally_relevant_global_diag.locally_owned_elements();
+  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
+                                               locally_owned_dofs, this->_comm);
+  for (auto local_index : locally_owned_dofs)
+    sp.add(local_index, local_index);
+  sp.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
+  pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_elem = eigenvectors[pos].size();
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      double const value =
+          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
+      weight_matrix.add(global_pos, global_pos, value);
+    }
+    pos += n_local_eigenvectors[i];
+  }
+
+  // Compress the matrix
+  weight_matrix.compress(dealii::VectorOperation::add);
+
+  for (auto index : locally_owned_dofs)
+    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
+           "Sum of local weight matrices is not the identity");
+#endif
+}
+
+template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
@@ -408,7 +576,9 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     }
   }
 
-  return agglomerate - 1;
+  _n_agglomerates = agglomerate - 1;
+
+  return _n_agglomerates;
 }
 
 template <int dim, typename VectorType>
@@ -501,7 +671,9 @@ unsigned int AMGe<dim, VectorType>::build_agglomerates_partitioner(
     }
   }
 
-  return n_zoltan_agglomerates;
+  _n_agglomerates = n_zoltan_agglomerates;
+
+  return _n_agglomerates;
 }
 
 template <int dim, typename VectorType>
@@ -551,6 +723,59 @@ AMGe<dim, VectorType>::compute_restriction_sparsity_pattern(
   sp.compress();
 
   return sp;
+}
+
+template <int dim, typename VectorType>
+void AMGe<dim, VectorType>::build_agglomerate_triangulation(
+    std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> const
+        &agglomerate,
+    dealii::Triangulation<dim> &agglomerate_triangulation,
+    std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+             typename dealii::DoFHandler<dim>::active_cell_iterator>
+        &agglomerate_to_global_tria_map) const
+{
+  // Map between the cells on the boundary and the faces on the boundary and the
+  // associated boundary id.
+  std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
+           std::vector<std::pair<unsigned int, unsigned int>>>
+      boundary_ids;
+  for (auto cell : agglomerate)
+    if (cell->at_boundary())
+    {
+      for (unsigned int f = 0; f < dealii::GeometryInfo<dim>::faces_per_cell;
+           ++f)
+      {
+        if (cell->face(f)->at_boundary())
+        {
+          boundary_ids[cell].push_back(
+              std::make_pair(f, cell->face(f)->boundary_id()));
+        }
+      }
+    }
+
+  // If the agglomerate has hanging nodes, the patch is bigger than
+  // what we may expect because we cannot create a coarse triangulation with
+  // hanging nodes. Thus, we need to use FE_Nothing to get ride of unwanted
+  // cells.
+  dealii::GridTools::build_triangulation_from_patch<dealii::DoFHandler<dim>>(
+      agglomerate, agglomerate_triangulation, agglomerate_to_global_tria_map);
+
+  // Copy the boundary IDs to the agglomerate triangulation
+  for (auto const &boundary : boundary_ids)
+  {
+    auto const boundary_cell = boundary.first;
+
+    auto agg_cell =
+        std::find_if(agglomerate_to_global_tria_map.begin(),
+                     agglomerate_to_global_tria_map.end(),
+                     [&](auto const &agglomerate_cell) {
+                       return (agglomerate_cell.second == boundary_cell);
+                     });
+    if (agg_cell != agglomerate_to_global_tria_map.end())
+      for (auto &boundary_face : boundary.second)
+        agg_cell->first->face(boundary_face.first)
+            ->set_boundary_id(boundary_face.second);
+  }
 }
 } // namespace mfmg
 

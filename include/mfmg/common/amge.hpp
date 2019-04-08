@@ -41,12 +41,35 @@ public:
   build_agglomerates(boost::property_tree::ptree const &ptree) const;
 
   /**
+   * Return the interior agglomerates (agglomerates made of cells at the
+   * boundary of the base agglomerates) and the halo agglomerates (agglomerates
+   * made of halo cells of the base agglomerates). The unsigned int is
+   * correspond to the active_cell_index.
+   */
+  std::pair<std::vector<std::vector<unsigned int>>,
+            std::vector<std::vector<unsigned int>>>
+  build_boundary_agglomerates() const;
+
+  /**
    * Create a Triangulation \p agglomerate_triangulation associated with an
    * agglomerate of a given \p agglomerate_id and a map that matches cells in
    * the local triangulation with cells in the global triangulation.
    */
   void build_agglomerate_triangulation(
       unsigned int agglomerate_id,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map) const;
+
+  /**
+   * Create a Triangulation \p agglomerate_triangulation assoicated with an
+   * agglomerate formed of a given vector of cell indices \p cell_index and a
+   * map that matches cells in the local triangulation with cells in the global
+   * triangulation.
+   */
+  void build_agglomerate_triangulation(
+      std::vector<unsigned int> const &cell_index,
       dealii::Triangulation<dim> &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -80,6 +103,25 @@ public:
           &locally_relevant_global_diag_dev,
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
 
+  void compute_restriction_sparse_matrix(
+      std::vector<typename VectorType::value_type> const &eigenvalues,
+      std::vector<dealii::Vector<typename VectorType::value_type>> const
+          &eigenvectors,
+      std::vector<std::vector<typename VectorType::value_type>> const
+          &diag_elements,
+      std::vector<std::vector<dealii::types::global_dof_index>> const
+          &dof_indices_maps,
+      std::vector<unsigned int> const &n_local_eigenvectors,
+      dealii::LinearAlgebra::distributed::Vector<
+          typename VectorType::value_type> const
+          &locally_relevant_global_diag_dev,
+      std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          restriction_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &eigenvector_sparse_matrix,
+      std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+          &delta_eigenvector_matrix) const;
+
 protected:
   MPI_Comm _comm;
   dealii::DoFHandler<dim> const &_dof_handler;
@@ -109,6 +151,21 @@ private:
       std::vector<std::vector<dealii::types::global_dof_index>> const
           &dof_indices_maps,
       std::vector<unsigned int> const &n_local_eigenvectors) const;
+
+  /**
+   * This function contains the implementation that is common between the other
+   * public functions with the same name. The input is a vector of active cell
+   * iterator \p agglomerate.
+   */
+  void build_agglomerate_triangulation(
+      std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &agglomerate,
+      dealii::Triangulation<dim> &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator>
+          &agglomerate_to_global_tria_map) const;
+
+  mutable unsigned int _n_agglomerates;
 };
 } // namespace mfmg
 

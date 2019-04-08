@@ -13,6 +13,8 @@
 #define MFMG_DEALII_HIERARCHY_HELPERS_HPP
 
 #include <mfmg/common/hierarchy_helpers.hpp>
+#include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/dealii_mesh_evaluator.hpp>
 
 namespace mfmg
 {
@@ -21,6 +23,7 @@ class DealIIHierarchyHelpers : public HierarchyHelpers<VectorType>
 {
 public:
   using vector_type = VectorType;
+  using ScalarType = typename VectorType::value_type;
 
   std::shared_ptr<Operator<vector_type>> get_global_operator(
       std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
@@ -28,6 +31,9 @@ public:
   std::shared_ptr<Operator<vector_type>> build_restrictor(
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
+
+  std::shared_ptr<Operator<vector_type>>
+  fast_multiply_transpose() override final;
 
   std::shared_ptr<Smoother<vector_type>> build_smoother(
       std::shared_ptr<Operator<vector_type> const> op,
@@ -39,6 +45,7 @@ public:
 
 private:
   std::shared_ptr<Operator<vector_type>> _global_operator;
+  std::shared_ptr<Operator<vector_type>> _ap_operator;
 };
 } // namespace mfmg
 

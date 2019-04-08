@@ -172,7 +172,12 @@ public:
           hierarchy_helpers->build_restrictor(comm, evaluator, params);
       level_coarse.set_restrictor(restrictor);
 
-      auto ap = a->multiply_transpose(restrictor);
+      std::shared_ptr<Operator<VectorType>> ap;
+      bool fast_ap = params->get("fast_ap", false);
+      if (fast_ap)
+        ap = hierarchy_helpers->fast_multiply_transpose();
+      else
+        ap = a->multiply_transpose(restrictor);
       auto a_coarse = restrictor->multiply(ap);
 
       level_coarse.set_operator(a_coarse);

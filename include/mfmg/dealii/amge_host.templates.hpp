@@ -350,6 +350,55 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
+    boost::property_tree::ptree const &agglomerate_ptree,
+    unsigned int const n_eigenvectors, double const tolerance,
+    MeshEvaluator const &evaluator,
+    dealii::LinearAlgebra::distributed::Vector<
+        typename VectorType::value_type> const &locally_relevant_global_diag,
+    std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        restriction_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &eigenvector_sparse_matrix,
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        &delta_eigenvector_matrix,
+    std::vector<double> &eigenvalues)
+{
+  // Flag the cells to build agglomerates.
+  unsigned int const n_agglomerates =
+      this->build_agglomerates(agglomerate_ptree);
+
+  // Parallel part of the setup.
+  std::vector<unsigned int> agglomerate_ids(n_agglomerates);
+  std::iota(agglomerate_ids.begin(), agglomerate_ids.end(), 1);
+  std::vector<dealii::Vector<double>> eigenvectors;
+  std::vector<std::vector<ScalarType>> diag_elements;
+  std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
+  std::vector<unsigned int> n_local_eigenvectors;
+  CopyData copy_data;
+  dealii::WorkStream::run(
+      agglomerate_ids.begin(), agglomerate_ids.end(),
+      static_cast<
+          std::function<void(std::vector<unsigned int>::iterator const &,
+                             ScratchData &, CopyData &)>>(
+          std::bind(&AMGe_host::local_worker, *this, n_eigenvectors, tolerance,
+                    std::cref(evaluator), std::placeholders::_1,
+                    std::placeholders::_2, std::placeholders::_3)),
+      static_cast<std::function<void(CopyData const &)>>(std::bind(
+          &AMGe_host::copy_local_to_global_eig, *this, std::placeholders::_1,
+          std::ref(eigenvalues), std::ref(eigenvectors),
+          std::ref(diag_elements), std::ref(dof_indices_maps),
+          std::ref(n_local_eigenvectors))),
+      ScratchData(), copy_data);
+
+  AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
+      eigenvalues, eigenvectors, diag_elements, dof_indices_maps,
+      n_local_eigenvectors, locally_relevant_global_diag,
+      restriction_sparse_matrix, eigenvector_sparse_matrix,
+      delta_eigenvector_matrix);
+}
+
+template <int dim, typename MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
     unsigned int const n_eigenvectors, double const tolerance,
     MeshEvaluator const &evaluator,
@@ -364,9 +413,8 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
   this->build_agglomerate_triangulation(*agg_id, agglomerate_triangulation,
                                         agglomerate_to_global_tria_map);
 
-  // We ignore the eigenvalues.
-  std::tie(std::ignore, copy_data.local_eigenvectors, copy_data.diag_elements,
-           copy_data.local_dof_indices_map) =
+  std::tie(copy_data.local_eigenvalues, copy_data.local_eigenvectors,
+           copy_data.diag_elements, copy_data.local_dof_indices_map) =
       compute_local_eigenvectors(n_eigenvectors, tolerance,
                                  agglomerate_triangulation,
                                  agglomerate_to_global_tria_map, evaluator);
@@ -388,6 +436,23 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global(
   dof_indices_maps.push_back(copy_data.local_dof_indices_map);
 
   n_local_eigenvectors.push_back(copy_data.local_eigenvectors.size());
+}
+
+template <int dim, typename MeshEvaluator, typename VectorType>
+void AMGe_host<dim, MeshEvaluator, VectorType>::copy_local_to_global_eig(
+    CopyData const &copy_data, std::vector<double> &eigenvalues,
+    std::vector<dealii::Vector<double>> &eigenvectors,
+    std::vector<std::vector<typename VectorType::value_type>> &diag_elements,
+    std::vector<std::vector<dealii::types::global_dof_index>> &dof_indices_maps,
+    std::vector<unsigned int> &n_local_eigenvectors)
+{
+  copy_local_to_global(copy_data, eigenvectors, diag_elements, dof_indices_maps,
+                       n_local_eigenvectors);
+
+  std::transform(copy_data.local_eigenvalues.begin(),
+                 copy_data.local_eigenvalues.end(),
+                 std::back_inserter(eigenvalues),
+                 [](std::complex<double> const &z) { return z.real(); });
 }
 } // namespace mfmg
 
