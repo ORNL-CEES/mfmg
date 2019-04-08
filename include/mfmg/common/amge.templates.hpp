@@ -117,7 +117,6 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
   for (auto const &agg_cell : agg_cell_set)
   {
     std::vector<unsigned int> interior_boundary_cells;
-    std::vector<unsigned int> halo_cells;
     std::set<unsigned int> halo_cells_in_agg;
     for (auto const &agg_cell_it : agg_cell)
     {
@@ -137,17 +136,14 @@ AMGe<dim, VectorType>::build_boundary_agglomerates() const
             interior_boundary_cells.push_back(agg_cell_it);
             cell_in_agg = true;
           }
-          if (halo_cells_in_agg.count(connectivity_it->column()) == 0)
-          {
-            halo_cells.push_back(connectivity_it->column());
-            halo_cells_in_agg.insert(connectivity_it->column());
-          }
+          halo_cells_in_agg.insert(connectivity_it->column());
         }
       }
     }
 
     interior_agglomerates.emplace_back(interior_boundary_cells);
-    halo_agglomerates.emplace_back(halo_cells);
+    halo_agglomerates.emplace_back(halo_cells_in_agg.begin(),
+                                   halo_cells_in_agg.end());
   }
 
   return {interior_agglomerates, halo_agglomerates};
