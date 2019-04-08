@@ -231,6 +231,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   for (unsigned int i = 0; i < size; ++i)
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
 
+  // Shift eigenvalues away from zero
+  const double average_diagonal =
+      std::accumulate(diag_elements.begin(), diag_elements.end(), 0.) / size;
+  for (unsigned int i = 0; i < size; ++i)
+    agglomerate_system_matrix.diag_element(i) += average_diagonal;
+
   // Compute the eigenvalues and the eigenvectors
   unsigned int const n_dofs_agglomerate = agglomerate_system_matrix.m();
   std::vector<std::complex<double>> eigenvalues(n_eigenvectors);
@@ -300,6 +306,10 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   {
     ASSERT(false, "Unknown eigensolver type '" + eigensolver_type + "'");
   }
+
+  // Shift eigenvalues back
+  for (unsigned int i = 0; i < n_eigenvectors; ++i)
+    eigenvalues[i] -= average_diagonal;
 
   // Compute the map between the local and the global dof indices.
   std::vector<dealii::types::global_dof_index> dof_indices_map =
