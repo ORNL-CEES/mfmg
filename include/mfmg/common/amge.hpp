@@ -40,6 +40,12 @@ public:
   unsigned int
   build_agglomerates(boost::property_tree::ptree const &ptree) const;
 
+  /**
+   * Return the interior agglomerates (agglomerates made of cells at the
+   * boundary of the base agglomerates) and the halo agglomerates (agglomerates
+   * made of halo cells of the base agglomerates). The unsigned int is
+   * correspond to the active_cell_index.
+   */
   std::pair<std::vector<std::vector<unsigned int>>,
             std::vector<std::vector<unsigned int>>>
   build_boundary_agglomerates() const;
@@ -148,7 +154,7 @@ private:
 
   /**
    * This function contains the implementation that is common between the other
-   * public functions wit the same name. The input is a vector of active cell
+   * public functions with the same name. The input is a vector of active cell
    * iterator \p agglomerate.
    */
   void build_agglomerate_triangulation(
