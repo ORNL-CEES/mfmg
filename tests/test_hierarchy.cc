@@ -156,7 +156,7 @@ BOOST_DATA_TEST_CASE(
         bdata::make({"None", "Reverse Cuthill_McKee"}) *
         bdata::make<std::string>({"DealIIMeshEvaluator",
                                   "DealIIMatrixFreeMeshEvaluator"}) *
-        bdata::make<std::string>({"lapack", "lanczos"}),
+        bdata::make<std::string>({"arpack", "lanczos"}),
     mesh, distort_random, reordering, mesh_evaluator_type, eigensolver)
 {
   // TODO investigate why there is large difference in convergence rate when
@@ -182,9 +182,9 @@ BOOST_DATA_TEST_CASE(
     params->put("laplace.distort_random", distort_random);
     params->put("laplace.reordering", reordering);
 
-    if (is_matrix_free && eigensolver == "lapack")
+    if (is_matrix_free && eigensolver == "arpack")
     {
-      // skipping since LAPACK eigensolver is not available in matrix-free mode
+      // skipping since ARPACK eigensolver is not available in matrix-free mode
       std::cout << "skip\n";
       return;
     }
@@ -206,14 +206,14 @@ BOOST_DATA_TEST_CASE(
              double>
         ref_solution;
     // clang-format off
-    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "lapack"  , "matrix-full")] = 0.0491724046;
-    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "lapack"  , "matrix-full")] = 0.0491724046;
-    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "lapack"  , "matrix-full")] = 0.0488984875;
-    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "lapack"  , "matrix-full")] = 0.0488984875;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lapack"  , "matrix-full")] = 0.1146629782;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lapack"  , "matrix-full")] = 0.1146629782;
-    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lapack"  , "matrix-full")] = 0.1024334788;
-    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lapack"  , "matrix-full")] = 0.1024334788;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "arpack"  , "matrix-full")] = 0.0235237332;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "arpack"  , "matrix-full")] = 0.0235237332;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "arpack"  , "matrix-full")] = 0.0220847464;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "arpack"  , "matrix-full")] = 0.0220847464;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "arpack"  , "matrix-full")] = 0.1149016569;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "arpack"  , "matrix-full")] = 0.1149016569;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "arpack"  , "matrix-full")] = 0.1023844058;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "arpack"  , "matrix-full")] = 0.1023844058;
     ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "lanczos" , "matrix-full")] = 0.0235237332;
     ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "lanczos" , "matrix-free")] = 0.0880046389;
     ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.0235237332;
