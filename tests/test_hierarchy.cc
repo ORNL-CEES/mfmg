@@ -394,6 +394,11 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
       for (unsigned int j = 0; j < ref_matrix->n(); ++j)
         if (ref_matrix->el(i, j) > 1e-10)
           BOOST_TEST(fast_matrix->el(i, j) == ref_matrix->el(i, j),
-                     tt::tolerance(1e-6));
+                     tt::tolerance(1e-9));
+  }
+  else
+  {
+    // Do nothing. Fast ap only works in serial but the tests in test_hierarchy
+    // are run in parallel.
   }
 }
