@@ -340,7 +340,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
-    params->put("eigensolver.type", "lapack");
+    params->put("eigensolver.type", "arpack");
     auto material_property =
         MaterialPropertyFactory<dim>::create_material_property(
             params->get<std::string>("material_property.type"));
@@ -379,6 +379,82 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
             fast_laplace._system_matrix, material_property);
     std::unique_ptr<mfmg::HierarchyHelpers<DVector>> fast_hierarchy_helpers(
         new mfmg::DealIIHierarchyHelpers<dim, DVector>());
+
+    auto fast_restrictor =
+        fast_hierarchy_helpers->build_restrictor(comm, fast_evaluator, params);
+
+    auto fast_ap = fast_hierarchy_helpers->fast_multiply_transpose();
+    auto fast_matrix =
+        std::dynamic_pointer_cast<mfmg::DealIITrilinosMatrixOperator<DVector>>(
+            fast_ap)
+            ->get_matrix();
+
+    // Compare the two matrices obtained
+    for (unsigned int i = 0; i < ref_matrix->m(); ++i)
+      for (unsigned int j = 0; j < ref_matrix->n(); ++j)
+        if (ref_matrix->el(i, j) > 1e-10)
+          BOOST_TEST(fast_matrix->el(i, j) == ref_matrix->el(i, j),
+                     tt::tolerance(1e-9));
+  }
+  else
+  {
+    // Do nothing. Fast ap only works in serial but the tests in test_hierarchy
+    // are run in parallel.
+  }
+}
+
+BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
+{
+  MPI_Comm comm = MPI_COMM_WORLD;
+  auto comm_size = dealii::Utilities::MPI::n_mpi_processes(comm);
+  // For now fast_ap only work on serial
+  if (comm_size == 1)
+  {
+    using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
+    int constexpr dim = mfmg::DealIIMatrixFreeMeshEvaluator<2>::_dim;
+
+    auto params = std::make_shared<boost::property_tree::ptree>();
+    boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                 *params);
+    params->put("eigensolver.type", "lanczos");
+    auto material_property =
+        MaterialPropertyFactory<dim>::create_material_property(
+            params->get<std::string>("material_property.type"));
+    Source<dim> source;
+    auto laplace_ptree = params->get_child("laplace");
+
+    // Compute the ref AP
+    Laplace<dim, DVector> ref_laplace(comm, 1);
+    ref_laplace.setup_system(laplace_ptree);
+    ref_laplace.assemble_system(source, *material_property);
+
+    auto ref_evaluator =
+        std::make_shared<TestMeshEvaluator<mfmg::DealIIMeshEvaluator<2>>>(
+            ref_laplace._dof_handler, ref_laplace._constraints, 1,
+            ref_laplace._system_matrix, material_property);
+    std::unique_ptr<mfmg::HierarchyHelpers<DVector>> ref_hierarchy_helpers(
+        new mfmg::DealIIHierarchyHelpers<dim, DVector>());
+    auto ref_a = ref_hierarchy_helpers->get_global_operator(ref_evaluator);
+    auto ref_restrictor =
+        ref_hierarchy_helpers->build_restrictor(comm, ref_evaluator, params);
+    auto ref_ap = ref_a->multiply_transpose(ref_restrictor);
+    auto ref_matrix =
+        std::dynamic_pointer_cast<mfmg::DealIITrilinosMatrixOperator<DVector>>(
+            ref_ap)
+            ->get_matrix();
+
+    // Compute the fast AP
+    params->put("fast_ap", true);
+    Laplace<dim, DVector> fast_laplace(comm, 1);
+    fast_laplace.setup_system(laplace_ptree);
+    fast_laplace.assemble_system(source, *material_property);
+
+    auto fast_evaluator = std::make_shared<
+        TestMeshEvaluator<mfmg::DealIIMatrixFreeMeshEvaluator<2>>>(
+        fast_laplace._dof_handler, fast_laplace._constraints, 1,
+        fast_laplace._system_matrix, material_property);
+    std::unique_ptr<mfmg::HierarchyHelpers<DVector>> fast_hierarchy_helpers(
+        new mfmg::DealIIMatrixFreeHierarchyHelpers<dim, DVector>());
 
     auto fast_restrictor =
         fast_hierarchy_helpers->build_restrictor(comm, fast_evaluator, params);
