@@ -222,13 +222,13 @@ BOOST_DATA_TEST_CASE(
     ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "lanczos" , "matrix-free")] = 0.0859227356;
     ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.0220847463;
     ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "lanczos" , "matrix-free")] = 0.0859227356;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lanczos" , "matrix-full")] = 0.1148067738;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lanczos" , "matrix-free")] = 0.3012330587;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.1148067738;
-    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lanczos" , "matrix-free")] = 0.3012330587;
-    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lanczos" , "matrix-full")] = 0.1024544826;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lanczos" , "matrix-full")] = 0.1148148381;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "lanczos" , "matrix-free")] = 0.3012330588;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.1148148381;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "lanczos" , "matrix-free")] = 0.3012330588;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lanczos" , "matrix-full")] = 0.1024523994;
     ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "lanczos" , "matrix-free")] = 0.2977974869;
-    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.1024544826;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lanczos" , "matrix-full")] = 0.1024523994;
     ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "lanczos" , "matrix-free")] = 0.2977974869;
     // clang-format on
 
