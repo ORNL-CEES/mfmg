@@ -25,7 +25,7 @@
 namespace mfmg
 {
 template <int dim, typename VectorType>
-class DealIIMatrixFreeSmoother : public Smoother<VectorType>
+class DealIIMatrixFreeSmoother final : public Smoother<VectorType>
 {
 public:
   using vector_type = VectorType;
@@ -39,7 +39,7 @@ public:
       std::shared_ptr<Operator<vector_type> const> op,
       std::shared_ptr<boost::property_tree::ptree const> params);
 
-  void apply(vector_type const &b, vector_type &x) const override final;
+  void apply(vector_type const &b, vector_type &x) const override;
 
 private:
   std::unique_ptr<chebyshev_preconditioner> _smoother;

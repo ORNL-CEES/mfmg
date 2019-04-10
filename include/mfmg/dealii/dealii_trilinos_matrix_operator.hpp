@@ -19,7 +19,7 @@
 namespace mfmg
 {
 template <typename VectorType>
-class DealIITrilinosMatrixOperator : public Operator<VectorType>
+class DealIITrilinosMatrixOperator final : public Operator<VectorType>
 {
 public:
   using vector_type = VectorType;
@@ -28,23 +28,23 @@ public:
       std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
 
   void apply(vector_type const &x, vector_type &y,
-             OperatorMode mode = OperatorMode::NO_TRANS) const override final;
+             OperatorMode mode = OperatorMode::NO_TRANS) const override;
 
-  std::shared_ptr<Operator<VectorType>> transpose() const override final;
+  std::shared_ptr<Operator<VectorType>> transpose() const override;
 
   std::shared_ptr<Operator<VectorType>>
-  multiply(std::shared_ptr<Operator<VectorType> const> b) const override final;
+  multiply(std::shared_ptr<Operator<VectorType> const> b) const override;
 
   std::shared_ptr<Operator<VectorType>> multiply_transpose(
-      std::shared_ptr<Operator<VectorType> const> b) const override final;
+      std::shared_ptr<Operator<VectorType> const> b) const override;
 
-  std::shared_ptr<vector_type> build_domain_vector() const override final;
+  std::shared_ptr<vector_type> build_domain_vector() const override;
 
-  std::shared_ptr<vector_type> build_range_vector() const override final;
+  std::shared_ptr<vector_type> build_range_vector() const override;
 
-  size_t grid_complexity() const override final;
+  size_t grid_complexity() const override;
 
-  size_t operator_complexity() const override final;
+  size_t operator_complexity() const override;
 
   std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix const>
   get_matrix() const;
