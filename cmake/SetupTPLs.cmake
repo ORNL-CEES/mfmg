@@ -38,19 +38,6 @@ ELSE()
   ENDIF()
 ENDIF()
 
-#### LAPACKE #################################################################
-FIND_LIBRARY(LAPACKE_LIBRARY NAMES lapacke
-             HINTS ${LAPACK_DIR} $ENV{LAPACK_DIR}
-             PATH_SUFFIXES lib)
-FIND_PATH(LAPACKE_INCLUDE_DIR lapacke.h
-          HINTS ${LAPACK_DIR} $ENV{LAPACK_DIR}
-          PATH_SUFFIXES include)
-
-IF(NOT LAPACKE_INCLUDE_DIR OR NOT LAPACKE_LIBRARY)
-  MESSAGE(FATAL_ERROR
-          "Error! Could not locate LAPACKE.")
-ENDIF()
-
 #### AMGX ####################################################################
 IF(${MFMG_ENABLE_CUDA})
   IF (${MFMG_ENABLE_AMGX})
