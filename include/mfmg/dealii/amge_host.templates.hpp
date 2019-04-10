@@ -342,16 +342,15 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   CopyData copy_data;
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
-      static_cast<
-          std::function<void(std::vector<unsigned int>::iterator const &,
-                             ScratchData &, CopyData &)>>(
-          std::bind(&AMGe_host::local_worker, *this, n_eigenvectors, tolerance,
-                    std::cref(evaluator), std::placeholders::_1,
-                    std::placeholders::_2, std::placeholders::_3)),
-      static_cast<std::function<void(CopyData const &)>>(std::bind(
-          &AMGe_host::copy_local_to_global, *this, std::placeholders::_1,
-          std::ref(eigenvectors), std::ref(diag_elements),
-          std::ref(dof_indices_maps), std::ref(n_local_eigenvectors))),
+      [&](std::vector<unsigned int>::iterator const &agg_id,
+          ScratchData &scratch_data, CopyData &copy_data) {
+        this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
+                           scratch_data, copy_data);
+      },
+      [&](CopyData const &copy_data) {
+        this->copy_local_to_global(copy_data, eigenvectors, diag_elements,
+                                   dof_indices_maps, n_local_eigenvectors);
+      },
       ScratchData(), copy_data);
 
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
@@ -388,17 +387,16 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   CopyData copy_data;
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
-      static_cast<
-          std::function<void(std::vector<unsigned int>::iterator const &,
-                             ScratchData &, CopyData &)>>(
-          std::bind(&AMGe_host::local_worker, *this, n_eigenvectors, tolerance,
-                    std::cref(evaluator), std::placeholders::_1,
-                    std::placeholders::_2, std::placeholders::_3)),
-      static_cast<std::function<void(CopyData const &)>>(std::bind(
-          &AMGe_host::copy_local_to_global_eig, *this, std::placeholders::_1,
-          std::ref(eigenvalues), std::ref(eigenvectors),
-          std::ref(diag_elements), std::ref(dof_indices_maps),
-          std::ref(n_local_eigenvectors))),
+      [&](std::vector<unsigned int>::iterator const &agg_id,
+          ScratchData &scratch_data, CopyData &copy_data) {
+        this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
+                           scratch_data, copy_data);
+      },
+      [&](CopyData const &copy_data) {
+        this->copy_local_to_global_eig(copy_data, eigenvalues, eigenvectors,
+                                       diag_elements, dof_indices_maps,
+                                       n_local_eigenvectors);
+      },
       ScratchData(), copy_data);
 
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
