@@ -14,6 +14,7 @@ ARGS=(
   -D MFMG_ENABLE_AMGX=ON
   -D AMGX_DIR=${AMGX_DIR}
   -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow"
+  -D LAPACK_DIR=${OPENBLAS_DIR}
   )
 cmake "${ARGS[@]}" ../ || exit 1
 make -j12
