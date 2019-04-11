@@ -340,7 +340,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
     auto params = std::make_shared<boost::property_tree::ptree>();
     boost::property_tree::info_parser::read_info("hierarchy_input.info",
                                                  *params);
-    params->put("eigensolver.type", "arpack");
+    params->put("eigensolver.type", "lapack");
     auto material_property =
         MaterialPropertyFactory<dim>::create_material_property(
             params->get<std::string>("material_property.type"));

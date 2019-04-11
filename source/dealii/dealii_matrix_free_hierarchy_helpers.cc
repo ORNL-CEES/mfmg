@@ -128,10 +128,6 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
         // agglomerate
         dealii::DoFHandler<dim> agglomerate_dof_handler(
             agglomerate_triangulation);
-        dealii::AffineConstraints<double> agglomerate_constraints;
-        dealii::SparsityPattern agglomerate_sparsity_pattern;
-        dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
-
         agglomerate_dof_handler.distribute_dofs(
             dealii_mesh_evaluator->get_dof_handler().get_fe());
 
@@ -192,6 +188,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
     Epetra_CrsMatrix *ap = nullptr;
     // We want to use functions that have been deprecated in deal.II but they
     // won't be removed in the foreseeable future
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     Epetra_Map range_map = eigenvector_matrix->domain_partitioner();
     Epetra_Map domain_map = eigenvector_matrix->range_partitioner();
