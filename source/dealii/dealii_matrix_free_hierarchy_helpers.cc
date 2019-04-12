@@ -19,7 +19,12 @@
 #include <mfmg/dealii/dealii_solver.hpp>
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 
+#include <deal.II/dofs/dof_accessor.h>
 #include <deal.II/lac/trilinos_precondition.h>
+
+#include <EpetraExt_MatrixMatrix.h>
+
+#include <unordered_map>
 
 namespace mfmg
 {
@@ -57,8 +62,6 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
           mesh_evaluator);
 
   auto eigensolver_params = params->get_child("eigensolver");
-  AMGe_host<dim, DealIIMatrixFreeMeshEvaluator<dim>, VectorType> amge(
-      comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params);
 
   auto agglomerate_params = params->get_child("agglomeration");
   int n_eigenvectors = eigensolver_params.get("number of eigenvectors", 1);
@@ -69,9 +72,151 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 
   auto locally_relevant_global_diag = dealii_mesh_evaluator->get_diagonal();
 
-  amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
-                        *dealii_mesh_evaluator, locally_relevant_global_diag,
-                        *restrictor_matrix);
+  bool fast_ap = params->get("fast_ap", false);
+  if (fast_ap)
+  {
+    // TODO make it work with MPI
+    ASSERT(dealii::Utilities::MPI::n_mpi_processes(comm) == 1,
+           "fast_ap only works in serial");
+
+    AMGe_host<dim, DealIIMatrixFreeMeshEvaluator<dim>, VectorType> amge(
+        comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params);
+    std::vector<double> eigenvalues;
+    // We use unique_ptr because we want to use a special constructor when we
+    // fill the matrix, i.e., we don't want to provide a SparsityPattern. All
+    // the reinit functions require a SparsityPattern.
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix> eigenvector_matrix;
+    std::unique_ptr<dealii::TrilinosWrappers::SparseMatrix>
+        delta_eigenvector_matrix;
+    amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
+                          *dealii_mesh_evaluator, locally_relevant_global_diag,
+                          restrictor_matrix, eigenvector_matrix,
+                          delta_eigenvector_matrix, eigenvalues);
+
+    dealii::TrilinosWrappers::SparseMatrix delta_correction_matrix(
+        eigenvector_matrix->locally_owned_range_indices(),
+        eigenvector_matrix->locally_owned_domain_indices(),
+        eigenvector_matrix->get_mpi_communicator());
+
+    // Need to apply delta_eigenvector_matrix
+    std::vector<std::vector<unsigned int>> interior_agglomerates;
+    std::vector<std::vector<unsigned int>> halo_agglomerates;
+    std::tie(interior_agglomerates, halo_agglomerates) =
+        amge.build_boundary_agglomerates();
+    std::unordered_map<std::pair<unsigned int, unsigned int>, double,
+                       boost::hash<std::pair<unsigned int, unsigned int>>>
+        delta_correction_acc;
+    bool is_halo_agglomerate = false;
+    unsigned int const n_local_eigenvectors =
+        delta_correction_matrix.m() / interior_agglomerates.size();
+    for (auto const &agglomerates_vector :
+         {interior_agglomerates, halo_agglomerates})
+    {
+      // TODO use WorkStream
+      unsigned int const n_agglomerates = agglomerates_vector.size();
+      for (unsigned int i = 0; i < n_agglomerates; ++i)
+      {
+        auto agglomerate = agglomerates_vector[i];
+        dealii::Triangulation<dim> agglomerate_triangulation;
+        std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                 typename dealii::DoFHandler<dim>::active_cell_iterator>
+            patch_to_global_map;
+        amge.build_agglomerate_triangulation(
+            agglomerate, agglomerate_triangulation, patch_to_global_map);
+
+        // Now that we have the triangulation, we can do the evaluation on the
+        // agglomerate
+        dealii::DoFHandler<dim> agglomerate_dof_handler(
+            agglomerate_triangulation);
+        agglomerate_dof_handler.distribute_dofs(
+            dealii_mesh_evaluator->get_dof_handler().get_fe());
+
+        // Put the result in the matrix
+        // Compute the map between the local and the global dof indices.
+        std::vector<dealii::types::global_dof_index> dof_indices_map =
+            amge.compute_dof_index_map(patch_to_global_map,
+                                       agglomerate_dof_handler);
+        unsigned int const n_elem = dof_indices_map.size();
+        for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
+        {
+          unsigned int const row = i * n_local_eigenvectors + j;
+          // Get the vector used for the matrix-vector multiplication
+          dealii::Vector<ScalarType> delta_eig(n_elem);
+          if (is_halo_agglomerate)
+          {
+            for (unsigned int k = 0; k < n_elem; ++k)
+            {
+              delta_eig[k] =
+                  delta_eigenvector_matrix->el(row, dof_indices_map[k]) +
+                  eigenvector_matrix->el(row, dof_indices_map[k]) /
+                      eigenvalues[row];
+            }
+          }
+          else
+          {
+            for (unsigned int k = 0; k < n_elem; ++k)
+            {
+              delta_eig[k] =
+                  delta_eigenvector_matrix->el(row, dof_indices_map[k]);
+            }
+          }
+
+          // Perform the matrix-vector multiplication
+          dealii::Vector<ScalarType> correction(n_elem);
+          dealii_mesh_evaluator->matrix_free_evaluate_agglomerate(
+              agglomerate_dof_handler, delta_eig, correction);
+
+          // We would like to fill the delta correction matrix but we can't
+          // because we don't know the sparsity pattern. So we accumulate all
+          // the values and then fill the matrix using the set() function.
+          for (unsigned int k = 0; k < n_elem; ++k)
+            delta_correction_acc[std::make_pair(row, dof_indices_map[k])] +=
+                correction[k];
+        }
+      }
+
+      is_halo_agglomerate = true;
+    }
+
+    // Fill delta_correction_matrix
+    for (auto const &entry : delta_correction_acc)
+      delta_correction_matrix.set(entry.first.first, entry.first.second,
+                                  entry.second);
+    delta_correction_matrix.compress(dealii::VectorOperation::insert);
+
+    // Add the eigenvector matrix and the delta correction matrix to create ap
+    Epetra_CrsMatrix *ap = nullptr;
+    // We want to use functions that have been deprecated in deal.II but they
+    // won't be removed in the foreseeable future
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    Epetra_Map range_map = eigenvector_matrix->domain_partitioner();
+    Epetra_Map domain_map = eigenvector_matrix->range_partitioner();
+#pragma GCC diagnostic pop
+
+    bool const transpose = true;
+    int error_code = EpetraExt::MatrixMatrix::Add(
+        eigenvector_matrix->trilinos_matrix(), transpose, 1.,
+        delta_correction_matrix.trilinos_matrix(), transpose, 1., ap);
+    ap->FillComplete(domain_map, range_map);
+    ASSERT(error_code == 0, "Problem when adding matrices");
+
+    // Copy the Epetra_CrsMatrix to a dealii::TrilinosWrappers::SparseMatrix
+    auto dealii_ap = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
+    dealii_ap->reinit(*ap);
+    delete ap;
+
+    _ap_operator.reset(new DealIITrilinosMatrixOperator<VectorType>(dealii_ap));
+  }
+  else
+  {
+    AMGe_host<dim, DealIIMatrixFreeMeshEvaluator<dim>, VectorType> amge(
+        comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params);
+
+    amge.setup_restrictor(agglomerate_params, n_eigenvectors, tolerance,
+                          *dealii_mesh_evaluator, locally_relevant_global_diag,
+                          *restrictor_matrix);
+  }
 
   std::shared_ptr<Operator<VectorType>> op(
       new DealIITrilinosMatrixOperator<VectorType>(restrictor_matrix));
@@ -97,6 +242,14 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_coarse_solver(
 {
   return std::make_shared<DealIISolver<VectorType>>(op, params);
 }
+
+template <int dim, typename VectorType>
+std::shared_ptr<Operator<VectorType>>
+DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::fast_multiply_transpose()
+{
+  return _ap_operator;
+}
+
 } // namespace mfmg
 
 // Explicit Instantiation

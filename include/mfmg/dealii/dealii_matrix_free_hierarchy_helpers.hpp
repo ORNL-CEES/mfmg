@@ -21,6 +21,7 @@ class DealIIMatrixFreeHierarchyHelpers : public HierarchyHelpers<VectorType>
 {
 public:
   using vector_type = VectorType;
+  using ScalarType = typename VectorType::value_type;
 
   std::shared_ptr<Operator<vector_type>> get_global_operator(
       std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
@@ -37,8 +38,12 @@ public:
       std::shared_ptr<Operator<vector_type> const> op,
       std::shared_ptr<boost::property_tree::ptree const> params) override final;
 
+  std::shared_ptr<Operator<vector_type>>
+  fast_multiply_transpose() override final;
+
 private:
   std::shared_ptr<Operator<vector_type>> _global_operator;
+  std::shared_ptr<Operator<vector_type>> _ap_operator;
 };
 } // namespace mfmg
 
