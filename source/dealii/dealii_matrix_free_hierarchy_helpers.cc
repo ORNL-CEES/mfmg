@@ -222,7 +222,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
       new DealIITrilinosMatrixOperator<VectorType>(restrictor_matrix));
 
   return op;
-} // namespace mfmg
+}
 
 template <int dim, typename VectorType>
 std::shared_ptr<Smoother<VectorType>>
