@@ -29,58 +29,23 @@ template class mfmg::AMGe_host<
     3, mfmg::DealIIMatrixFreeMeshEvaluator<3>,
     dealii::LinearAlgebra::distributed::Vector<double>>;
 
-template std::tuple<std::vector<std::complex<double>>,
-                    std::vector<dealii::Vector<double>>, std::vector<double>,
-                    std::vector<dealii::types::global_dof_index>>
-mfmg::AMGe_host<2, mfmg::DealIIMeshEvaluator<2>,
-                dealii::LinearAlgebra::distributed::Vector<double>>::
-    compute_local_eigenvectors(
-        unsigned int n_eigenvectors, double tolerance,
-        dealii::parallel::distributed::Triangulation<2> const
-            &agglomerate_triangulation,
-        std::map<typename dealii::Triangulation<2>::active_cell_iterator,
-                 typename dealii::DoFHandler<2>::active_cell_iterator> const
-            &patch_to_global_map,
-        mfmg::DealIIMeshEvaluator<2> const &evaluator, int) const;
+#define INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(DIM, MESH_EVALUATOR)            \
+  template std::tuple<                                                         \
+      std::vector<std::complex<double>>, std::vector<dealii::Vector<double>>,  \
+      std::vector<double>, std::vector<dealii::types::global_dof_index>>       \
+  mfmg::AMGe_host<DIM, MESH_EVALUATOR<DIM>,                                    \
+                  dealii::LinearAlgebra::distributed::Vector<double>>::        \
+      compute_local_eigenvectors(                                              \
+          unsigned int n_eigenvectors, double tolerance,                       \
+          dealii::parallel::distributed::Triangulation<DIM> const              \
+              &agglomerate_triangulation,                                      \
+          std::map<                                                            \
+              typename dealii::Triangulation<DIM>::active_cell_iterator,       \
+              typename dealii::DoFHandler<DIM>::active_cell_iterator> const    \
+              &patch_to_global_map,                                            \
+          MESH_EVALUATOR<DIM> const &evaluator, int) const;
 
-template std::tuple<std::vector<std::complex<double>>,
-                    std::vector<dealii::Vector<double>>, std::vector<double>,
-                    std::vector<dealii::types::global_dof_index>>
-mfmg::AMGe_host<2, mfmg::DealIIMatrixFreeMeshEvaluator<2>,
-                dealii::LinearAlgebra::distributed::Vector<double>>::
-    compute_local_eigenvectors(
-        unsigned int n_eigenvectors, double tolerance,
-        dealii::parallel::distributed::Triangulation<2> const
-            &agglomerate_triangulation,
-        std::map<typename dealii::Triangulation<2>::active_cell_iterator,
-                 typename dealii::DoFHandler<2>::active_cell_iterator> const
-            &patch_to_global_map,
-        mfmg::DealIIMatrixFreeMeshEvaluator<2> const &evaluator, int) const;
-
-template std::tuple<std::vector<std::complex<double>>,
-                    std::vector<dealii::Vector<double>>, std::vector<double>,
-                    std::vector<dealii::types::global_dof_index>>
-mfmg::AMGe_host<3, mfmg::DealIIMeshEvaluator<3>,
-                dealii::LinearAlgebra::distributed::Vector<double>>::
-    compute_local_eigenvectors(
-        unsigned int n_eigenvectors, double tolerance,
-        dealii::parallel::distributed::Triangulation<3> const
-            &agglomerate_triangulation,
-        std::map<typename dealii::Triangulation<3>::active_cell_iterator,
-                 typename dealii::DoFHandler<3>::active_cell_iterator> const
-            &patch_to_global_map,
-        mfmg::DealIIMeshEvaluator<3> const &evaluator, int) const;
-
-template std::tuple<std::vector<std::complex<double>>,
-                    std::vector<dealii::Vector<double>>, std::vector<double>,
-                    std::vector<dealii::types::global_dof_index>>
-mfmg::AMGe_host<3, mfmg::DealIIMatrixFreeMeshEvaluator<3>,
-                dealii::LinearAlgebra::distributed::Vector<double>>::
-    compute_local_eigenvectors(
-        unsigned int n_eigenvectors, double tolerance,
-        dealii::parallel::distributed::Triangulation<3> const
-            &agglomerate_triangulation,
-        std::map<typename dealii::Triangulation<3>::active_cell_iterator,
-                 typename dealii::DoFHandler<3>::active_cell_iterator> const
-            &patch_to_global_map,
-        mfmg::DealIIMatrixFreeMeshEvaluator<3> const &evaluator, int) const;
+INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(2, mfmg::DealIIMeshEvaluator)
+INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(3, mfmg::DealIIMeshEvaluator)
+INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(2, mfmg::DealIIMatrixFreeMeshEvaluator)
+INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(3, mfmg::DealIIMatrixFreeMeshEvaluator)
