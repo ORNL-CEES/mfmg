@@ -119,8 +119,11 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
       class ScratchData
       {
       } scratch_data;
-      class CopyData
+      struct CopyData
       {
+        std::unordered_map<std::pair<unsigned int, unsigned int>, double,
+                       boost::hash<std::pair<unsigned int, unsigned int>>>
+        delta_correction_local_acc;
       } copy_data;
 
       // TODO use WorkStream
@@ -154,7 +157,7 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
                 amge.compute_dof_index_map(patch_to_global_map,
                                            agglomerate_dof_handler);
             unsigned int const n_elem = dof_indices_map.size();
-            const unsigned int i = agglomerate_it - agglomerates_vector.begin();
+            unsigned int const i = agglomerate_it - agglomerates_vector.begin();
             for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
             {
               unsigned int const row = i * n_local_eigenvectors + j;
@@ -188,22 +191,33 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
               // all the values and then fill the matrix using the set()
               // function.
               for (unsigned int k = 0; k < n_elem; ++k)
-                delta_correction_acc[std::make_pair(row, dof_indices_map[k])] +=
+	      {
+                copy_data.delta_correction_local_acc[std::make_pair(row, dof_indices_map[k])] +=
                     correction[k];
+	      }
             }
           };
 
+      auto copier =  [&](const CopyData &local_copy_data) {
+            for (const auto& local_pair: local_copy_data.delta_correction_local_acc)
+	    {
+            delta_correction_acc[local_pair.first]+=local_pair.second;
+	    }
+          };
+
       dealii::WorkStream::run(
-          agglomerates_vector.begin(), agglomerates_vector.end(), worker,
-          [](const CopyData &local_copy_data) {}, scratch_data, copy_data);
+          agglomerates_vector.begin(), agglomerates_vector.end(), worker, copier
+	  , scratch_data, copy_data);
 
       is_halo_agglomerate = true;
     }
 
     // Fill delta_correction_matrix
     for (auto const &entry : delta_correction_acc)
+    {
       delta_correction_matrix.set(entry.first.first, entry.first.second,
                                   entry.second);
+    }
     delta_correction_matrix.compress(dealii::VectorOperation::insert);
 
     // Add the eigenvector matrix and the delta correction matrix to create ap
