@@ -133,14 +133,14 @@ DealIIMatrixFreeOperator<dim, VectorType>::build_range_vector() const
 template <int dim, typename VectorType>
 size_t DealIIMatrixFreeOperator<dim, VectorType>::grid_complexity() const
 {
-  // FIXME Returns garbage since throwing not implemented was not an option
+  ASSERT_THROW_NOT_IMPLEMENTED();
   return -1;
 }
 
 template <int dim, typename VectorType>
 size_t DealIIMatrixFreeOperator<dim, VectorType>::operator_complexity() const
 {
-  // FIXME Returns garbage since throwing not implemented was not an option
+  ASSERT_THROW_NOT_IMPLEMENTED();
   return -1;
 }
 
