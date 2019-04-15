@@ -126,7 +126,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
       auto worker =
           [&](const std::vector<std::vector<unsigned int>>::const_iterator
                   &agglomerate_it,
-              ScratchData &local_scratch_data, CopyData &local_copy_data) {
+              ScratchData &, CopyData &local_copy_data) {
             dealii::Triangulation<dim> agglomerate_triangulation;
             std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                      typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -184,7 +184,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
               // function.
               for (unsigned int k = 0; k < n_elem; ++k)
               {
-                copy_data.delta_correction_local_acc[std::make_pair(
+                local_copy_data.delta_correction_local_acc[std::make_pair(
                     row, dof_indices_map[k])] += correction[k];
               }
             }
