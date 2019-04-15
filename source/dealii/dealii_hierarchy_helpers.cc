@@ -116,17 +116,16 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     for (auto const &agglomerates_vector :
          {interior_agglomerates, halo_agglomerates})
     {
-      class ScratchData
+      struct ScratchData
       {
       } scratch_data;
       struct CopyData
       {
         std::unordered_map<std::pair<unsigned int, unsigned int>, double,
-                       boost::hash<std::pair<unsigned int, unsigned int>>>
-        delta_correction_local_acc;
+                           boost::hash<std::pair<unsigned int, unsigned int>>>
+            delta_correction_local_acc;
       } copy_data;
 
-      // TODO use WorkStream
       auto worker =
           [&](const std::vector<std::vector<unsigned int>>::const_iterator
                   &agglomerate_it,
@@ -191,23 +190,24 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
               // all the values and then fill the matrix using the set()
               // function.
               for (unsigned int k = 0; k < n_elem; ++k)
-	      {
-                copy_data.delta_correction_local_acc[std::make_pair(row, dof_indices_map[k])] +=
-                    correction[k];
-	      }
+              {
+                copy_data.delta_correction_local_acc[std::make_pair(
+                    row, dof_indices_map[k])] += correction[k];
+              }
             }
           };
 
-      auto copier =  [&](const CopyData &local_copy_data) {
-            for (const auto& local_pair: local_copy_data.delta_correction_local_acc)
-	    {
-            delta_correction_acc[local_pair.first]+=local_pair.second;
-	    }
-          };
+      auto copier = [&](const CopyData &local_copy_data) {
+        for (const auto &local_pair :
+             local_copy_data.delta_correction_local_acc)
+        {
+          delta_correction_acc[local_pair.first] += local_pair.second;
+        }
+      };
 
-      dealii::WorkStream::run(
-          agglomerates_vector.begin(), agglomerates_vector.end(), worker, copier
-	  , scratch_data, copy_data);
+      dealii::WorkStream::run(agglomerates_vector.begin(),
+                              agglomerates_vector.end(), worker, copier,
+                              scratch_data, copy_data);
 
       is_halo_agglomerate = true;
     }
