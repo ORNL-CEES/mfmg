@@ -17,6 +17,7 @@
 #include <mfmg/dealii/dealii_trilinos_matrix_operator.hpp>
 #include <mfmg/dealii/dealii_utils.hpp>
 
+#include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>
 
 #include <EpetraExt_MatrixMatrix.h>
@@ -115,80 +116,110 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     for (auto const &agglomerates_vector :
          {interior_agglomerates, halo_agglomerates})
     {
-      // TODO use WorkStream
-      unsigned int const n_agglomerates = agglomerates_vector.size();
-      for (unsigned int i = 0; i < n_agglomerates; ++i)
+      struct ScratchData
       {
-        auto agglomerate = agglomerates_vector[i];
-        dealii::Triangulation<dim> agglomerate_triangulation;
-        std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-                 typename dealii::DoFHandler<dim>::active_cell_iterator>
-            patch_to_global_map;
-        amge.build_agglomerate_triangulation(
-            agglomerate, agglomerate_triangulation, patch_to_global_map);
+      } scratch_data;
+      struct CopyData
+      {
+        std::unordered_map<std::pair<unsigned int, unsigned int>, double,
+                           boost::hash<std::pair<unsigned int, unsigned int>>>
+            delta_correction_local_acc;
+      } copy_data;
 
-        // Now that we have the triangulation, we can do the evaluation on the
-        // agglomerate
-        dealii::DoFHandler<dim> agglomerate_dof_handler(
-            agglomerate_triangulation);
-        dealii::AffineConstraints<double> agglomerate_constraints;
-        dealii::SparsityPattern agglomerate_sparsity_pattern;
-        dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
-        // Call user function to build the system matrix
-        dealii_mesh_evaluator->evaluate_agglomerate(
-            agglomerate_dof_handler, agglomerate_constraints,
-            agglomerate_sparsity_pattern, agglomerate_system_matrix);
+      auto worker =
+          [&](const std::vector<std::vector<unsigned int>>::const_iterator
+                  &agglomerate_it,
+              ScratchData &, CopyData &local_copy_data) {
+            local_copy_data.delta_correction_local_acc.clear();
 
-        // Put the result in the matrix
-        // Compute the map between the local and the global dof indices.
-        std::vector<dealii::types::global_dof_index> dof_indices_map =
-            amge.compute_dof_index_map(patch_to_global_map,
-                                       agglomerate_dof_handler);
-        unsigned int const n_elem = dof_indices_map.size();
-        for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
+            dealii::Triangulation<dim> agglomerate_triangulation;
+            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                     typename dealii::DoFHandler<dim>::active_cell_iterator>
+                patch_to_global_map;
+            amge.build_agglomerate_triangulation(*agglomerate_it,
+                                                 agglomerate_triangulation,
+                                                 patch_to_global_map);
+
+            // Now that we have the triangulation, we can do the evaluation on
+            // the agglomerate
+            dealii::DoFHandler<dim> agglomerate_dof_handler(
+                agglomerate_triangulation);
+            dealii::AffineConstraints<double> agglomerate_constraints;
+            dealii::SparsityPattern agglomerate_sparsity_pattern;
+            dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
+            // Call user function to build the system matrix
+            dealii_mesh_evaluator->evaluate_agglomerate(
+                agglomerate_dof_handler, agglomerate_constraints,
+                agglomerate_sparsity_pattern, agglomerate_system_matrix);
+
+            // Put the result in the matrix
+            // Compute the map between the local and the global dof indices.
+            std::vector<dealii::types::global_dof_index> dof_indices_map =
+                amge.compute_dof_index_map(patch_to_global_map,
+                                           agglomerate_dof_handler);
+            unsigned int const n_elem = dof_indices_map.size();
+            unsigned int const i = agglomerate_it - agglomerates_vector.begin();
+            for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
+            {
+              unsigned int const row = i * n_local_eigenvectors + j;
+              // Get the vector used for the matrix-vector multiplication
+              dealii::Vector<ScalarType> delta_eig(n_elem);
+              if (is_halo_agglomerate)
+              {
+                for (unsigned int k = 0; k < n_elem; ++k)
+                {
+                  delta_eig[k] =
+                      delta_eigenvector_matrix->el(row, dof_indices_map[k]) +
+                      eigenvector_matrix->el(row, dof_indices_map[k]) /
+                          eigenvalues[row];
+                }
+              }
+              else
+              {
+                for (unsigned int k = 0; k < n_elem; ++k)
+                {
+                  delta_eig[k] =
+                      delta_eigenvector_matrix->el(row, dof_indices_map[k]);
+                }
+              }
+
+              // Perform the matrix-vector multiplication
+              dealii::Vector<ScalarType> correction(n_elem);
+              agglomerate_system_matrix.vmult(correction, delta_eig);
+
+              // We would like to fill the delta correction matrix but we can't
+              // because we don't know the sparsity pattern. So we accumulate
+              // all the values and then fill the matrix using the set()
+              // function.
+              for (unsigned int k = 0; k < n_elem; ++k)
+              {
+                local_copy_data.delta_correction_local_acc[std::make_pair(
+                    row, dof_indices_map[k])] += correction[k];
+              }
+            }
+          };
+
+      auto copier = [&](const CopyData &local_copy_data) {
+        for (const auto &local_pair :
+             local_copy_data.delta_correction_local_acc)
         {
-          unsigned int const row = i * n_local_eigenvectors + j;
-          // Get the vector used for the matrix-vector multiplication
-          dealii::Vector<ScalarType> delta_eig(n_elem);
-          if (is_halo_agglomerate)
-          {
-            for (unsigned int k = 0; k < n_elem; ++k)
-            {
-              delta_eig[k] =
-                  delta_eigenvector_matrix->el(row, dof_indices_map[k]) +
-                  eigenvector_matrix->el(row, dof_indices_map[k]) /
-                      eigenvalues[row];
-            }
-          }
-          else
-          {
-            for (unsigned int k = 0; k < n_elem; ++k)
-            {
-              delta_eig[k] =
-                  delta_eigenvector_matrix->el(row, dof_indices_map[k]);
-            }
-          }
-
-          // Perform the matrix-vector multiplication
-          dealii::Vector<ScalarType> correction(n_elem);
-          agglomerate_system_matrix.vmult(correction, delta_eig);
-
-          // We would like to fill the delta correction matrix but we can't
-          // because we don't know the sparsity pattern. So we accumulate all
-          // the values and then fill the matrix using the set() function.
-          for (unsigned int k = 0; k < n_elem; ++k)
-            delta_correction_acc[std::make_pair(row, dof_indices_map[k])] +=
-                correction[k];
+          delta_correction_acc[local_pair.first] += local_pair.second;
         }
-      }
+      };
+
+      dealii::WorkStream::run(agglomerates_vector.begin(),
+                              agglomerates_vector.end(), worker, copier,
+                              scratch_data, copy_data);
 
       is_halo_agglomerate = true;
     }
 
     // Fill delta_correction_matrix
     for (auto const &entry : delta_correction_acc)
+    {
       delta_correction_matrix.set(entry.first.first, entry.first.second,
                                   entry.second);
+    }
     delta_correction_matrix.compress(dealii::VectorOperation::insert);
 
     // Add the eigenvector matrix and the delta correction matrix to create ap

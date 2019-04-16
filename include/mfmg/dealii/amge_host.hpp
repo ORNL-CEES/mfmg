@@ -115,8 +115,8 @@ private:
   };
 
   /**
-   * Structure which encapsulates the data that needs to be copied add the end
-   * of Worstream.
+   * Structure which encapsulates the data that needs to be copied at the end
+   * of WorkStream.
    */
   struct CopyData
   {
