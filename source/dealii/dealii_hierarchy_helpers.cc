@@ -130,6 +130,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
           [&](const std::vector<std::vector<unsigned int>>::const_iterator
                   &agglomerate_it,
               ScratchData &, CopyData &local_copy_data) {
+            local_copy_data.delta_correction_local_acc.clear();
+
             dealii::Triangulation<dim> agglomerate_triangulation;
             std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                      typename dealii::DoFHandler<dim>::active_cell_iterator>
