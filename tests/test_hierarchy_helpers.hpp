@@ -37,39 +37,39 @@ namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
 template <int dim>
-class Source : public dealii::Function<dim>
+class Source final : public dealii::Function<dim>
 {
 public:
   Source() = default;
 
   virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override final
+                       unsigned int const = 0) const override
   {
     return 0.;
   }
 };
 
 template <int dim>
-class ConstantMaterialProperty : public dealii::Function<dim>
+class ConstantMaterialProperty final : public dealii::Function<dim>
 {
 public:
   ConstantMaterialProperty() = default;
 
   virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override final
+                       unsigned int const = 0) const override
   {
     return 1.;
   }
 };
 
 template <int dim>
-class LinearXMaterialProperty : public dealii::Function<dim>
+class LinearXMaterialProperty final : public dealii::Function<dim>
 {
 public:
   LinearXMaterialProperty() = default;
 
   virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override final
+                       unsigned int const = 0) const override
   {
     return 1. + std::abs(p[0]);
   }
@@ -93,13 +93,13 @@ public:
 };
 
 template <int dim>
-class DiscontinuousMaterialProperty : public dealii::Function<dim>
+class DiscontinuousMaterialProperty final : public dealii::Function<dim>
 {
 public:
   DiscontinuousMaterialProperty() = default;
 
   virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override final
+                       unsigned int const = 0) const override
 
   {
     unsigned int dim_scale = 0;
@@ -135,7 +135,7 @@ public:
 };
 
 template <typename MeshEvaluator>
-class TestMeshEvaluator : public MeshEvaluator
+class TestMeshEvaluator final : public MeshEvaluator
 {
 public:
   static int constexpr dim = MeshEvaluator::_dim;
@@ -149,20 +149,19 @@ public:
   {
   }
 
-  void evaluate_global(dealii::DoFHandler<dim> &,
-                       dealii::AffineConstraints<double> &,
-                       dealii::TrilinosWrappers::SparseMatrix &system_matrix)
-      const override final
+  virtual void evaluate_global(
+      dealii::DoFHandler<dim> &, dealii::AffineConstraints<double> &,
+      dealii::TrilinosWrappers::SparseMatrix &system_matrix) const override
   {
     // TODO this is pretty expansive, we should use a shared pointer
     system_matrix.copy_from(_matrix);
   }
 
-  void evaluate_agglomerate(
+  virtual void evaluate_agglomerate(
       dealii::DoFHandler<dim> &dof_handler,
       dealii::AffineConstraints<double> &constraints,
       dealii::SparsityPattern &system_sparsity_pattern,
-      dealii::SparseMatrix<double> &system_matrix) const override final
+      dealii::SparseMatrix<double> &system_matrix) const override
   {
     unsigned int const fe_degree = _fe_degree;
     dealii::FE_Q<dim> fe(fe_degree);

@@ -343,12 +343,12 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
       [&](std::vector<unsigned int>::iterator const &agg_id,
-          ScratchData &scratch_data, CopyData &copy_data) {
+          ScratchData &scratch_data, CopyData &local_copy_data) {
         this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
-                           scratch_data, copy_data);
+                           scratch_data, local_copy_data);
       },
-      [&](CopyData const &copy_data) {
-        this->copy_local_to_global(copy_data, eigenvectors, diag_elements,
+      [&](CopyData const &local_copy_data) {
+        this->copy_local_to_global(local_copy_data, eigenvectors, diag_elements,
                                    dof_indices_maps, n_local_eigenvectors);
       },
       ScratchData(), copy_data);
@@ -388,14 +388,14 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
       [&](std::vector<unsigned int>::iterator const &agg_id,
-          ScratchData &scratch_data, CopyData &copy_data) {
+          ScratchData &scratch_data, CopyData &local_copy_data) {
         this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
-                           scratch_data, copy_data);
+                           scratch_data, local_copy_data);
       },
-      [&](CopyData const &copy_data) {
-        this->copy_local_to_global_eig(copy_data, eigenvalues, eigenvectors,
-                                       diag_elements, dof_indices_maps,
-                                       n_local_eigenvectors);
+      [&](CopyData const &local_copy_data) {
+        this->copy_local_to_global_eig(local_copy_data, eigenvalues,
+                                       eigenvectors, diag_elements,
+                                       dof_indices_maps, n_local_eigenvectors);
       },
       ScratchData(), copy_data);
 

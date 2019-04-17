@@ -19,7 +19,7 @@
 namespace mfmg
 {
 template <typename VectorType>
-class DealIISolver : public Solver<VectorType>
+class DealIISolver final : public Solver<VectorType>
 {
 public:
   using vector_type = VectorType;
@@ -27,7 +27,7 @@ public:
   DealIISolver(std::shared_ptr<Operator<vector_type> const> op,
                std::shared_ptr<boost::property_tree::ptree const> params);
 
-  void apply(vector_type const &b, vector_type &x) const override final;
+  void apply(vector_type const &b, vector_type &x) const override;
 
 private:
   dealii::SolverControl _solver_control;
