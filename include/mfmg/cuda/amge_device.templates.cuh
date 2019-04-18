@@ -13,6 +13,7 @@
 #define AMGE_DEVICE_TEMPLATES_CUH
 
 #include <mfmg/common/amge.templates.hpp>
+#include <mfmg/common/utils.hpp>
 #include <mfmg/cuda/amge_device.cuh>
 #include <mfmg/cuda/utils.cuh>
 
@@ -339,6 +340,9 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_restriction_sparse_matrix(
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
       locally_relevant_global_diag, restriction_sparse_matrix);
+  check_restriction_matrix(this->_comm, eigenvectors, dof_indices_maps,
+                           locally_relevant_global_diag, diag_elements,
+                           n_local_eigenvectors);
 
   SparseMatrixDevice<ScalarType> restriction_sparse_matrix_dev(
       convert_matrix(restriction_sparse_matrix));
