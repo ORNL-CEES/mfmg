@@ -496,7 +496,7 @@ template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
-  // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
+  // Faces in deal.II are ordered as follows: left (x_m) = 0, right (x_p) = 1,
   // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
   unsigned int constexpr x_p = 1;
   unsigned int constexpr y_p = 3;
