@@ -143,7 +143,7 @@ size_t DealIIMatrixFreeOperator<dim, VectorType>::operator_complexity() const
 }
 
 template <int dim, typename VectorType>
-typename DealIIMatrixFreeOperator<dim, VectorType>::vector_type
+std::shared_ptr<dealii::DiagonalMatrix<VectorType>>
 DealIIMatrixFreeOperator<dim, VectorType>::get_diagonal_inverse() const
 {
   return _mesh_evaluator->matrix_free_get_diagonal_inverse();
