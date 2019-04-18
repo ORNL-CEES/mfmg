@@ -42,7 +42,6 @@ public:
   fast_multiply_transpose() override final;
 
 private:
-  std::shared_ptr<Operator<vector_type>> _global_operator;
   std::shared_ptr<Operator<vector_type>> _ap_operator;
 };
 } // namespace mfmg

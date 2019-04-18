@@ -35,25 +35,22 @@ std::shared_ptr<Operator<VectorType>>
 DealIIHierarchyHelpers<dim, VectorType>::get_global_operator(
     std::shared_ptr<MeshEvaluator> mesh_evaluator)
 {
-  if (_global_operator == nullptr)
-  {
-    // Downcast to DealIIMeshEvaluator
-    auto dealii_mesh_evaluator =
-        std::dynamic_pointer_cast<DealIIMeshEvaluator<dim>>(mesh_evaluator);
+  // Downcast to DealIIMeshEvaluator
+  auto dealii_mesh_evaluator =
+      std::dynamic_pointer_cast<DealIIMeshEvaluator<dim>>(mesh_evaluator);
 
-    auto system_matrix =
-        std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
+  auto system_matrix =
+      std::make_shared<dealii::TrilinosWrappers::SparseMatrix>();
 
-    // Call user function to fill in the system matrix
-    dealii_mesh_evaluator->evaluate_global(
-        dealii_mesh_evaluator->get_dof_handler(),
-        dealii_mesh_evaluator->get_constraints(), *system_matrix);
+  // Call user function to fill in the system matrix
+  dealii_mesh_evaluator->evaluate_global(
+      dealii_mesh_evaluator->get_dof_handler(),
+      dealii_mesh_evaluator->get_constraints(), *system_matrix);
 
-    _global_operator.reset(
-        new DealIITrilinosMatrixOperator<VectorType>(system_matrix));
-  }
+  std::shared_ptr<Operator<VectorType>> global_operator =
+      std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(system_matrix);
 
-  return _global_operator;
+  return global_operator;
 }
 
 template <int dim, typename VectorType>
