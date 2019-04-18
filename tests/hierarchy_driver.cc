@@ -1,5 +1,7 @@
 #include <mfmg/common/exceptions.hpp>
 
+#include <deal.II/base/timer.h>
+
 #include <boost/program_options.hpp>
 
 #include "test_hierarchy_helpers.hpp"
@@ -14,6 +16,11 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
 
   dealii::ConditionalOStream pcout(
       std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
+
+  // Print a table with the timings when the destructor is called
+  auto timer = std::make_shared<dealii::TimerOutput>(
+      comm, pcout, dealii::TimerOutput::summary,
+      dealii::TimerOutput::wall_times);
 
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
@@ -45,7 +52,7 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
       std::make_shared<TestMFMeshEvaluator<dim, fe_degree, double>>(
           mf_laplace._dof_handler, mf_laplace._constraints,
           mf_laplace._laplace_operator, material_property);
-  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
+  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params, timer);
 
   // We want to do 20 V-cycle iterations. The rhs of is zero.
   // Use D(istributed)Vector because deal has its own Vector class
@@ -61,7 +68,7 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   res[0] = 1.0;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
-    hierarchy.apply(rhs, solution);
+    hierarchy.vmult(solution, rhs);
 
     mf_laplace._laplace_operator.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);
@@ -84,6 +91,11 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
 
   dealii::ConditionalOStream pcout(
       std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
+
+  // Print a table with the timings when the destructor is called
+  auto timer = std::make_shared<dealii::TimerOutput>(
+      comm, pcout, dealii::TimerOutput::summary,
+      dealii::TimerOutput::wall_times);
 
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
@@ -118,7 +130,7 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
       new TestMeshEvaluator<mfmg::DealIIMeshEvaluator<dim>>(
           laplace._dof_handler, laplace._constraints, fe_degree, a,
           material_property));
-  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
+  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params, timer);
 
   // We want to do 20 V-cycle iterations. The rhs of is zero.
   // Use D(istributed)Vector because deal has its own Vector class
@@ -134,7 +146,7 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   res[0] = 1.0;
   for (unsigned int i = 0; i < n_cycles; ++i)
   {
-    hierarchy.apply(rhs, solution);
+    hierarchy.vmult(solution, rhs);
 
     a.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);

@@ -24,6 +24,8 @@
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
 #endif
 
+#include <deal.II/base/timer.h>
+
 #include <boost/property_tree/ptree.hpp>
 
 #include <memory>
@@ -31,6 +33,19 @@
 
 namespace mfmg
 {
+void timer_enter_subsection(std::shared_ptr<dealii::TimerOutput> const &timer,
+                            std::string const &section)
+{
+  if (timer)
+    timer->enter_subsection(section);
+}
+
+void timer_leave_subsection(std::shared_ptr<dealii::TimerOutput> const &timer)
+{
+  if (timer)
+    timer->leave_subsection();
+}
+
 template <typename VectorType>
 std::unique_ptr<HierarchyHelpers<VectorType>>
 create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
@@ -136,8 +151,11 @@ class Hierarchy
 {
 public:
   Hierarchy(MPI_Comm comm, std::shared_ptr<MeshEvaluator> evaluator,
-            std::shared_ptr<boost::property_tree::ptree> params = nullptr)
+            std::shared_ptr<boost::property_tree::ptree> params = nullptr,
+            std::shared_ptr<dealii::TimerOutput> timer = nullptr)
+      : _timer(timer)
   {
+    timer_enter_subsection(_timer, "Setup");
     // Replace by a factory
     auto hierarchy_helpers = create_hierarchy_helpers<VectorType>(evaluator);
 
@@ -157,34 +175,58 @@ public:
 
       if (level_index == num_levels - 1)
       {
+        timer_enter_subsection(_timer, "Setup: build coarse solver");
         auto coarse_solver = hierarchy_helpers->build_coarse_solver(a, params);
         level_fine.set_solver(coarse_solver);
+        timer_leave_subsection(_timer);
 
         break;
       }
 
       auto &level_coarse = _levels[level_index + 1];
 
+      timer_enter_subsection(_timer, "Setup: build smoother");
       auto smoother = hierarchy_helpers->build_smoother(a, params);
       level_fine.set_smoother(smoother);
+      timer_leave_subsection(_timer);
 
+      timer_enter_subsection(_timer, "Setup: build restrictor");
       auto restrictor =
           hierarchy_helpers->build_restrictor(comm, evaluator, params);
       level_coarse.set_restrictor(restrictor);
+      timer_leave_subsection(_timer);
 
       std::shared_ptr<Operator<VectorType>> ap;
       bool fast_ap = params->get("fast_ap", false);
       if (fast_ap)
+      {
+        timer_enter_subsection(_timer, "Setup: fast_ap");
         ap = hierarchy_helpers->fast_multiply_transpose();
+        timer_leave_subsection(_timer);
+      }
       else
+      {
+        timer_enter_subsection(_timer, "Setup: ap");
         ap = a->multiply_transpose(restrictor);
+        timer_leave_subsection(_timer);
+      }
+
+      timer_enter_subsection(_timer, "Setup: build coarse matrix");
       auto a_coarse = restrictor->multiply(ap);
+      timer_leave_subsection(_timer);
 
       level_coarse.set_operator(a_coarse);
     }
+    timer_leave_subsection(_timer);
   }
 
-  void vmult(VectorType &x, VectorType const &b) const { apply(b, x, 0); }
+  void vmult(VectorType &x, VectorType const &b) const
+  {
+    // Apply calls itself recursively which trips the timer so put it here
+    timer_enter_subsection(_timer, "Apply");
+    apply(b, x, 0);
+    timer_leave_subsection(_timer);
+  }
 
   void apply(VectorType const &b, VectorType &x, int level_index = 0) const
   {
@@ -203,12 +245,15 @@ public:
 
     if (level_index == num_levels - 1)
     {
+      timer_enter_subsection(_timer, "Apply: coarsest level");
       // Coarsest level
       auto coarse_solver = level_fine.get_solver();
       coarse_solver->apply(b, x);
+      timer_leave_subsection(_timer);
     }
     else
     {
+      timer_enter_subsection(_timer, "Apply: fine levels");
       auto &level_coarse = _levels[level_index + 1];
 
       auto restrictor = level_coarse.get_restrictor();
@@ -244,6 +289,7 @@ public:
       // apply post-smoother
       for (unsigned int i = 0; i < _n_smoothing_steps; ++i)
         smoother->apply(b, x);
+      timer_leave_subsection(_timer);
     }
   }
 
@@ -305,6 +351,7 @@ public:
   }
 
 private:
+  std::shared_ptr<dealii::TimerOutput> _timer;
   std::vector<Level<VectorType>> _levels;
   bool _is_preconditioner = true;
   unsigned int _n_smoothing_steps;
