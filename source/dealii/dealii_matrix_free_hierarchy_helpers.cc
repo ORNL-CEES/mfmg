@@ -109,7 +109,9 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
         delta_correction_acc;
     bool is_halo_agglomerate = false;
     unsigned int const n_local_eigenvectors =
-        delta_correction_matrix.m() / interior_agglomerates.size();
+        interior_agglomerates.empty()
+            ? 0
+            : delta_correction_matrix.m() / interior_agglomerates.size();
     for (auto const &agglomerates_vector :
          {interior_agglomerates, halo_agglomerates})
     {
@@ -136,6 +138,10 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
             amge.build_agglomerate_triangulation(*agglomerate_it,
                                                  agglomerate_triangulation,
                                                  patch_to_global_map);
+            if (patch_to_global_map.empty())
+            {
+              return;
+            }
 
             // Now that we have the triangulation, we can do the evaluation on
             // the agglomerate
