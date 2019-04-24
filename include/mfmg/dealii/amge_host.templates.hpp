@@ -400,10 +400,9 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
       ScratchData(), copy_data);
 
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
-      eigenvalues, eigenvectors, diag_elements, dof_indices_maps,
-      n_local_eigenvectors, locally_relevant_global_diag,
-      restriction_sparse_matrix, eigenvector_sparse_matrix,
-      delta_eigenvector_matrix);
+      eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
+      locally_relevant_global_diag, restriction_sparse_matrix,
+      eigenvector_sparse_matrix, delta_eigenvector_matrix);
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>

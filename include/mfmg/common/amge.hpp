@@ -104,7 +104,6 @@ public:
       dealii::TrilinosWrappers::SparseMatrix &restriction_sparse_matrix) const;
 
   void compute_restriction_sparse_matrix(
-      std::vector<typename VectorType::value_type> const &eigenvalues,
       std::vector<dealii::Vector<typename VectorType::value_type>> const
           &eigenvectors,
       std::vector<std::vector<typename VectorType::value_type>> const
