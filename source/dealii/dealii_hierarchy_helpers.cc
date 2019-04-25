@@ -111,10 +111,15 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
                        boost::hash<std::pair<unsigned int, unsigned int>>>
         delta_correction_acc;
     bool is_halo_agglomerate = false;
+
+    // In case there are no patches we own, we still need to construct the
+    // restriction operators. We set the number of eigenvalues to zero instead
+    // of returning early and duplicating the setup.
     unsigned int const n_local_eigenvectors =
         interior_agglomerates.empty()
             ? 0
             : delta_correction_matrix.m() / interior_agglomerates.size();
+
     for (auto const &agglomerates_vector :
          {interior_agglomerates, halo_agglomerates})
     {
