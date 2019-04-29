@@ -24,6 +24,7 @@
 #include <Epetra_Map.h>
 
 #include <boost/container_hash/hash.hpp>
+#include <boost/range/combine.hpp>
 #include <boost/smart_ptr/make_unique.hpp>
 
 #include <unordered_map>
@@ -110,12 +111,15 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     std::unordered_map<std::pair<unsigned int, unsigned int>, double,
                        boost::hash<std::pair<unsigned int, unsigned int>>>
         delta_correction_acc;
-    bool is_halo_agglomerate = false;
     unsigned int const n_local_eigenvectors =
         delta_correction_matrix.m() / interior_agglomerates.size();
-    for (auto const &agglomerates_vector :
-         {interior_agglomerates, halo_agglomerates})
+    ASSERT(interior_agglomerates.size() == halo_agglomerates.size(),
+           "Every interior agglomerate should correspond to exactly one halo "
+           "agglomerate!");
     {
+      const auto combined_agglomerate_range =
+          boost::combine(interior_agglomerates, halo_agglomerates);
+
       struct ScratchData
       {
       } scratch_data;
@@ -126,77 +130,122 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
             delta_correction_local_acc;
       } copy_data;
 
-      auto worker =
-          [&](const std::vector<std::vector<unsigned int>>::const_iterator
-                  &agglomerate_it,
-              ScratchData &, CopyData &local_copy_data) {
-            local_copy_data.delta_correction_local_acc.clear();
+      auto worker = [&](const decltype(
+                            combined_agglomerate_range.begin()) &agglomerate_it,
+                        ScratchData &, CopyData &local_copy_data) {
+        local_copy_data.delta_correction_local_acc.clear();
 
-            dealii::Triangulation<dim> agglomerate_triangulation;
-            std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
-                     typename dealii::DoFHandler<dim>::active_cell_iterator>
-                patch_to_global_map;
-            amge.build_agglomerate_triangulation(*agglomerate_it,
-                                                 agglomerate_triangulation,
-                                                 patch_to_global_map);
+        const auto &interior_agglomerate = agglomerate_it->get<0>();
+        const auto &halo_agglomerate = agglomerate_it->get<1>();
 
-            // Now that we have the triangulation, we can do the evaluation on
-            // the agglomerate
-            dealii::DoFHandler<dim> agglomerate_dof_handler(
-                agglomerate_triangulation);
-            dealii::AffineConstraints<double> agglomerate_constraints;
-            dealii::SparsityPattern agglomerate_sparsity_pattern;
-            dealii::SparseMatrix<ScalarType> agglomerate_system_matrix;
-            // Call user function to build the system matrix
-            dealii_mesh_evaluator->evaluate_agglomerate(
-                agglomerate_dof_handler, agglomerate_constraints,
-                agglomerate_sparsity_pattern, agglomerate_system_matrix);
+        dealii::Triangulation<dim> interior_agglomerate_triangulation;
+        std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                 typename dealii::DoFHandler<dim>::active_cell_iterator>
+            interior_patch_to_global_map;
+        amge.build_agglomerate_triangulation(interior_agglomerate,
+                                             interior_agglomerate_triangulation,
+                                             interior_patch_to_global_map);
+        dealii::Triangulation<dim> halo_agglomerate_triangulation;
+        std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+                 typename dealii::DoFHandler<dim>::active_cell_iterator>
+            halo_patch_to_global_map;
+        amge.build_agglomerate_triangulation(halo_agglomerate,
+                                             halo_agglomerate_triangulation,
+                                             halo_patch_to_global_map);
+        if (interior_patch_to_global_map.empty())
+        {
+          ASSERT(halo_patch_to_global_map.empty(),
+                 "If there is nothing to work on in the interior, "
+                 "the halo should also be empty.");
+          return;
+        }
 
-            // Put the result in the matrix
-            // Compute the map between the local and the global dof indices.
-            std::vector<dealii::types::global_dof_index> dof_indices_map =
-                amge.compute_dof_index_map(patch_to_global_map,
-                                           agglomerate_dof_handler);
-            unsigned int const n_elem = dof_indices_map.size();
-            unsigned int const i = agglomerate_it - agglomerates_vector.begin();
-            for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
+        // Now that we have the triangulation, we can do the evaluation on
+        // the agglomerate
+
+        dealii::DoFHandler<dim> interior_agglomerate_dof_handler(
+            interior_agglomerate_triangulation);
+        dealii::AffineConstraints<double> interior_agglomerate_constraints;
+        dealii::SparsityPattern interior_agglomerate_sparsity_pattern;
+        dealii::SparseMatrix<ScalarType> interior_agglomerate_system_matrix;
+        // Call user function to build the system matrix
+        dealii_mesh_evaluator->evaluate_agglomerate(
+            interior_agglomerate_dof_handler, interior_agglomerate_constraints,
+            interior_agglomerate_sparsity_pattern,
+            interior_agglomerate_system_matrix);
+
+        dealii::DoFHandler<dim> halo_agglomerate_dof_handler(
+            halo_agglomerate_triangulation);
+        dealii::AffineConstraints<double> halo_agglomerate_constraints;
+        dealii::SparsityPattern halo_agglomerate_sparsity_pattern;
+        dealii::SparseMatrix<ScalarType> halo_agglomerate_system_matrix;
+        // Call user function to build the system matrix
+        dealii_mesh_evaluator->evaluate_agglomerate(
+            halo_agglomerate_dof_handler, halo_agglomerate_constraints,
+            halo_agglomerate_sparsity_pattern, halo_agglomerate_system_matrix);
+
+        // Put the result in the matrix
+        // Compute the map between the local and the global dof indices.
+        std::vector<dealii::types::global_dof_index> interior_dof_indices_map =
+            amge.compute_dof_index_map(interior_patch_to_global_map,
+                                       interior_agglomerate_dof_handler);
+        unsigned int const n_interior_elem = interior_dof_indices_map.size();
+
+        std::vector<dealii::types::global_dof_index> halo_dof_indices_map =
+            amge.compute_dof_index_map(halo_patch_to_global_map,
+                                       halo_agglomerate_dof_handler);
+        unsigned int const n_halo_elem = halo_dof_indices_map.size();
+
+        unsigned int const i =
+            agglomerate_it - combined_agglomerate_range.begin();
+        for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
+        {
+          unsigned int row = i * n_local_eigenvectors + j;
+          // Get the vector used for the matrix-vector multiplication
+          dealii::Vector<ScalarType> interior_delta_eig(n_interior_elem);
+          for (unsigned int k = 0; k < n_interior_elem; ++k)
+          {
+            interior_delta_eig[k] = delta_eigenvector_matrix->operator()(
+                row, interior_dof_indices_map[k]);
+          }
+          dealii::Vector<ScalarType> halo_delta_eig(n_halo_elem);
+          for (unsigned int k = 0; k < n_halo_elem; ++k)
+          {
+            if (std::find(interior_dof_indices_map.begin(),
+                          interior_dof_indices_map.end(),
+                          halo_dof_indices_map[k]) !=
+                interior_dof_indices_map.end())
             {
-              unsigned int const row = i * n_local_eigenvectors + j;
-              // Get the vector used for the matrix-vector multiplication
-              dealii::Vector<ScalarType> delta_eig(n_elem);
-              if (is_halo_agglomerate)
-              {
-                for (unsigned int k = 0; k < n_elem; ++k)
-                {
-                  delta_eig[k] =
-                      delta_eigenvector_matrix->el(row, dof_indices_map[k]) +
-                      eigenvector_matrix->el(row, dof_indices_map[k]);
-                }
-              }
-              else
-              {
-                for (unsigned int k = 0; k < n_elem; ++k)
-                {
-                  delta_eig[k] =
-                      delta_eigenvector_matrix->el(row, dof_indices_map[k]);
-                }
-              }
-
-              // Perform the matrix-vector multiplication
-              dealii::Vector<ScalarType> correction(n_elem);
-              agglomerate_system_matrix.vmult(correction, delta_eig);
-
-              // We would like to fill the delta correction matrix but we can't
-              // because we don't know the sparsity pattern. So we accumulate
-              // all the values and then fill the matrix using the set()
-              // function.
-              for (unsigned int k = 0; k < n_elem; ++k)
-              {
-                local_copy_data.delta_correction_local_acc[std::make_pair(
-                    row, dof_indices_map[k])] += correction[k];
-              }
+              halo_delta_eig[k] =
+                  delta_eigenvector_matrix->operator()(
+                      row, halo_dof_indices_map[k]) +
+                  eigenvector_matrix->operator()(row, halo_dof_indices_map[k]);
             }
-          };
+          }
+
+          // Perform the matrix-vector multiplication
+          dealii::Vector<ScalarType> interior_correction(n_interior_elem);
+          interior_agglomerate_system_matrix.vmult(interior_correction,
+                                                   interior_delta_eig);
+          dealii::Vector<ScalarType> halo_correction(n_halo_elem);
+          halo_agglomerate_system_matrix.vmult(halo_correction, halo_delta_eig);
+
+          // We would like to fill the delta correction matrix but we
+          // can't because we don't know the sparsity pattern. So we
+          // accumulate all the values and then fill the matrix using the
+          // set() function.
+          for (unsigned int k = 0; k < n_interior_elem; ++k)
+          {
+            local_copy_data.delta_correction_local_acc[std::make_pair(
+                row, interior_dof_indices_map[k])] += interior_correction[k];
+          }
+          for (unsigned int k = 0; k < n_halo_elem; ++k)
+          {
+            local_copy_data.delta_correction_local_acc[std::make_pair(
+                row, halo_dof_indices_map[k])] += halo_correction[k];
+          }
+        }
+      };
 
       auto copier = [&](const CopyData &local_copy_data) {
         for (const auto &local_pair :
@@ -206,11 +255,9 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
         }
       };
 
-      dealii::WorkStream::run(agglomerates_vector.begin(),
-                              agglomerates_vector.end(), worker, copier,
+      dealii::WorkStream::run(combined_agglomerate_range.begin(),
+                              combined_agglomerate_range.end(), worker, copier,
                               scratch_data, copy_data);
-
-      is_halo_agglomerate = true;
     }
 
     // Fill delta_correction_matrix
@@ -232,9 +279,13 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
 #pragma GCC diagnostic pop
 
     for (unsigned int row = 0; row < eigenvector_matrix->m(); ++row)
+    {
       for (auto column_iterator = eigenvector_matrix->begin(row);
            column_iterator != eigenvector_matrix->end(row); ++column_iterator)
+      {
         column_iterator->value() *= eigenvalues[row];
+      }
+    }
     eigenvector_matrix->compress(dealii::VectorOperation::insert);
 
     bool const transpose = true;
