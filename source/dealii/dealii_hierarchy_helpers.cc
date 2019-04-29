@@ -205,8 +205,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
           dealii::Vector<ScalarType> interior_delta_eig(n_interior_elem);
           for (unsigned int k = 0; k < n_interior_elem; ++k)
           {
-            interior_delta_eig[k] = delta_eigenvector_matrix->operator()(
-                row, interior_dof_indices_map[k]);
+            interior_delta_eig[k] =
+                delta_eigenvector_matrix->el(row, interior_dof_indices_map[k]);
           }
           dealii::Vector<ScalarType> halo_delta_eig(n_halo_elem);
           for (unsigned int k = 0; k < n_halo_elem; ++k)
@@ -217,9 +217,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
                 interior_dof_indices_map.end())
             {
               halo_delta_eig[k] =
-                  delta_eigenvector_matrix->operator()(
-                      row, halo_dof_indices_map[k]) +
-                  eigenvector_matrix->operator()(row, halo_dof_indices_map[k]);
+                  delta_eigenvector_matrix->el(row, halo_dof_indices_map[k]) +
+                  eigenvector_matrix->el(row, halo_dof_indices_map[k]);
             }
           }
 
