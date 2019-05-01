@@ -129,8 +129,8 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
             delta_correction_local_acc;
       } copy_data;
 
-      auto worker = [&](const decltype(
-                            combined_agglomerate_range.begin()) &agglomerate_it,
+      auto worker = [&](decltype(combined_agglomerate_range.begin())
+                            const &agglomerate_it,
                         ScratchData &, CopyData &local_copy_data) {
         local_copy_data.delta_correction_local_acc.clear();
 
@@ -236,8 +236,8 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
         }
       };
 
-      auto copier = [&](const CopyData &local_copy_data) {
-        for (const auto &local_pair :
+      auto copier = [&](CopyData const &local_copy_data) {
+        for (auto const &local_pair :
              local_copy_data.delta_correction_local_acc)
         {
           delta_correction_acc[local_pair.first] += local_pair.second;
