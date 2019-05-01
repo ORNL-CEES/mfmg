@@ -105,11 +105,9 @@ DealIIMatrixFreeOperator<dim, VectorType>::multiply_transpose(
   auto tmp = this->build_range_vector();
   auto b_mat = downcast_b->get_matrix();
 
-  auto c_mat = std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
+  auto c_mat = matrix_transpose_matrix_multiply(
       tmp->locally_owned_elements(), b_mat->locally_owned_range_indices(),
-      tmp->get_mpi_communicator());
-
-  matrix_transpose_matrix_multiply(*c_mat, *b_mat, *this);
+      tmp->get_mpi_communicator(), *b_mat, *this);
 
   return std::make_shared<DealIITrilinosMatrixOperator<VectorType>>(c_mat);
 }
@@ -145,7 +143,7 @@ size_t DealIIMatrixFreeOperator<dim, VectorType>::operator_complexity() const
 }
 
 template <int dim, typename VectorType>
-typename DealIIMatrixFreeOperator<dim, VectorType>::vector_type
+std::shared_ptr<dealii::DiagonalMatrix<VectorType>>
 DealIIMatrixFreeOperator<dim, VectorType>::get_diagonal_inverse() const
 {
   return _mesh_evaluator->matrix_free_get_diagonal_inverse();

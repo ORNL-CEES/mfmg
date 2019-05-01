@@ -36,17 +36,15 @@ std::shared_ptr<Operator<VectorType>>
 DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
     std::shared_ptr<MeshEvaluator> mesh_evaluator)
 {
-  if (this->_global_operator == nullptr)
-  {
-    auto matrix_free_mesh_evaluator =
-        std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
-            mesh_evaluator);
-    ASSERT(matrix_free_mesh_evaluator != nullptr, "downcasting failed");
-    this->_global_operator.reset(new DealIIMatrixFreeOperator<dim, VectorType>(
-        matrix_free_mesh_evaluator));
-  }
+  auto matrix_free_mesh_evaluator =
+      std::dynamic_pointer_cast<DealIIMatrixFreeMeshEvaluator<dim>>(
+          mesh_evaluator);
+  ASSERT(matrix_free_mesh_evaluator != nullptr, "downcasting failed");
+  std::shared_ptr<Operator<VectorType>> global_operator =
+      std::make_shared<DealIIMatrixFreeOperator<dim, VectorType>>(
+          matrix_free_mesh_evaluator);
 
-  return this->_global_operator;
+  return global_operator;
 }
 
 // copy/paste from DealIIHierarchyHelpers::build_restrictor()

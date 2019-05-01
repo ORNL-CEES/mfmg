@@ -12,7 +12,9 @@
 #ifndef AMGE_HOST_TEMPLATES_HPP
 #define AMGE_HOST_TEMPLATES_HPP
 
+#include <mfmg/common/utils.hpp>
 #include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 #include <mfmg/dealii/lanczos.templates.hpp>
 
 #include <deal.II/base/work_stream.h>
@@ -356,6 +358,17 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
       locally_relevant_global_diag, restriction_sparse_matrix);
+
+  // When checking the restriction matrix, we check that the sum of the local
+  // diagonals is the global diagonals. This is not true for matrix-free because
+  // the constraints values are set arbitrarily.
+  if (std::is_base_of<DealIIMatrixFreeMeshEvaluator<dim>,
+                      MeshEvaluator>::value == false)
+  {
+    check_restriction_matrix(this->_comm, eigenvectors, dof_indices_maps,
+                             locally_relevant_global_diag, diag_elements,
+                             n_local_eigenvectors);
+  }
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>

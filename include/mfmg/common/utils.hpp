@@ -14,6 +14,10 @@
 
 #include <mfmg/common/exceptions.hpp>
 
+#include <deal.II/lac/la_parallel_vector.h>
+#include <deal.II/lac/trilinos_sparse_matrix.h>
+#include <deal.II/lac/trilinos_sparsity_pattern.h>
+
 #include <Teuchos_ParameterList.hpp>
 
 #include <boost/property_tree/ptree.hpp>
@@ -72,6 +76,75 @@ void apply_permutation_in_place(std::vector<unsigned int> const &permutation,
       }
     }
   }
+}
+
+template <typename ScalarType>
+void check_restriction_matrix(
+    MPI_Comm comm, std::vector<dealii::Vector<ScalarType>> const &eigenvectors,
+    std::vector<std::vector<dealii::types::global_dof_index>> const
+        &dof_indices_maps,
+    dealii::LinearAlgebra::distributed::Vector<ScalarType> const
+        &locally_relevant_global_diag,
+    std::vector<std::vector<ScalarType>> const &diag_elements,
+    std::vector<unsigned int> const &n_local_eigenvectors)
+{
+#if MFMG_DEBUG
+  // Check that the locally_relevant_global_diag is the sum of the agglomerates
+  // diagonal
+  // TODO do not ask user for the locally_relevant_global_diag
+  dealii::LinearAlgebra::distributed::Vector<ScalarType> new_global_diag(
+      locally_relevant_global_diag.get_partitioner());
+  unsigned int const n_agglomerates = n_local_eigenvectors.size();
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    // Get the size of the eigenvectors in agglomerate i
+    unsigned int offset = std::accumulate(n_local_eigenvectors.begin(),
+                                          n_local_eigenvectors.begin() + i, 0);
+    unsigned int const n_elem = eigenvectors[offset].size();
+
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      new_global_diag[global_pos] += diag_elements[i][j];
+    }
+  }
+  new_global_diag.compress(dealii::VectorOperation::add);
+  new_global_diag -= locally_relevant_global_diag;
+  ASSERT((new_global_diag.linfty_norm() /
+          locally_relevant_global_diag.linfty_norm()) < 1e-14,
+         "Sum of agglomerate diagonals is not equal to the global diagonal");
+
+  // Check that the sum of the weight matrices is the identity
+  auto locally_owned_dofs =
+      locally_relevant_global_diag.locally_owned_elements();
+  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
+                                               locally_owned_dofs, comm);
+  for (auto local_index : locally_owned_dofs)
+    sp.add(local_index, local_index);
+  sp.compress();
+
+  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
+  unsigned int pos = 0;
+  for (unsigned int i = 0; i < n_agglomerates; ++i)
+  {
+    unsigned int const n_elem = eigenvectors[pos].size();
+    for (unsigned int j = 0; j < n_elem; ++j)
+    {
+      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
+      double const value =
+          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
+      weight_matrix.add(global_pos, global_pos, value);
+    }
+    pos += n_local_eigenvectors[i];
+  }
+
+  // Compress the matrix
+  weight_matrix.compress(dealii::VectorOperation::add);
+
+  for (auto index : locally_owned_dofs)
+    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
+           "Sum of local weight matrices is not the identity");
+#endif
 }
 } // namespace mfmg
 

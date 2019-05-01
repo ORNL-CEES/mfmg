@@ -73,20 +73,26 @@ LaplaceOperator<dim, fe_degree, ScalarType>::LaplaceOperator()
 template <int dim, int fe_degree, typename ScalarType>
 void LaplaceOperator<dim, fe_degree, ScalarType>::compute_diagonal()
 {
+  this->diagonal_entries.reset(
+      new dealii::DiagonalMatrix<
+          dealii::LinearAlgebra::distributed::Vector<ScalarType>>());
+  dealii::LinearAlgebra::distributed::Vector<ScalarType> &diagonal =
+      this->diagonal_entries->get_vector();
+  this->data->initialize_dof_vector(diagonal);
+  unsigned int const dummy = 0;
+  this->data->cell_loop(&LaplaceOperator::local_compute_diagonal, this,
+                        diagonal, dummy);
+
+  this->set_constrained_entries_to_one(diagonal);
+
   this->inverse_diagonal_entries.reset(
       new dealii::DiagonalMatrix<
           dealii::LinearAlgebra::distributed::Vector<ScalarType>>());
   dealii::LinearAlgebra::distributed::Vector<ScalarType> &inverse_diagonal =
       this->inverse_diagonal_entries->get_vector();
   this->data->initialize_dof_vector(inverse_diagonal);
-  unsigned int const dummy = 0;
-  this->data->cell_loop(&LaplaceOperator::local_compute_diagonal, this,
-                        inverse_diagonal, dummy);
-
-  this->set_constrained_entries_to_one(inverse_diagonal);
-
   for (unsigned int i = 0; i < inverse_diagonal.local_size(); ++i)
-    inverse_diagonal.local_element(i) = 1. / inverse_diagonal.local_element(i);
+    inverse_diagonal.local_element(i) = 1. / diagonal.local_element(i);
 }
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -257,7 +263,7 @@ void LaplaceMatrixFree<dim, fe_degree, ScalarType>::setup_system(
   }
 
   if (ptree.get("distort_random", false))
-    dealii::GridTools::distort_random(0.2, _triangulation);
+    dealii::GridTools::distort_random(0.1, _triangulation);
 
   _dof_handler.distribute_dofs(_fe);
 
@@ -302,6 +308,7 @@ void LaplaceMatrixFree<dim, fe_degree, ScalarType>::setup_system(
   _laplace_operator.initialize_dof_vector(_system_rhs);
 
   _laplace_operator.evaluate_coefficient(material_property);
+  _laplace_operator.compute_diagonal();
 }
 
 template <int dim, int fe_degree, typename ScalarType>

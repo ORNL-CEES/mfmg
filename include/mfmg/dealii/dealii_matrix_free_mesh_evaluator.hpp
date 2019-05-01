@@ -16,6 +16,7 @@
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/lac/affine_constraints.h>
+#include <deal.II/lac/diagonal_matrix.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/sparsity_pattern.h>
@@ -43,69 +44,45 @@ public:
 
   dealii::types::global_dof_index m() const;
 
-  // FIXME throw an error to force the user to implement that member function in
-  // the derived class
   virtual void
-  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
-                                   dealii::Vector<double> const &src,
-                                   dealii::Vector<double> &dst) const
+  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> & /*dof_handler*/,
+                                   dealii::Vector<double> const & /*src*/,
+                                   dealii::Vector<double> & /*dst*/) const
   {
-    dealii::SparsityPattern sparsity_pattern;
-    dealii::SparseMatrix<double> system_matrix;
-    dealii::AffineConstraints<double> constraints;
-    this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,
-                               system_matrix);
-    system_matrix.vmult(dst, src);
+    ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
-  // FIXME throw an error to force the user to implement that member function in
-  // the derived class
   virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
-      dealii::DoFHandler<dim> &dof_handler,
-      dealii::AffineConstraints<double> &constraints) const
+      dealii::DoFHandler<dim> & /*dof_handler*/,
+      dealii::AffineConstraints<double> & /*constraints*/) const
   {
-    constraints.clear();
-    dealii::SparsityPattern sparsity_pattern;
-    dealii::SparseMatrix<double> system_matrix;
-    this->evaluate_agglomerate(dof_handler, constraints, sparsity_pattern,
-                               system_matrix);
-    size_type const size = dof_handler.n_dofs();
-    std::vector<double> diag_elements(size);
-    for (size_type i = 0; i < size; ++i)
-    {
-      diag_elements[i] = system_matrix.diag_element(i);
-    }
-    return diag_elements;
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return std::vector<double>();
   }
 
   virtual void matrix_free_evaluate_global(
-      dealii::LinearAlgebra::distributed::Vector<double> const &src,
-      dealii::LinearAlgebra::distributed::Vector<double> &dst) const
+      dealii::LinearAlgebra::distributed::Vector<double> const & /*src*/,
+      dealii::LinearAlgebra::distributed::Vector<double> & /*dst*/) const
   {
-    dealii::DoFHandler<dim> dof_handler;
-    dealii::AffineConstraints<double> constraints;
-    dealii::TrilinosWrappers::SparseMatrix system_matrix;
-    this->evaluate_global(dof_handler, constraints, system_matrix);
-    system_matrix.vmult(dst, src);
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
+  virtual std::shared_ptr<dealii::DiagonalMatrix<
+      dealii::LinearAlgebra::distributed::Vector<double>>>
+  matrix_free_get_diagonal_inverse() const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
   }
 
   virtual dealii::LinearAlgebra::distributed::Vector<double>
-  matrix_free_get_diagonal_inverse() const
+  get_diagonal() override
   {
-    dealii::DoFHandler<dim> dof_handler;
-    dealii::AffineConstraints<double> constraints;
-    dealii::TrilinosWrappers::SparseMatrix system_matrix;
-    this->evaluate_global(dof_handler, constraints, system_matrix);
-    dealii::IndexSet locally_owned_dofs =
-        system_matrix.locally_owned_domain_indices();
-    dealii::LinearAlgebra::distributed::Vector<double> diagonal(
-        locally_owned_dofs, system_matrix.get_mpi_communicator());
-    for (auto const index : locally_owned_dofs)
-    {
-      diagonal[index] = 1. / system_matrix.diag_element(index);
-    }
-    diagonal.compress(dealii::VectorOperation::insert);
-    return diagonal;
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return dealii::LinearAlgebra::distributed::Vector<double>();
   }
 };
 

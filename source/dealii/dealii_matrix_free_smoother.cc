@@ -50,9 +50,7 @@ DealIIMatrixFreeSmoother<dim, VectorType>::DealIIMatrixFreeSmoother(
       data.max_eigenvalue = *max_eigenvalue;
     }
 
-    auto diagonal_inverse = std::make_shared<preconditioner_type>();
-    diagonal_inverse->reinit(matrix_free_operator->get_diagonal_inverse());
-    data.preconditioner = diagonal_inverse;
+    data.preconditioner = matrix_free_operator->get_diagonal_inverse();
 
     _smoother->initialize(*matrix_free_operator, data);
   }

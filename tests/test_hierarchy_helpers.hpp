@@ -32,6 +32,7 @@
 #include <random>
 
 #include "laplace.hpp"
+#include "laplace_matrix_free.hpp"
 
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
@@ -50,10 +51,29 @@ public:
 };
 
 template <int dim>
-class ConstantMaterialProperty final : public dealii::Function<dim>
+class Coefficient : public dealii::Function<dim>
+{
+public:
+  virtual dealii::VectorizedArray<double>
+  value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
+        unsigned int const = 0) const = 0;
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const component = 0) const override = 0;
+};
+
+template <int dim>
+class ConstantMaterialProperty final : public Coefficient<dim>
 {
 public:
   ConstantMaterialProperty() = default;
+
+  virtual dealii::VectorizedArray<double>
+  value(dealii::Point<dim, dealii::VectorizedArray<double>> const &,
+        unsigned int const = 0) const override
+  {
+    return dealii::make_vectorized_array<double>(1.);
+  }
 
   virtual double value(dealii::Point<dim> const &,
                        unsigned int const = 0) const override
@@ -63,10 +83,18 @@ public:
 };
 
 template <int dim>
-class LinearXMaterialProperty final : public dealii::Function<dim>
+class LinearXMaterialProperty final : public Coefficient<dim>
 {
 public:
   LinearXMaterialProperty() = default;
+
+  virtual dealii::VectorizedArray<double>
+  value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
+        unsigned int const = 0) const override
+  {
+    auto const one = dealii::make_vectorized_array<double>(1.);
+    return one + std::abs(p[0]);
+  }
 
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override
@@ -76,27 +104,51 @@ public:
 };
 
 template <int dim>
-class LinearMaterialProperty : public dealii::Function<dim>
+class LinearMaterialProperty final : public Coefficient<dim>
 {
 public:
   LinearMaterialProperty() = default;
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override final
+  virtual dealii::VectorizedArray<double>
+  value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
+        unsigned int const = 0) const override
   {
-    double value = 1.;
+    auto const one = dealii::make_vectorized_array<double>(1.);
+    auto val = one;
     for (unsigned int d = 0; d < dim; ++d)
-      value += (1. + d) * std::abs(p[d]);
+      val += (one + static_cast<double>(d) * one) * std::abs(p[d]);
 
-    return value;
+    return val;
+  }
+
+  virtual double value(dealii::Point<dim> const &p,
+                       unsigned int const = 0) const override
+  {
+    double val = 1.;
+    for (unsigned int d = 0; d < dim; ++d)
+      val += (1. + d) * std::abs(p[d]);
+
+    return val;
   }
 };
 
 template <int dim>
-class DiscontinuousMaterialProperty final : public dealii::Function<dim>
+class DiscontinuousMaterialProperty final : public Coefficient<dim>
 {
 public:
   DiscontinuousMaterialProperty() = default;
+
+  virtual dealii::VectorizedArray<double>
+  value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
+        unsigned int const = 0) const override
+  {
+    auto const one = dealii::make_vectorized_array<double>(1.);
+    unsigned int dim_scale = 0;
+    for (unsigned int d = 0; d < dim; ++d)
+      dim_scale += static_cast<unsigned int>(std::floor(p[d][0] * 100)) % 2;
+
+    return (dim_scale == dim ? 100. * one : 10. * one);
+  }
 
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override
@@ -114,7 +166,7 @@ template <int dim>
 class MaterialPropertyFactory
 {
 public:
-  static std::shared_ptr<dealii::Function<dim>>
+  static std::shared_ptr<Coefficient<dim>>
   create_material_property(std::string const &material_type)
   {
     if (material_type == "constant")
@@ -226,5 +278,132 @@ private:
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
   std::shared_ptr<dealii::Function<dim>> _material_property;
 };
+
+template <int dim, int fe_degree, typename ScalarType>
+class TestMFMeshEvaluator final
+    : public mfmg::DealIIMatrixFreeMeshEvaluator<dim>
+{
+public:
+  TestMFMeshEvaluator(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::AffineConstraints<double> &constraints,
+      LaplaceOperator<dim, fe_degree, ScalarType> &laplace_operator,
+      std::shared_ptr<Coefficient<dim>> material_property)
+      : mfmg::DealIIMatrixFreeMeshEvaluator<dim>(dof_handler, constraints),
+        _material_property(material_property), _fe(fe_degree),
+        _laplace_operator(laplace_operator)
+  {
+  }
+
+  virtual void
+  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
+                                   dealii::Vector<double> const &src,
+                                   dealii::Vector<double> &dst) const override
+  {
+    // FIXME create a intialize function so that we don't need to do it
+    // everytime we need the diagonal or to do a vmult
+    initialize_matrix_free_agglomerate(dof_handler);
+
+    // Unfortunately, dealii::MatrixFreeOperators::Base only supports
+    // dealii::LinearAlgebra::distributed::Vector so unless we duplicate a lot
+    // of code, we need copy src and dst.
+    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_dst(
+        dst.size());
+    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_src(
+        src.size());
+    std::copy(src.begin(), src.end(), distributed_src.begin());
+    _agg_laplace_operator->vmult(distributed_dst, distributed_src);
+    std::copy(distributed_dst.begin(), distributed_dst.end(), dst.begin());
+  }
+
+  virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
+      dealii::DoFHandler<dim> &dof_handler,
+      dealii::AffineConstraints<double> &constraints) const override
+  {
+    // FIXME create a intialize function so that we don't need to do it
+    // everytime we need the diagonal or to do a vmult
+    initialize_matrix_free_agglomerate(dof_handler);
+
+    constraints.copy_from(_agg_constraints);
+
+    auto diag_matrix = _agg_laplace_operator->get_matrix_diagonal();
+    auto diag_dealii_vector = diag_matrix->get_vector();
+
+    return std::vector<double>(diag_dealii_vector.begin(),
+                               diag_dealii_vector.end());
+  }
+
+  virtual void matrix_free_evaluate_global(
+      dealii::LinearAlgebra::distributed::Vector<double> const &src,
+      dealii::LinearAlgebra::distributed::Vector<double> &dst) const override
+  {
+    _laplace_operator.vmult(dst, src);
+  }
+
+  virtual std::shared_ptr<dealii::DiagonalMatrix<
+      dealii::LinearAlgebra::distributed::Vector<double>>>
+  matrix_free_get_diagonal_inverse() const override
+  {
+    return _laplace_operator.get_matrix_diagonal_inverse();
+  }
+
+  virtual dealii::LinearAlgebra::distributed::Vector<double>
+  get_diagonal() override
+  {
+    auto vector = _laplace_operator.get_matrix_diagonal()->get_vector();
+    vector.update_ghost_values();
+
+    return vector;
+  }
+
+private:
+  void initialize_matrix_free_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler) const;
+
+  std::shared_ptr<Coefficient<dim>> _material_property;
+  dealii::FE_Q<dim> _fe;
+  mutable dealii::AffineConstraints<double> _agg_constraints;
+  LaplaceOperator<dim, fe_degree, ScalarType> &_laplace_operator;
+  mutable std::unique_ptr<LaplaceOperator<dim, fe_degree, ScalarType>>
+      _agg_laplace_operator;
+};
+
+template <int dim, int fe_degree, typename ScalarType>
+void TestMFMeshEvaluator<dim, fe_degree, ScalarType>::
+    initialize_matrix_free_agglomerate(
+        dealii::DoFHandler<dim> &dof_handler) const
+{
+  dof_handler.distribute_dofs(_fe);
+
+  dealii::IndexSet locally_relevant_dofs;
+  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                  locally_relevant_dofs);
+  // Compute the constraints
+  _agg_constraints.clear();
+  _agg_constraints.reinit(locally_relevant_dofs);
+  dealii::DoFTools::make_hanging_node_constraints(dof_handler,
+                                                  _agg_constraints);
+  dealii::VectorTools::interpolate_boundary_values(
+      dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), _agg_constraints);
+  _agg_constraints.close();
+
+  // Initialize the MatrixFree object
+  typename dealii::MatrixFree<dim, ScalarType>::AdditionalData additional_data;
+  additional_data.tasks_parallel_scheme =
+      dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
+  additional_data.mapping_update_flags = dealii::update_gradients |
+                                         dealii::update_JxW_values |
+                                         dealii::update_quadrature_points;
+  std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage(
+      new dealii::MatrixFree<dim, ScalarType>());
+  mf_storage->reinit(dof_handler, _agg_constraints,
+                     dealii::QGauss<1>(fe_degree + 1), additional_data);
+
+  _agg_laplace_operator =
+      std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>();
+  _agg_laplace_operator->initialize(mf_storage);
+  _agg_laplace_operator->evaluate_coefficient(*_material_property);
+  _agg_laplace_operator->compute_diagonal();
+}
 
 #endif // #ifdef MFMG_TEST_HIERARCHY_HELPERS_HPP

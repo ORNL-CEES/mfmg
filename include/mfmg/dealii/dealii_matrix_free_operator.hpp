@@ -16,6 +16,7 @@
 #include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 
 #include <deal.II/base/subscriptor.h>
+#include <deal.II/lac/diagonal_matrix.h>
 
 namespace mfmg
 {
@@ -62,7 +63,8 @@ public:
 
   size_t operator_complexity() const override final;
 
-  vector_type get_diagonal_inverse() const;
+  std::shared_ptr<dealii::DiagonalMatrix<vector_type>>
+  get_diagonal_inverse() const;
 
 private:
   std::shared_ptr<DealIIMatrixFreeMeshEvaluator<dim>> _mesh_evaluator;

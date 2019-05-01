@@ -14,6 +14,7 @@
 
 #include <mfmg/common/amge.hpp>
 #include <mfmg/common/exceptions.hpp>
+#include <mfmg/common/utils.hpp>
 
 #include <deal.II/distributed/tria.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -314,63 +315,6 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
 
   // Compress the matrix
   restriction_sparse_matrix.compress(dealii::VectorOperation::add);
-
-#if MFMG_DEBUG
-  // Check that the locally_relevant_global_diag is the sum of the agglomerates
-  // diagonal
-  // TODO do not ask user for the locally_relevant_global_diag
-  dealii::LinearAlgebra::distributed::Vector<typename VectorType::value_type>
-      new_global_diag(locally_relevant_global_diag.get_partitioner());
-  for (unsigned int i = 0; i < n_agglomerates; ++i)
-  {
-    // Get the size of the eigenvectors in agglomerate i
-    unsigned int offset = std::accumulate(n_local_eigenvectors.begin(),
-                                          n_local_eigenvectors.begin() + i, 0);
-    unsigned int const n_elem = eigenvectors[offset].size();
-
-    for (unsigned int j = 0; j < n_elem; ++j)
-    {
-      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
-      new_global_diag[global_pos] += diag_elements[i][j];
-    }
-  }
-  new_global_diag.compress(dealii::VectorOperation::add);
-  new_global_diag -= locally_relevant_global_diag;
-  ASSERT((new_global_diag.linfty_norm() /
-          locally_relevant_global_diag.linfty_norm()) < 1e-14,
-         "Sum of agglomerate diagonals is not equal to the global diagonal");
-
-  // Check that the sum of the weight matrices is the identity
-  auto locally_owned_dofs =
-      locally_relevant_global_diag.locally_owned_elements();
-  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
-                                               locally_owned_dofs, this->_comm);
-  for (auto local_index : locally_owned_dofs)
-    sp.add(local_index, local_index);
-  sp.compress();
-
-  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
-  pos = 0;
-  for (unsigned int i = 0; i < n_agglomerates; ++i)
-  {
-    unsigned int const n_elem = eigenvectors[pos].size();
-    for (unsigned int j = 0; j < n_elem; ++j)
-    {
-      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
-      double const value =
-          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
-      weight_matrix.add(global_pos, global_pos, value);
-    }
-    pos += n_local_eigenvectors[i];
-  }
-
-  // Compress the matrix
-  weight_matrix.compress(dealii::VectorOperation::add);
-
-  for (auto index : locally_owned_dofs)
-    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
-           "Sum of local weight matrices is not the identity");
-#endif
 }
 
 template <int dim, typename VectorType>
@@ -456,46 +400,13 @@ void AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
   restriction_sparse_matrix->compress(dealii::VectorOperation::add);
   eigenvector_sparse_matrix->compress(dealii::VectorOperation::add);
   delta_eigenvector_matrix->compress(dealii::VectorOperation::insert);
-
-#if MFMG_DEBUG
-  // Check that the sum of the weight matrices is the identity
-  auto locally_owned_dofs =
-      locally_relevant_global_diag.locally_owned_elements();
-  dealii::TrilinosWrappers::SparsityPattern sp(locally_owned_dofs,
-                                               locally_owned_dofs, this->_comm);
-  for (auto local_index : locally_owned_dofs)
-    sp.add(local_index, local_index);
-  sp.compress();
-
-  dealii::TrilinosWrappers::SparseMatrix weight_matrix(sp);
-  pos = 0;
-  for (unsigned int i = 0; i < n_agglomerates; ++i)
-  {
-    unsigned int const n_elem = eigenvectors[pos].size();
-    for (unsigned int j = 0; j < n_elem; ++j)
-    {
-      dealii::types::global_dof_index const global_pos = dof_indices_maps[i][j];
-      double const value =
-          diag_elements[i][j] / locally_relevant_global_diag[global_pos];
-      weight_matrix.add(global_pos, global_pos, value);
-    }
-    pos += n_local_eigenvectors[i];
-  }
-
-  // Compress the matrix
-  weight_matrix.compress(dealii::VectorOperation::add);
-
-  for (auto index : locally_owned_dofs)
-    ASSERT(std::abs(weight_matrix.diag_element(index) - 1.0) < 1e-14,
-           "Sum of local weight matrices is not the identity");
-#endif
 }
 
 template <int dim, typename VectorType>
 unsigned int AMGe<dim, VectorType>::build_agglomerates_block(
     std::array<unsigned int, dim> const &agglomerate_dim) const
 {
-  // Faces in deal.II are orderd as follows: left (x_m) = 0, right (x_p) = 1,
+  // Faces in deal.II are ordered as follows: left (x_m) = 0, right (x_p) = 1,
   // front (y_m) = 2, back (y_p) = 3, bottom (z_m) = 4, top (z_p) = 5
   unsigned int constexpr x_p = 1;
   unsigned int constexpr y_p = 3;
