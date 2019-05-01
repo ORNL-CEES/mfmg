@@ -644,6 +644,8 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
              typename dealii::DoFHandler<dim>::active_cell_iterator>
         &agglomerate_to_global_tria_map) const
 {
+  if (agglomerate.empty())
+    return;
   // Map between the cells on the boundary and the faces on the boundary and the
   // associated boundary id.
   std::map<typename dealii::DoFHandler<dim>::active_cell_iterator,
