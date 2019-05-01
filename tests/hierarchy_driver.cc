@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     dim = vm["dim"].as<int>();
   mfmg::ASSERT(dim == 2 || dim == 3, "Dimension must be 2 or 3");
 
-  bool matrix_free = true;
+  bool matrix_free = false;
   if (vm.count("matrix_free"))
     matrix_free = vm["matrix_free"].as<bool>();
 
