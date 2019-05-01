@@ -63,14 +63,14 @@ public:
 };
 
 template <int dim>
-class ConstantMaterialProperty : public Coefficient<dim>
+class ConstantMaterialProperty final : public Coefficient<dim>
 {
 public:
   ConstantMaterialProperty() = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &,
-        unsigned int const = 0) const override final
+        unsigned int const = 0) const override
   {
     return dealii::make_vectorized_array<double>(1.);
   }
@@ -83,14 +83,14 @@ public:
 };
 
 template <int dim>
-class LinearXMaterialProperty : public Coefficient<dim>
+class LinearXMaterialProperty final : public Coefficient<dim>
 {
 public:
   LinearXMaterialProperty() = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
-        unsigned int const = 0) const override final
+        unsigned int const = 0) const override
   {
     auto const one = dealii::make_vectorized_array<double>(1.);
     return one + std::abs(p[0]);
@@ -104,14 +104,14 @@ public:
 };
 
 template <int dim>
-class LinearMaterialProperty : public Coefficient<dim>
+class LinearMaterialProperty final : public Coefficient<dim>
 {
 public:
   LinearMaterialProperty() = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
-        unsigned int const = 0) const override final
+        unsigned int const = 0) const override
   {
     auto const one = dealii::make_vectorized_array<double>(1.);
     auto val = one;
@@ -122,7 +122,7 @@ public:
   }
 
   virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override final
+                       unsigned int const = 0) const override
   {
     double val = 1.;
     for (unsigned int d = 0; d < dim; ++d)
@@ -133,14 +133,14 @@ public:
 };
 
 template <int dim>
-class DiscontinuousMaterialProperty : public Coefficient<dim>
+class DiscontinuousMaterialProperty final : public Coefficient<dim>
 {
 public:
   DiscontinuousMaterialProperty() = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
-        unsigned int const = 0) const override final
+        unsigned int const = 0) const override
   {
     auto const one = dealii::make_vectorized_array<double>(1.);
     unsigned int dim_scale = 0;
