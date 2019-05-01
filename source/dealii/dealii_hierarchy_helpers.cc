@@ -152,17 +152,11 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
         amge.build_agglomerate_triangulation(halo_agglomerate,
                                              halo_agglomerate_triangulation,
                                              halo_patch_to_global_map);
-        if (interior_patch_to_global_map.empty())
-        {
-          ASSERT(halo_patch_to_global_map.empty(),
-                 "If there is nothing to work on in the interior, "
-                 "the halo should also be empty.");
-          return;
-        }
+        ASSERT(interior_patch_to_global.empty() ==
+               halo_patch_to_global_map.empty());
 
         // Now that we have the triangulation, we can do the evaluation on
-        // the agglomerate
-
+        // the agglomerates
         dealii::DoFHandler<dim> interior_agglomerate_dof_handler(
             interior_agglomerate_triangulation);
         dealii::AffineConstraints<double> interior_agglomerate_constraints;
@@ -200,7 +194,7 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
             agglomerate_it - combined_agglomerate_range.begin();
         for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
         {
-          unsigned int row = i * n_local_eigenvectors + j;
+          unsigned int const row = i * n_local_eigenvectors + j;
           // Get the vector used for the matrix-vector multiplication
           dealii::Vector<ScalarType> interior_delta_eig(n_interior_elem);
           for (unsigned int k = 0; k < n_interior_elem; ++k)

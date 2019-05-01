@@ -151,17 +151,11 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
         amge.build_agglomerate_triangulation(halo_agglomerate,
                                              halo_agglomerate_triangulation,
                                              halo_patch_to_global_map);
-        if (interior_patch_to_global_map.empty())
-        {
-          ASSERT(halo_patch_to_global_map.empty(),
-                 "If there is nothing to work on in the interior, "
-                 "the halo should also be empty.");
-          return;
-        }
+        ASSERT(interior_patch_to_global.empty() ==
+               halo_patch_to_global_map.empty());
 
         // Now that we have the triangulation, we can do the evaluation on
-        // the agglomerate
-
+        // the agglomerates
         dealii::DoFHandler<dim> interior_agglomerate_dof_handler(
             interior_agglomerate_triangulation);
         interior_agglomerate_dof_handler.distribute_dofs(
