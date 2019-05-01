@@ -70,6 +70,15 @@ void matrix_market_output_file(
                       std::to_string(rv));
 }
 
+void matrix_market_output_file(const std::string &filename,
+                               const dealii::SparseMatrix<double> &matrix)
+{
+  dealii::TrilinosWrappers::SparseMatrix trilinos_matrix;
+  trilinos_matrix.reinit(matrix);
+
+  matrix_market_output_file(filename, trilinos_matrix);
+}
+
 // TODO: write the map
 void matrix_market_output_file(
     const std::string &filename,

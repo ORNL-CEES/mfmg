@@ -182,6 +182,9 @@ void matrix_market_output_file(
     const std::string &filename,
     const dealii::TrilinosWrappers::SparseMatrix &matrix);
 
+void matrix_market_output_file(const std::string &filename,
+                               const dealii::SparseMatrix<double> &matrix);
+
 void matrix_market_output_file(
     const std::string &filename,
     const dealii::TrilinosWrappers::MPI::Vector &vector);
