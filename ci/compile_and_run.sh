@@ -1,7 +1,8 @@
 #!/bin/bash
-cd $1 || exit 1
+set -e
+cd $1
 rm -rf build
-mkdir build && cd build || exit 1
+mkdir build && cd build
 ARGS=(
   -D CMAKE_BUILD_TYPE=Debug
   -D MFMG_ENABLE_TESTS=ON
@@ -13,10 +14,10 @@ ARGS=(
   -D DEAL_II_DIR=${DEAL_II_DIR}
   -D MFMG_ENABLE_AMGX=ON
   -D AMGX_DIR=${AMGX_DIR}
-  -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow"
+  -D CMAKE_CXX_FLAGS="-Wall -Wpedantic -Wextra -Wshadow -Werror"
   -D LAPACK_DIR=${OPENBLAS_DIR}
   )
-cmake "${ARGS[@]}" ../ || exit 1
+cmake "${ARGS[@]}" ../
 make -j12
 # Because Arpack is not thread-safe we cannot use multithreading
 export DEAL_II_NUM_THREADS=1
