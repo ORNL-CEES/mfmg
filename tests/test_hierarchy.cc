@@ -425,7 +425,6 @@ dealii::TrilinosWrappers::SparseMatrix gimme_identity(unsigned int n_local_rows)
 BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
-  auto comm_size = dealii::Utilities::MPI::n_mpi_processes(comm);
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
   int constexpr dim = mfmg::DealIIMeshEvaluator<2>::_dim;
@@ -492,7 +491,6 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
 BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
 {
   MPI_Comm comm = MPI_COMM_WORLD;
-  auto comm_size = dealii::Utilities::MPI::n_mpi_processes(comm);
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
   int constexpr dim = mfmg::DealIIMatrixFreeMeshEvaluator<2>::_dim;
