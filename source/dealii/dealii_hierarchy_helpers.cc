@@ -76,10 +76,6 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
   auto agglomerate_params = params->get_child("agglomeration");
   if (fast_ap)
   {
-    // TODO make it work with MPI
-    ASSERT(dealii::Utilities::MPI::n_mpi_processes(comm) == 1,
-           "fast_ap only works in serial");
-
     AMGe_host<dim, DealIIMeshEvaluator<dim>, VectorType> amge(
         comm, dealii_mesh_evaluator->get_dof_handler(), eigensolver_params);
     std::vector<double> eigenvalues;
