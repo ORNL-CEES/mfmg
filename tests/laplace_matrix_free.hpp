@@ -253,7 +253,6 @@ void LaplaceMatrixFree<dim, fe_degree, ScalarType>::setup_system(
   // Set the boundary id to one
   auto boundary_cells =
       dealii::filter_iterators(_triangulation.active_cell_iterators(),
-                               dealii::IteratorFilters::LocallyOwnedCell(),
                                dealii::IteratorFilters::AtBoundary());
   for (auto &cell : boundary_cells)
   {
