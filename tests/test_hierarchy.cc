@@ -330,7 +330,7 @@ BOOST_DATA_TEST_CASE(
         conv_rate ==
             ref_solution[std::make_tuple(mesh, distort_random_str, reordering,
                                          eigensolver, matrix_free_str)],
-        tt::tolerance(1e-6));
+        tt::tolerance(1e-2));
   }
 }
 
