@@ -115,7 +115,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     unsigned int const n_local_eigenvectors =
         interior_agglomerates.empty()
             ? 0
-            : delta_correction_matrix.m() / interior_agglomerates.size();
+            : eigenvector_matrix->locally_owned_range_indices().n_elements() /
+                  interior_agglomerates.size();
 
     for (auto const &agglomerates_vector :
          {interior_agglomerates, halo_agglomerates})
@@ -169,7 +170,10 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
             unsigned int const i = agglomerate_it - agglomerates_vector.begin();
             for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
             {
-              unsigned int const row = i * n_local_eigenvectors + j;
+              unsigned int const local_row = i * n_local_eigenvectors + j;
+              unsigned int const global_row =
+                  eigenvector_matrix->locally_owned_range_indices()
+                      .nth_index_in_set(local_row);
               // Get the vector used for the matrix-vector multiplication
               dealii::Vector<ScalarType> delta_eig(n_elem);
               if (is_halo_agglomerate)
@@ -177,16 +181,17 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
                 for (unsigned int k = 0; k < n_elem; ++k)
                 {
                   delta_eig[k] =
-                      delta_eigenvector_matrix->el(row, dof_indices_map[k]) +
-                      eigenvector_matrix->el(row, dof_indices_map[k]);
+                      delta_eigenvector_matrix->el(global_row,
+                                                   dof_indices_map[k]) +
+                      eigenvector_matrix->el(global_row, dof_indices_map[k]);
                 }
               }
               else
               {
                 for (unsigned int k = 0; k < n_elem; ++k)
                 {
-                  delta_eig[k] =
-                      delta_eigenvector_matrix->el(row, dof_indices_map[k]);
+                  delta_eig[k] = delta_eigenvector_matrix->el(
+                      global_row, dof_indices_map[k]);
                 }
               }
 
@@ -201,7 +206,7 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
               for (unsigned int k = 0; k < n_elem; ++k)
               {
                 local_copy_data.delta_correction_local_acc[std::make_pair(
-                    row, dof_indices_map[k])] += correction[k];
+                    global_row, dof_indices_map[k])] += correction[k];
               }
             }
           };
@@ -240,9 +245,13 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
 #pragma GCC diagnostic pop
 
     for (unsigned int row = 0; row < eigenvector_matrix->m(); ++row)
+    {
       for (auto column_iterator = eigenvector_matrix->begin(row);
            column_iterator != eigenvector_matrix->end(row); ++column_iterator)
+      {
         column_iterator->value() *= eigenvalues[row];
+      }
+    }
     eigenvector_matrix->compress(dealii::VectorOperation::insert);
 
     bool const transpose = true;
