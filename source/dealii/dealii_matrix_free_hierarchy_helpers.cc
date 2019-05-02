@@ -238,12 +238,14 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
     Epetra_Map domain_map = eigenvector_matrix->range_partitioner();
 #pragma GCC diagnostic pop
 
-    for (unsigned int row = 0; row < eigenvector_matrix->m(); ++row)
+    auto const range_start = eigenvector_matrix->local_range().first;
+    auto const range_end = eigenvector_matrix->local_range().second;
+    for (unsigned int row = range_start; row < range_end; ++row)
     {
       for (auto column_iterator = eigenvector_matrix->begin(row);
            column_iterator != eigenvector_matrix->end(row); ++column_iterator)
       {
-        column_iterator->value() *= eigenvalues[row];
+        column_iterator->value() *= eigenvalues.at(row - range_start);
       }
     }
     eigenvector_matrix->compress(dealii::VectorOperation::insert);
