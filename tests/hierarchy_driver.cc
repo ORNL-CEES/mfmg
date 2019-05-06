@@ -27,11 +27,11 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
           params->get<std::string>("material_property.type"));
   Source<dim> source;
 
-  auto laplace_ptree = params->get_child("laplace");
+  auto const &laplace_ptree = params->get_child("laplace");
   LaplaceMatrixFree<dim, fe_degree, double> mf_laplace(comm);
   mf_laplace.setup_system(laplace_ptree, *material_property);
 
-  auto const locally_owned_dofs = mf_laplace._locally_owned_dofs;
+  auto const &locally_owned_dofs = mf_laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
   DVector rhs(mf_laplace._system_rhs);
 
@@ -197,10 +197,10 @@ int main(int argc, char *argv[])
   if (vm.count("matrix_free"))
     matrix_free = vm["matrix_free"].as<bool>();
 
-  auto params = std::make_shared<boost::property_tree::ptree>();
+  auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
-  int fe_degree = params->get<unsigned int>("laplace.fe_degree", 1);
+  int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 1);
 
   std::cout << "input file: " << filename << ", dimension: " << dim
             << ", matrix-free: " << matrix_free << ", fe_degree: " << fe_degree
