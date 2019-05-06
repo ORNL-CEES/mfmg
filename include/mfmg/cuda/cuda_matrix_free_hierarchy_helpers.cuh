@@ -25,10 +25,14 @@ class CudaMatrixFreeHierarchyHelpers
 public:
   using vector_type = VectorType;
 
-  CudaMatrixFreeHierarchyHelpers(CudaHandle const &cuda_handle)
-      : CudaHierarchyHelpers<dim, VectorType>(cuda_handle)
-  {
-  }
+  CudaMatrixFreeHierarchyHelpers(CudaHandle const &cuda_handle);
+
+  std::shared_ptr<Operator<VectorType>> get_global_operator(
+      std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
+
+  std::shared_ptr<Operator<VectorType>> build_restrictor(
+      MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
+      std::shared_ptr<boost::property_tree::ptree const> params) override final;
 };
 } // namespace mfmg
 

@@ -95,7 +95,6 @@ CudaHierarchyHelpers<dim, VectorType>::build_coarse_solver(
     std::shared_ptr<Operator<VectorType> const> op,
     std::shared_ptr<boost::property_tree::ptree const> params)
 {
-
   auto cuda_solver =
       std::make_shared<CudaSolver<VectorType>>(_cuda_handle, op, params);
 

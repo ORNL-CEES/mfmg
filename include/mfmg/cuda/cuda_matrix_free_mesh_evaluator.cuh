@@ -36,6 +36,13 @@ public:
 
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
+
+  // TODO
+  template <typename VectorType>
+  VectorType get_diagonal_inverse() const
+  {
+    return VectorType();
+  }
 };
 } // namespace mfmg
 

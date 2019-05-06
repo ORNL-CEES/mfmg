@@ -16,6 +16,7 @@
 
 #include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/operator.hpp>
+#include <mfmg/cuda/cuda_handle.cuh>
 
 namespace mfmg
 {
@@ -49,7 +50,12 @@ public:
 
   size_t operator_complexity() const override final;
 
+  VectorType get_diagonal_inverse() const;
+
+  CudaHandle const &get_cuda_handle() const;
+
 private:
+  CudaHandle const &_cuda_handle;
   std::shared_ptr<MeshEvaluator> _mesh_evaluator;
 };
 } // namespace mfmg

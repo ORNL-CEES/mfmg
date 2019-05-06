@@ -213,7 +213,9 @@ AMGe_device<dim, MeshEvaluator, VectorType>::AMGe_device(
 {
 }
 
-// Cannot be const because of the handles
+// FIXME we need to be able to do that with an eigensolver that does not require
+// the matrix
+// Cannot be const because of the handler
 template <int dim, typename MeshEvaluator, typename VectorType>
 std::tuple<typename VectorType::value_type *, typename VectorType::value_type *,
            typename VectorType::value_type *,

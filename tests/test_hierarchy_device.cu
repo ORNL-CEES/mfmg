@@ -133,7 +133,7 @@ public:
 };
 
 template <int dim>
-class TestMeshEvaluator : public mfmg::CudaMeshEvaluator<dim>
+class TestMeshEvaluator : public mfmg::CudaMatrixFreeMeshEvaluator<dim>
 {
 public:
   TestMeshEvaluator(MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler,
@@ -142,7 +142,8 @@ public:
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
                     std::shared_ptr<dealii::Function<dim>> material_property,
                     mfmg::CudaHandle &cuda_handle)
-      : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints),
+      : mfmg::CudaMatrixFreeMeshEvaluator<dim>(cuda_handle, dof_handler,
+                                               constraints),
         _comm(comm), _fe_degree(fe_degree), _matrix(matrix),
         _material_property(material_property)
   {
@@ -272,7 +273,7 @@ template <int dim>
 double test(std::shared_ptr<boost::property_tree::ptree> params)
 {
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  using MeshEvaluator = mfmg::CudaMeshEvaluator<dim>;
+  using MeshEvaluator = mfmg::CudaMatrixFreeMeshEvaluator<dim>;
 
   mfmg::CudaHandle cuda_handle;
 

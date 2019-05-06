@@ -21,7 +21,15 @@ namespace mfmg
 template <typename VectorType>
 CudaMatrixFreeOperator<VectorType>::CudaMatrixFreeOperator(
     std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
-    : _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
+    : _cuda_handle(std::dynamic_pointer_cast<CudaMeshEvaluator<2>>(
+                       matrix_free_mesh_evaluator) != nullptr
+                       ? std::dynamic_pointer_cast<CudaMeshEvaluator<2>>(
+                             matrix_free_mesh_evaluator)
+                             ->get_cuda_handle()
+                       : std::dynamic_pointer_cast<CudaMeshEvaluator<3>>(
+                             matrix_free_mesh_evaluator)
+                             ->get_cuda_handle()),
+      _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
 {
   int const dim = _mesh_evaluator->get_dim();
   std::string const downcasting_failure_error_message =
@@ -96,17 +104,14 @@ CudaMatrixFreeOperator<dealii::LinearAlgebra::distributed::Vector<double>>::
   auto b_sparse_matrix_dev = downcast_b->get_matrix();
   auto b_sparse_matrix = convert_to_trilinos_matrix(*b_sparse_matrix_dev);
 
-  auto c_sparse_matrix =
-      std::make_shared<dealii::TrilinosWrappers::SparseMatrix>(
-          tmp->locally_owned_elements(),
-          b_sparse_matrix.locally_owned_range_indices(),
-          tmp->get_mpi_communicator());
-
   // FIXME The function below needs to perform many vmult where the operator is
   // on the device but the source and the destination vectors are on the host.
   // The move from the host to the device and reverse is handled by the apply
   // function in
-  matrix_transpose_matrix_multiply(*c_sparse_matrix, b_sparse_matrix, *this);
+  auto c_sparse_matrix = matrix_transpose_matrix_multiply(
+      tmp->locally_owned_elements(),
+      b_sparse_matrix.locally_owned_range_indices(),
+      tmp->get_mpi_communicator(), b_sparse_matrix, *this);
 
   std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<double>>>
   op(new CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<double>>(
@@ -167,6 +172,27 @@ size_t CudaMatrixFreeOperator<VectorType>::operator_complexity() const
   // FIXME Return garbage sinze throwing not implemented will make important
   // tests to fail
   return 0;
+}
+
+template <typename VectorType>
+VectorType CudaMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
+{
+  auto diagonal_inverse =
+      _mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse<VectorType>()
+          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
+                _mesh_evaluator)
+                ->get_diagonal_inverse<VectorType>();
+
+  return diagonal_inverse;
+}
+
+template <typename VectorType>
+CudaHandle const &CudaMatrixFreeOperator<VectorType>::get_cuda_handle() const
+{
+  return _cuda_handle;
 }
 } // namespace mfmg
 
