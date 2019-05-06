@@ -389,19 +389,19 @@ BOOST_AUTO_TEST_CASE(hierarchy_3d)
           double const conv_rate = test<dim>(params);
 
           // Relative tolerance in %
-          double const tolerance = 1e-6;
+          double const tolerance_percent = 1e-6;
           if (mesh == std::string("hyper_cube"))
           {
             BOOST_CHECK_CLOSE(
                 conv_rate,
                 ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-                tolerance);
+                tolerance_percent);
           }
           else
             BOOST_CHECK_CLOSE(
                 conv_rate,
                 ref_solution[std::make_tuple(mesh, distort_random, reordering)],
-                tolerance);
+                tolerance_percent);
         }
   }
 }
@@ -426,12 +426,13 @@ BOOST_AUTO_TEST_CASE(amgx)
     // We only supports Jacobi smoother on the device
     params->put("smoother.type", "Jacobi");
 
-    double const tolerance = 5.;
+    // Relative tolerance in %
+    double const tolerance_percent = 5.;
     // The convergence rate for the two grid algorithm is 0.345914564 which is
     // much better than the multigrid.
     double const ref_solution = 0.86418797066393482;
     double const conv_rate = test<dim>(params);
-    BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance);
+    BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance_percent);
   }
 }
 #endif
