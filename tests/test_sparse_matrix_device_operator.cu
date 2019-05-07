@@ -60,16 +60,17 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
   cusparse_error_code = cusparseSetMatIndexBase(sparse_matrix_dev->descr,
                                                 CUSPARSE_INDEX_BASE_ZERO);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
-  mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>> matrix_operator(
-      sparse_matrix_dev);
+  mfmg::CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>
+      matrix_operator(sparse_matrix_dev);
 
   // Check build_domain_vector
   auto domain_dev = matrix_operator.build_domain_vector();
-  BOOST_CHECK_EQUAL(domain_dev->partitioner->size(), n_cols);
+  BOOST_CHECK_EQUAL(domain_dev->get_partitioner()->size(), n_cols);
 
   // Check build_range_vector
   auto range_dev = matrix_operator.build_range_vector();
-  BOOST_CHECK_EQUAL(range_dev->partitioner->size(), n_rows);
+  BOOST_CHECK_EQUAL(range_dev->get_partitioner()->size(), n_rows);
 
   // Check apply
   std::vector<double> domain_vector(n_cols, 1.);
@@ -80,7 +81,7 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
   dealii::Vector<double> range_dealii(n_rows);
   sparse_matrix.vmult(range_dealii, domain_dealii);
   std::vector<double> range_vector(n_rows);
-  mfmg::cuda_mem_copy_to_host(range_dev->val_dev, range_vector);
+  mfmg::cuda_mem_copy_to_host(range_dev->get_values(), range_vector);
   for (unsigned int i = 0; i < n_rows; ++i)
     BOOST_CHECK_EQUAL(range_vector[i], range_dealii[i]);
 
@@ -115,7 +116,7 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
   transpose_sparse_matrix.vmult(transpose_range_dealii,
                                 transpose_domain_dealii);
   std::vector<double> transpose_range_vector(n_cols);
-  mfmg::cuda_mem_copy_to_host(transpose_range_dev->val_dev,
+  mfmg::cuda_mem_copy_to_host(transpose_range_dev->get_values(),
                               transpose_range_vector);
   for (unsigned int i = 0; i < n_rows; ++i)
     BOOST_CHECK_EQUAL(transpose_range_vector[i], transpose_range_dealii[i]);
@@ -126,7 +127,7 @@ BOOST_AUTO_TEST_CASE(matrix_operator)
       matrix_operator.multiply(transpose_matrix_operator);
   multiplied_matrix_operator->apply(*transpose_domain_dev, *range_dev);
 
-  mfmg::cuda_mem_copy_to_host(range_dev->val_dev, range_vector);
+  mfmg::cuda_mem_copy_to_host(range_dev->get_values(), range_vector);
 
   for (unsigned int i = 0; i < n_rows; ++i)
     BOOST_CHECK_EQUAL(range_vector[i], range_dealii[i]);

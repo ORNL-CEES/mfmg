@@ -12,6 +12,7 @@
 #define BOOST_TEST_MODULE hierarchy_boost
 
 #include <mfmg/common/hierarchy.hpp>
+#include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/base/conditional_ostream.h>
 

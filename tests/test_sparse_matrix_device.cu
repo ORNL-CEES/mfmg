@@ -80,10 +80,12 @@ BOOST_AUTO_TEST_CASE(serial_mv)
       vector[i] = i;
 
     // Move the vector to the device
-    mfmg::VectorDevice<double> vector_dev(vector.get_partitioner());
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        vector_dev(vector.get_partitioner());
     cudaError_t cuda_error_code;
     cuda_error_code =
-        cudaMemcpy(vector_dev.val_dev, vector.begin(),
+        cudaMemcpy(vector_dev.get_values(), vector.begin(),
                    vector_local_size * sizeof(double), cudaMemcpyHostToDevice);
     mfmg::ASSERT_CUDA(cuda_error_code);
 
@@ -92,13 +94,15 @@ BOOST_AUTO_TEST_CASE(serial_mv)
     sparse_matrix.vmult(result, vector);
 
     // Perform the matrix-vector multiplication on the host
-    mfmg::VectorDevice<double> result_dev(vector.get_partitioner());
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        result_dev(vector.get_partitioner());
 
     sparse_matrix_dev.vmult(result_dev, vector_dev);
 
     // Check the result
     std::vector<double> result_host(vector_local_size);
-    mfmg::cuda_mem_copy_to_host(result_dev.val_dev, result_host);
+    mfmg::cuda_mem_copy_to_host(result_dev.get_values(), result_host);
     for (unsigned int i = 0; i < vector_local_size; ++i)
       BOOST_CHECK_CLOSE(result[i], result_host[i], 1e-14);
 
@@ -186,9 +190,11 @@ BOOST_AUTO_TEST_CASE(distributed_mv)
       vector.local_element(i) = i;
 
     // Move the vector to the device
-    mfmg::VectorDevice<double> vector_dev(vector.get_partitioner());
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        vector_dev(vector.get_partitioner());
     cuda_error_code =
-        cudaMemcpy(vector_dev.val_dev, vector.begin(),
+        cudaMemcpy(vector_dev.get_values(), vector.begin(),
                    vector_local_size * sizeof(double), cudaMemcpyHostToDevice);
     mfmg::ASSERT_CUDA(cuda_error_code);
 
@@ -197,13 +203,15 @@ BOOST_AUTO_TEST_CASE(distributed_mv)
     sparse_matrix.vmult(result, vector);
 
     // Perform the matrix-vector multiplication on the host
-    mfmg::VectorDevice<double> result_dev(vector.get_partitioner());
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        result_dev(vector.get_partitioner());
 
     sparse_matrix_dev.vmult(result_dev, vector_dev);
 
     // Check the result
     std::vector<double> result_host(vector_local_size);
-    mfmg::cuda_mem_copy_to_host(result_dev.val_dev, result_host);
+    mfmg::cuda_mem_copy_to_host(result_dev.get_values(), result_host);
     for (unsigned int i = 0; i < vector_local_size; ++i)
       BOOST_CHECK_CLOSE(result.local_element(i), result_host[i], 1e-14);
   }

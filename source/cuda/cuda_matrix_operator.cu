@@ -10,6 +10,7 @@
  *************************************************************************/
 
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <EpetraExt_MatrixMatrix.h>
 #include <EpetraExt_Transpose_RowMatrix.h>
@@ -36,28 +37,35 @@ void MatrixOperator<VectorType>::apply(
 }
 
 template <>
-void MatrixOperator<VectorDevice<double>>::apply(
-    std::shared_ptr<SparseMatrixDevice<double>> matrix,
-    VectorDevice<double> const &x, VectorDevice<double> &y)
+void MatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
+    apply(std::shared_ptr<SparseMatrixDevice<double>> matrix,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> const &x,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> &y)
 {
   matrix->vmult(y, x);
 }
 
 template <>
-void MatrixOperator<dealii::LinearAlgebra::distributed::Vector<double>>::apply(
-    std::shared_ptr<SparseMatrixDevice<double>> matrix,
-    dealii::LinearAlgebra::distributed::Vector<double> const &x,
-    dealii::LinearAlgebra::distributed::Vector<double> &y)
+void MatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>::
+    apply(std::shared_ptr<SparseMatrixDevice<double>> matrix,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::Host> const &x,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::Host> &y)
 {
   // Move the data to the device
-  VectorDevice<double> x_dev(x);
-  VectorDevice<double> y_dev(y);
+  auto x_dev = copy_from_host(x);
+  auto y_dev = copy_from_host(y);
 
   matrix->vmult(y_dev, x_dev);
 
   // Move the data to the host
   std::vector<double> y_host(y.local_size());
-  cuda_mem_copy_to_host(y_dev.val_dev, y_host);
+  cuda_mem_copy_to_host(y_dev.get_values(), y_host);
   std::copy(y_host.begin(), y_host.end(), y.begin());
 }
 } // namespace
@@ -257,6 +265,9 @@ CudaMatrixOperator<VectorType>::get_matrix() const
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>;
 template class mfmg::CudaMatrixOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::Host>>;
+template class mfmg::CudaMatrixOperator<
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>>;

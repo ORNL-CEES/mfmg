@@ -481,6 +481,34 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 }
 #endif
 
+dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+copy_from_host(dealii::LinearAlgebra::distributed::Vector<
+               double, dealii::MemorySpace::Host> const &vector_host)
+{
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      vector_dev(vector_host.get_partitioner());
+  cudaError_t cuda_error_code = cudaMemcpy(
+      vector_dev.get_values(), vector_host.get_values(),
+      vector_host.local_size() * sizeof(double), cudaMemcpyHostToDevice);
+  ASSERT_CUDA(cuda_error_code);
+
+  return vector_dev;
+}
+
+dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::Host>
+copy_from_dev(dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> const &vector_dev)
+{
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::Host>
+      vector_host(vector_dev.get_partitioner());
+  cudaError_t cuda_error_code = cudaMemcpy(
+      vector_host.get_values(), vector_dev.get_values(),
+      vector_dev.local_size() * sizeof(double), cudaMemcpyDeviceToHost);
+  ASSERT_CUDA(cuda_error_code);
+
+  return vector_host;
+}
+
 template SparseMatrixDevice<double>
 convert_matrix(dealii::SparseMatrix<double> const &sparse_matrix);
 } // namespace mfmg

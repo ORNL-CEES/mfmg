@@ -17,7 +17,7 @@
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_solver.cuh>
 #include <mfmg/cuda/sparse_matrix_device.cuh>
-#include <mfmg/cuda/vector_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -82,26 +82,33 @@ BOOST_AUTO_TEST_CASE(amgx_1_proc)
     mfmg::ASSERT_CUSPARSE(cusparse_error_code);
     auto partitioner =
         std::make_shared<dealii::Utilities::MPI::Partitioner>(size);
-    mfmg::VectorDevice<double> rhs_dev(partitioner);
-    mfmg::VectorDevice<double> solution_dev(partitioner);
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        rhs_dev(partitioner);
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        solution_dev(partitioner);
     std::vector<double> rhs_host(size);
     std::copy(rhs.begin(), rhs.end(), rhs_host.begin());
-    mfmg::cuda_mem_copy_to_dev(rhs_host, rhs_dev.val_dev);
+    mfmg::cuda_mem_copy_to_dev(rhs_host, rhs_dev.get_values());
     auto params = std::make_shared<boost::property_tree::ptree>();
 
     params->put("solver.type", "amgx");
     params->put("solver.config_file", "amgx_config_fgmres.json");
-    std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> op_dev =
-        std::make_shared<mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>>(
-            matrix_dev);
-    mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
-        cuda_handle, op_dev, params);
+    std::shared_ptr<mfmg::Operator<dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA>>>
+        op_dev = std::make_shared<
+            mfmg::CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+                double, dealii::MemorySpace::CUDA>>>(matrix_dev);
+    mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA>>
+        direct_solver_dev(cuda_handle, op_dev, params);
     direct_solver_dev.apply(rhs_dev, solution_dev);
 
     // Move the result back to the host
     int const n_local_rows = matrix_dev->n_local_rows();
     std::vector<double> solution_host(n_local_rows);
-    mfmg::cuda_mem_copy_to_host(solution_dev.val_dev, solution_host);
+    mfmg::cuda_mem_copy_to_host(solution_dev.get_values(), solution_host);
 
     // Check the result
     for (unsigned int i = 0; i < n_local_rows; ++i)
@@ -171,21 +178,25 @@ BOOST_AUTO_TEST_CASE(amgx_2_procs)
       cusparse_error_code =
           cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
       mfmg::ASSERT_CUSPARSE(cusparse_error_code);
-      mfmg::VectorDevice<double> rhs_dev(rhs);
-      mfmg::VectorDevice<double> solution_dev(sol_ref);
+      auto rhs_dev = mfmg::copy_from_host(rhs);
+      auto solution_dev = mfmg::copy_from_host(sol_ref);
       auto params = std::make_shared<boost::property_tree::ptree>();
 
       params->put("solver.type", "amgx");
       params->put("solver.config_file", "amgx_config_fgmres.json");
 
-      std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> cuda_op(
-          new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
-      mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
-          cuda_handle, cuda_op, params);
+      std::shared_ptr<mfmg::Operator<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>>
+      cuda_op(new mfmg::CudaMatrixOperator<
+              dealii::LinearAlgebra::distributed::Vector<
+                  double, dealii::MemorySpace::CUDA>>(matrix_dev));
+      mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>
+          direct_solver_dev(cuda_handle, cuda_op, params);
 
       // Move the result back to the host
       std::vector<double> solution_host(n_local_rows);
-      mfmg::cuda_mem_copy_to_host(solution_dev.val_dev, solution_host);
+      mfmg::cuda_mem_copy_to_host(solution_dev.get_values(), solution_host);
 
       for (unsigned int i = 0; i < n_local_rows; ++i)
         BOOST_CHECK_CLOSE(solution_host[i], sol_ref.local_element(i), 1e-7);

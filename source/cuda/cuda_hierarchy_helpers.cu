@@ -104,9 +104,15 @@ CudaHierarchyHelpers<dim, VectorType>::build_coarse_solver(
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::CudaHierarchyHelpers<2, mfmg::VectorDevice<double>>;
-template class mfmg::CudaHierarchyHelpers<3, mfmg::VectorDevice<double>>;
 template class mfmg::CudaHierarchyHelpers<
-    2, dealii::LinearAlgebra::distributed::Vector<double>>;
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::Host>>;
 template class mfmg::CudaHierarchyHelpers<
-    3, dealii::LinearAlgebra::distributed::Vector<double>>;
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::Host>>;
+template class mfmg::CudaHierarchyHelpers<
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;
+template class mfmg::CudaHierarchyHelpers<
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;

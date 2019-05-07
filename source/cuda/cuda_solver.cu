@@ -12,6 +12,7 @@
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_solver.cuh>
 #include <mfmg/cuda/dealii_operator_device_helpers.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <set>
 
@@ -48,10 +49,14 @@ void DirectSolver<VectorType>::apply(
 }
 
 template <>
-void DirectSolver<VectorDevice<double>>::apply(
-    CudaHandle const &cuda_handle, SparseMatrixDevice<double> const &matrix,
-    std::string const &solver, VectorDevice<double> const &b,
-    VectorDevice<double> &x)
+void DirectSolver<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
+    apply(CudaHandle const &cuda_handle,
+          SparseMatrixDevice<double> const &matrix, std::string const &solver,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> const &b,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> &x)
 {
   if (solver == "cholesky")
     cholesky_factorization(cuda_handle.cusolver_sp_handle, matrix,
@@ -74,15 +79,16 @@ void DirectSolver<dealii::LinearAlgebra::distributed::Vector<double>>::apply(
     dealii::LinearAlgebra::distributed::Vector<double> &x)
 {
   // Copy to the device
-  VectorDevice<double> x_dev(x);
-  VectorDevice<double> b_dev(b);
+  auto x_dev = copy_from_host(x);
+  auto b_dev = copy_from_host(b);
 
-  DirectSolver<VectorDevice<double>>::apply(cuda_handle, matrix, solver, b_dev,
-                                            x_dev);
+  DirectSolver<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>::apply(cuda_handle, matrix, solver,
+                                                 b_dev, x_dev);
 
   // Move the data to the host
   std::vector<double> x_host(x.local_size());
-  cuda_mem_copy_to_host(x_dev.val_dev, x_host);
+  cuda_mem_copy_to_host(x_dev.get_values(), x_host);
   std::copy(x_host.begin(), x_host.end(), x.begin());
 }
 
@@ -100,59 +106,69 @@ void DirectSolver<VectorType>::amgx_solve(
 }
 
 template <>
-void DirectSolver<VectorDevice<double>>::amgx_solve(
-    std::unordered_map<int, int> const &row_map,
-    AMGX_vector_handle const &amgx_rhs_handle,
-    AMGX_vector_handle const &amgx_solution_handle,
-    AMGX_solver_handle const &amgx_solver_handle,
-    SparseMatrixDevice<double> const &matrix, VectorDevice<double> &b,
-    VectorDevice<double> &x)
-{
-  // Copy data into a vector object
-  unsigned int const n_local_rows = matrix.n_local_rows();
-  std::vector<double> val_host(n_local_rows);
-  mfmg::cuda_mem_copy_to_host(b.val_dev, val_host);
-  std::vector<double> tmp(val_host);
-  for (auto const &pos : row_map)
-    val_host[pos.second] = tmp[pos.first];
-  mfmg::cuda_mem_copy_to_dev(val_host, b.val_dev);
-
-  int const block_dim_x = 1;
-
-  AMGX_vector_upload(amgx_rhs_handle, n_local_rows, block_dim_x, b.val_dev);
-  AMGX_vector_upload(amgx_solution_handle, n_local_rows, block_dim_x,
-                     x.val_dev);
-
-  // Solve the problem
-  AMGX_solver_solve(amgx_solver_handle, amgx_rhs_handle, amgx_solution_handle);
-
-  // Get the result back
-  AMGX_vector_download(amgx_solution_handle, x.val_dev);
-
-  // Move the result back to the host to reorder it
-  std::vector<double> solution_host(n_local_rows);
-  mfmg::cuda_mem_copy_to_host(x.val_dev, solution_host);
-  tmp = solution_host;
-  for (auto const &pos : row_map)
-    solution_host[pos.first] = tmp[pos.second];
-
-  // Move the solution back on the device
-  mfmg::cuda_mem_copy_to_dev(solution_host, x.val_dev);
-}
-
-template <>
-void DirectSolver<dealii::LinearAlgebra::distributed::Vector<double>>::
+void DirectSolver<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
     amgx_solve(std::unordered_map<int, int> const &row_map,
                AMGX_vector_handle const &amgx_rhs_handle,
                AMGX_vector_handle const &amgx_solution_handle,
                AMGX_solver_handle const &amgx_solver_handle,
                SparseMatrixDevice<double> const &matrix,
-               dealii::LinearAlgebra::distributed::Vector<double> &b,
-               dealii::LinearAlgebra::distributed::Vector<double> &x)
+               dealii::LinearAlgebra::distributed::Vector<
+                   double, dealii::MemorySpace::CUDA> &b,
+               dealii::LinearAlgebra::distributed::Vector<
+                   double, dealii::MemorySpace::CUDA> &x)
+{
+  // Copy data into a vector object
+  unsigned int const n_local_rows = matrix.n_local_rows();
+  std::vector<double> val_host(n_local_rows);
+  mfmg::cuda_mem_copy_to_host(b.get_values(), val_host);
+  std::vector<double> tmp(val_host);
+  for (auto const &pos : row_map)
+    val_host[pos.second] = tmp[pos.first];
+  mfmg::cuda_mem_copy_to_dev(val_host, b.get_values());
+
+  int const block_dim_x = 1;
+
+  AMGX_vector_upload(amgx_rhs_handle, n_local_rows, block_dim_x,
+                     b.get_values());
+  AMGX_vector_upload(amgx_solution_handle, n_local_rows, block_dim_x,
+                     x.get_values());
+
+  // Solve the problem
+  AMGX_solver_solve(amgx_solver_handle, amgx_rhs_handle, amgx_solution_handle);
+
+  // Get the result back
+  AMGX_vector_download(amgx_solution_handle, x.get_values());
+
+  // Move the result back to the host to reorder it
+  std::vector<double> solution_host(n_local_rows);
+  mfmg::cuda_mem_copy_to_host(x.get_values(), solution_host);
+  tmp = solution_host;
+  for (auto const &pos : row_map)
+    solution_host[pos.first] = tmp[pos.second];
+
+  // Move the solution back on the device
+  mfmg::cuda_mem_copy_to_dev(solution_host, x.get_values());
+}
+
+template <>
+void DirectSolver<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>::
+    amgx_solve(std::unordered_map<int, int> const &row_map,
+               AMGX_vector_handle const &amgx_rhs_handle,
+               AMGX_vector_handle const &amgx_solution_handle,
+               AMGX_solver_handle const &amgx_solver_handle,
+               SparseMatrixDevice<double> const &matrix,
+               dealii::LinearAlgebra::distributed::Vector<
+                   double, dealii::MemorySpace::Host> &b,
+               dealii::LinearAlgebra::distributed::Vector<
+                   double, dealii::MemorySpace::Host> &x)
 {
   auto partitioner = b.get_partitioner();
-  VectorDevice<double> x_dev(partitioner);
-  VectorDevice<double> b_dev(partitioner);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      x_dev(partitioner);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      b_dev(partitioner);
 
   unsigned int const n_local_rows = matrix.n_local_rows();
   std::vector<double> val_host(n_local_rows);
@@ -160,23 +176,24 @@ void DirectSolver<dealii::LinearAlgebra::distributed::Vector<double>>::
   std::vector<double> tmp(val_host);
   for (auto const &pos : row_map)
     val_host[pos.second] = tmp[pos.first];
-  mfmg::cuda_mem_copy_to_dev(val_host, b_dev.val_dev);
+  mfmg::cuda_mem_copy_to_dev(val_host, b_dev.get_values());
 
   int const block_dim_x = 1;
 
-  AMGX_vector_upload(amgx_rhs_handle, n_local_rows, block_dim_x, b_dev.val_dev);
+  AMGX_vector_upload(amgx_rhs_handle, n_local_rows, block_dim_x,
+                     b_dev.get_values());
   AMGX_vector_upload(amgx_solution_handle, n_local_rows, block_dim_x,
-                     x_dev.val_dev);
+                     x_dev.get_values());
 
   // Solve the problem
   AMGX_solver_solve(amgx_solver_handle, amgx_rhs_handle, amgx_solution_handle);
 
   // Get the result back
-  AMGX_vector_download(amgx_solution_handle, x_dev.val_dev);
+  AMGX_vector_download(amgx_solution_handle, x_dev.get_values());
 
   // Move the result back to the host to reorder it
   std::vector<double> solution_host(n_local_rows);
-  mfmg::cuda_mem_copy_to_host(x_dev.val_dev, solution_host);
+  mfmg::cuda_mem_copy_to_host(x_dev.get_values(), solution_host);
   tmp = solution_host;
   for (auto const &pos : row_map)
     x.local_element(pos.first) = tmp[pos.second];
@@ -501,6 +518,7 @@ void CudaSolver<VectorType>::apply(VectorType const &b, VectorType &x) const
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::CudaSolver<mfmg::VectorDevice<double>>;
-template class mfmg::CudaSolver<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>;
+template class mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>;

@@ -10,7 +10,6 @@ SET(MFMG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_operator_device_helpers.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/sparse_matrix_device.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/utils.cu
-  ${CMAKE_CURRENT_SOURCE_DIR}/vector_device.cu
   )
 
 SET(MFMG_SOURCES ${MFMG_SOURCES} PARENT_SCOPE)
