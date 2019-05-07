@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE lanczos
 
-#include "mfmg/dealii/lanczos.templates.hpp"
+#include "mfmg/common/lanczos.templates.hpp"
 
 #include <boost/test/data/test_case.hpp>
 
