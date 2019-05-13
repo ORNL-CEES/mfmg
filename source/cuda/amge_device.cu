@@ -11,18 +11,20 @@
 
 #include <mfmg/cuda/amge_device.templates.cuh>
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
-#include <mfmg/cuda/vector_device.cuh>
 
 #include <deal.II/lac/la_parallel_vector.h>
 
 // Cannot use the instantiation macro with nvcc
-template class mfmg::AMGe_device<
-    2, mfmg::CudaMeshEvaluator<2>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
 template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
-                                 mfmg::VectorDevice<double>>;
-template class mfmg::AMGe_device<
-    3, mfmg::CudaMeshEvaluator<3>,
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::Host>>;
 template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
-                                 mfmg::VectorDevice<double>>;
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::Host>>;
+
+template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::CUDA>>;
+template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::CUDA>>;

@@ -20,6 +20,8 @@
 #include <mfmg/cuda/sparse_matrix_device.cuh>
 
 #if MFMG_WITH_AMGX
+#include <unordered_map>
+
 #include <amgx_c.h>
 #endif
 

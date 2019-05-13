@@ -13,9 +13,9 @@
 #define SPARSE_MATRIX_DEVICE_CUH
 
 #ifdef MFMG_WITH_CUDA
-#include <mfmg/cuda/vector_device.cuh>
 
 #include <deal.II/base/index_set.h>
+#include <deal.II/lac/la_parallel_vector.h>
 
 #include <cusparse.h>
 
@@ -74,8 +74,10 @@ public:
 
   dealii::IndexSet locally_owned_range_indices() const;
 
-  void vmult(VectorDevice<ScalarType> &dst,
-             VectorDevice<ScalarType> const &src) const;
+  void vmult(dealii::LinearAlgebra::distributed::Vector<
+                 ScalarType, dealii::MemorySpace::CUDA> &dst,
+             dealii::LinearAlgebra::distributed::Vector<
+                 ScalarType, dealii::MemorySpace::CUDA> const &src) const;
 
   /**
    * Perform the matrix-matrix multiplication C=A*B. This function assumes that

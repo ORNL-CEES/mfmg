@@ -93,10 +93,12 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 
 #ifdef MFMG_WITH_CUDA
 template <>
-std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
+std::unique_ptr<HierarchyHelpers<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>>
 create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
 {
-  std::unique_ptr<HierarchyHelpers<mfmg::VectorDevice<double>>>
+  std::unique_ptr<HierarchyHelpers<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>>
       hierarchy_helpers;
   std::string evaluator_type = evaluator->get_mesh_evaluator_type();
   if (evaluator_type == "CudaMeshEvaluator")
@@ -109,7 +111,9 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
       auto const cuda_evaluator =
           std::dynamic_pointer_cast<CudaMeshEvaluator<2> const>(evaluator);
       hierarchy_helpers.reset(
-          new CudaHierarchyHelpers<2, mfmg::VectorDevice<double>>(
+          new CudaHierarchyHelpers<2,
+                                   dealii::LinearAlgebra::distributed::Vector<
+                                       double, dealii::MemorySpace::CUDA>>(
               cuda_evaluator->get_cuda_handle()));
     }
     else if (dim == 3)
@@ -118,7 +122,9 @@ create_hierarchy_helpers(std::shared_ptr<MeshEvaluator const> evaluator)
       auto const cuda_evaluator =
           std::dynamic_pointer_cast<CudaMeshEvaluator<3> const>(evaluator);
       hierarchy_helpers.reset(
-          new CudaHierarchyHelpers<3, mfmg::VectorDevice<double>>(
+          new CudaHierarchyHelpers<3,
+                                   dealii::LinearAlgebra::distributed::Vector<
+                                       double, dealii::MemorySpace::CUDA>>(
               cuda_evaluator->get_cuda_handle()));
     }
     else

@@ -102,21 +102,23 @@ void csrgemm(SparseMatrixDevice<double> const &A,
 }
 
 template <typename ScalarType>
-void gather_vector(VectorDevice<ScalarType> const &src, ScalarType *dst)
+void gather_vector(dealii::LinearAlgebra::distributed::Vector<
+                       ScalarType, dealii::MemorySpace::CUDA> const &src,
+                   ScalarType *dst)
 {
-  MPI_Comm comm = src.partitioner->get_mpi_communicator();
-  unsigned int const local_size = src.partitioner->local_size();
-  unsigned int const size = src.partitioner->size();
+  MPI_Comm comm = src.get_partitioner()->get_mpi_communicator();
+  unsigned int const local_size = src.get_partitioner()->local_size();
+  unsigned int const size = src.get_partitioner()->size();
 
   // Because each processor needs to know the full vector, we can do an
   // all-gather communication
   ScalarType *dst_buffer;
   cuda_malloc(dst_buffer, size);
-  all_gather_dev(comm, local_size, src.val_dev, size, dst_buffer);
+  all_gather_dev(comm, local_size, src.get_values(), size, dst_buffer);
 
   // All-gather on the indices
   std::vector<unsigned int> local_indices;
-  src.partitioner->locally_owned_range().fill_index_vector(local_indices);
+  src.get_partitioner()->locally_owned_range().fill_index_vector(local_indices);
   std::vector<unsigned int> indices(size);
   all_gather(comm, local_size, local_indices.data(), size, indices.data());
 
@@ -348,10 +350,13 @@ SparseMatrixDevice<ScalarType>::locally_owned_range_indices() const
 
 template <typename ScalarType>
 void SparseMatrixDevice<ScalarType>::vmult(
-    VectorDevice<ScalarType> &dst, VectorDevice<ScalarType> const &src) const
+    dealii::LinearAlgebra::distributed::Vector<ScalarType,
+                                               dealii::MemorySpace::CUDA> &dst,
+    dealii::LinearAlgebra::distributed::Vector<
+        ScalarType, dealii::MemorySpace::CUDA> const &src) const
 {
   // Get the whole src vector
-  unsigned int const size = src.partitioner->size();
+  unsigned int const size = src.get_partitioner()->size();
   ScalarType *src_val_dev;
   cudaError_t cuda_error_code;
   cuda_error_code = cudaMalloc(&src_val_dev, size * sizeof(ScalarType));
@@ -362,7 +367,7 @@ void SparseMatrixDevice<ScalarType>::vmult(
   // owned
   internal::csrmv(cusparse_handle, false, _range_indexset.n_elements(), size,
                   _local_nnz, descr, val_dev, row_ptr_dev, column_index_dev,
-                  src_val_dev, false, dst.val_dev);
+                  src_val_dev, false, dst.get_values());
 }
 
 template <typename ScalarType>

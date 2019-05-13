@@ -16,6 +16,7 @@
 
 #include <mfmg/common/exceptions.hpp>
 
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/trilinos_sparse_matrix.h>
 
@@ -117,6 +118,14 @@ void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
 void all_gather_dev(MPI_Comm communicator, unsigned int send_count,
                     double *send_buffer, unsigned int recv_count,
                     double *recv_buffer);
+
+dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+copy_from_host(dealii::LinearAlgebra::distributed::Vector<
+               double, dealii::MemorySpace::Host> const &vector_host);
+
+dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::Host>
+copy_from_dev(dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> const &vector_host);
 } // namespace mfmg
 
 #endif

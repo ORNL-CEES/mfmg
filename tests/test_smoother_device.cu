@@ -11,11 +11,15 @@
 
 #define BOOST_TEST_MODULE smoother_device
 
+#include <mfmg/common/exceptions.hpp>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_smoother.cuh>
 #include <mfmg/cuda/sparse_matrix_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/lac/precondition.h>
+#include <deal.II/lac/sparse_matrix.h>
+#include <deal.II/lac/sparsity_pattern.h>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -87,21 +91,25 @@ BOOST_AUTO_TEST_CASE(smoother)
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
 
   // Build the smoother operator
-  std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> cuda_op(
-      new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
+  std::shared_ptr<mfmg::Operator<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>>
+  cuda_op(
+      new mfmg::CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>(matrix_dev));
   auto param = std::make_shared<boost::property_tree::ptree>();
-  mfmg::CudaSmoother<mfmg::VectorDevice<double>> smoother_operator(cuda_op,
-                                                                   param);
+  mfmg::CudaSmoother<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>
+      smoother_operator(cuda_op, param);
 
   // Apply the smoother
   auto domain_dev = cuda_op->build_domain_vector();
   auto range_dev = cuda_op->build_range_vector();
-  mfmg::cuda_mem_copy_to_dev(domain_host, domain_dev->val_dev);
-  mfmg::cuda_mem_copy_to_dev(range_host, range_dev->val_dev);
+  mfmg::cuda_mem_copy_to_dev(domain_host, domain_dev->get_values());
+  mfmg::cuda_mem_copy_to_dev(range_host, range_dev->get_values());
   smoother_operator.apply(*domain_dev, *range_dev);
 
   // Compare the solution
-  mfmg::cuda_mem_copy_to_host(range_dev->val_dev, range_host);
+  mfmg::cuda_mem_copy_to_host(range_dev->get_values(), range_host);
   for (unsigned int i = 0; i < size; ++i)
     BOOST_CHECK_CLOSE(range_host[i], range_vector[i], 1e-12);
 

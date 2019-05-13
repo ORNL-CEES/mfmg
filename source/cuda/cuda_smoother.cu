@@ -12,6 +12,7 @@
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 #include <mfmg/cuda/cuda_smoother.cuh>
 #include <mfmg/cuda/dealii_operator_device_helpers.cuh>
+#include <mfmg/cuda/utils.cuh>
 
 namespace mfmg
 {
@@ -36,38 +37,49 @@ void SmootherOperator<VectorType>::apply(
 }
 
 template <>
-void SmootherOperator<VectorDevice<double>>::apply(
-    SparseMatrixDevice<double> const &matrix,
-    SparseMatrixDevice<double> const &smoother, VectorDevice<double> const &b,
-    VectorDevice<double> &x)
+void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
+    apply(SparseMatrixDevice<double> const &matrix,
+          SparseMatrixDevice<double> const &smoother,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> const &b,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA> &x)
 {
   // r = -(b - Ax)
-  VectorDevice<double> r(b);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      r(b);
   matrix.vmult(r, x);
   r.add(-1., b);
 
   // x = x + B^{-1} (-r)
-  VectorDevice<double> tmp(x);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      tmp(x);
   smoother.vmult(tmp, r);
   x.add(-1., tmp);
 }
 
 template <>
-void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<double>>::
+void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>::
     apply(SparseMatrixDevice<double> const &matrix,
           SparseMatrixDevice<double> const &smoother,
-          dealii::LinearAlgebra::distributed::Vector<double> const &b,
-          dealii::LinearAlgebra::distributed::Vector<double> &x)
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::Host> const &b,
+          dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::Host> &x)
 {
   // Copy to the device
-  VectorDevice<double> x_dev(x);
-  VectorDevice<double> b_dev(b);
+  auto x_dev = copy_from_host(x);
+  auto b_dev = copy_from_host(b);
 
-  SmootherOperator<VectorDevice<double>>::apply(matrix, smoother, b_dev, x_dev);
+  SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>::apply(matrix, smoother, b_dev,
+                                                 x_dev);
 
   // Move the data to the host
   std::vector<double> x_host(x.local_size());
-  cuda_mem_copy_to_host(x_dev.val_dev, x_host);
+  cuda_mem_copy_to_host(x_dev.get_values(), x_host);
   std::copy(x_host.begin(), x_host.end(), x.begin());
 }
 
@@ -157,6 +169,7 @@ void CudaSmoother<VectorType>::apply(VectorType const &b, VectorType &x) const
 }
 } // namespace mfmg
 
-template class mfmg::CudaSmoother<mfmg::VectorDevice<double>>;
-template class mfmg::CudaSmoother<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+template class mfmg::CudaSmoother<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>;
+template class mfmg::CudaSmoother<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>;

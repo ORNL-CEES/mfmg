@@ -73,10 +73,11 @@ BOOST_AUTO_TEST_CASE(direct_solver)
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   auto partitioner =
       std::make_shared<dealii::Utilities::MPI::Partitioner>(size);
-  mfmg::VectorDevice<double> rhs_dev(partitioner);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      rhs_dev(partitioner);
   std::vector<double> rhs_host(size);
   std::copy(rhs.begin(), rhs.end(), rhs_host.begin());
-  mfmg::cuda_mem_copy_to_dev(rhs_host, rhs_dev.val_dev);
+  mfmg::cuda_mem_copy_to_dev(rhs_host, rhs_dev.get_values());
   auto params = std::make_shared<boost::property_tree::ptree>();
 
   for (auto solver : {"cholesky", "lu_dense", "lu_sparse_host"})
@@ -84,17 +85,23 @@ BOOST_AUTO_TEST_CASE(direct_solver)
     params->put("solver.type", solver);
 
     // Solve on the device
-    std::shared_ptr<mfmg::Operator<mfmg::VectorDevice<double>>> op_dev(
-        new mfmg::CudaMatrixOperator<mfmg::VectorDevice<double>>(matrix_dev));
-    mfmg::CudaSolver<mfmg::VectorDevice<double>> direct_solver_dev(
-        cuda_handle, op_dev, params);
-    mfmg::VectorDevice<double> x_dev(partitioner);
+    std::shared_ptr<mfmg::Operator<dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA>>>
+    op_dev(
+        new mfmg::CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<
+            double, dealii::MemorySpace::CUDA>>(matrix_dev));
+    mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA>>
+        direct_solver_dev(cuda_handle, op_dev, params);
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>
+        x_dev(partitioner);
 
     direct_solver_dev.apply(rhs_dev, x_dev);
 
     // Move the result back to the host
     std::vector<double> x_host(size);
-    mfmg::cuda_mem_copy_to_host(x_dev.val_dev, x_host);
+    mfmg::cuda_mem_copy_to_host(x_dev.get_values(), x_host);
 
     // Check the result
     for (unsigned int i = 0; i < size; ++i)
