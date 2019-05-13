@@ -51,8 +51,7 @@ public:
 } // namespace Anasazi
 
 BOOST_DATA_TEST_CASE(anasazi,
-                     bdata::make({1, 2}) *
-                         bdata::make({1, 2, 3, 5, 10, 20, 40, 60, 80}),
+                     bdata::make({1, 2}) * bdata::make({1, 2, 3, 5, 10}),
                      multiplicity, n_distinct_eigenvalues)
 {
   using namespace mfmg;
