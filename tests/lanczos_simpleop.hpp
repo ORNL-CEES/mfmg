@@ -50,10 +50,7 @@ public:
 private:
   size_t _dim;
   size_t _multiplicity;
-
-  // This will be a diagonal matrix; specify the diagonal entries here
-  double diag_value_(size_t i) const { return 1 + i / _multiplicity; }
-}; // namespace mfmg
+};
 
 } // namespace mfmg
 
