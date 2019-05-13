@@ -1,6 +1,6 @@
 FROM nvidia/cuda:9.0-devel
 
-ENV N_PROCS=1
+ARG N_PROCS=16
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
       gcc \
@@ -35,8 +35,8 @@ RUN mkdir -p ${PREFIX} && \
     mkdir source && \
     mkdir build
 
-RUN export CMAKE_VERSION=3.11.4 && \
-    export CMAKE_VERSION_SHORT=3.11 && \
+RUN export CMAKE_VERSION=3.14.3 && \
+    export CMAKE_VERSION_SHORT=3.14 && \
     export CMAKE_URL=https://cmake.org/files/v${CMAKE_VERSION_SHORT}/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz && \
     export CMAKE_ARCHIVE=${ARCHIVE_DIR}/cmake.tar.gz && \
     export CMAKE_BUILD_DIR=${BUILD_DIR}/cmake && \
@@ -49,9 +49,9 @@ RUN export CMAKE_VERSION=3.11.4 && \
 ENV PATH=${INSTALL_DIR}/cmake/bin:$PATH
 
 # Install OpenMPI
-RUN export OPENMPI_VERSION=3.1.3 && \
-    export OPENMPI_VERSION_SHORT=3.1 && \
-    export OPENMPI_SHA1=b3c60e2bdd5a8a8e758fd741f9a5bebb84da5e81 && \
+RUN export OPENMPI_VERSION=4.0.1 && \
+    export OPENMPI_VERSION_SHORT=4.0 && \
+    export OPENMPI_SHA1=35bf7c9162b08ecdc4876af573786cd290015631 && \
     export OPENMPI_URL=https://www.open-mpi.org/software/ompi/v${OPENMPI_VERSION_SHORT}/downloads/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_ARCHIVE=${ARCHIVE_DIR}/openmpi-${OPENMPI_VERSION}.tar.bz2 && \
     export OPENMPI_SOURCE_DIR=${SOURCE_DIR}/openmpi && \
@@ -122,9 +122,9 @@ RUN export BOOST_VERSION=1.67.0 && \
 ENV BOOST_ROOT=${INSTALL_DIR}/boost
 
 # Install OpenBLAS (BLAS, Lapack, and Lapacke)
-RUN export OPENBLAS_VERSION=0.3.5 && \
+RUN export OPENBLAS_VERSION=0.3.6 && \
     export OPENBLAS_URL=https://github.com/xianyi/OpenBLAS/archive/v${OPENBLAS_VERSION}.tar.gz && \
-    export OPENBLAS_SHA256=0950c14bd77c90a6427e26210d6dab422271bc86f9fc69126725833ecdaa0e85 && \
+    export OPENBLAS_SHA256=e64c8fe083832ffbc1459ab6c72f71d53afd3b36e8497c922a15a06b72e9002f && \
     export OPENBLAS_ARCHIVE=${ARCHIVE}/openblas.tar.gz && \
     export OPENBLAS_SOURCE_DIR=${SOURCE_DIR}/OpenBLAS-${OPENBLAS_VERSION} && \
     export OPENBLAS_BUILD_DIR=${BUILD_DIR}/openblas && \
@@ -141,8 +141,8 @@ RUN export OPENBLAS_VERSION=0.3.5 && \
     rm -rf ${OPENBLAS_SOURCE_DIR}
 ENV OPENBLAS_DIR=${INSTALL_DIR}/openblas
 
-# Install Trilinos 12.12.1
-RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
+# Install Trilinos 12.14.1
+RUN export TRILINOS_HASH=316ed8236deebb613301e41bcf901aebc08cee74 && \
     export TRILINOS_URL=https://github.com/trilinos/Trilinos/archive/${TRILINOS_HASH}.tar.gz && \
     export TRILINOS_ARCHIVE=${ARCHIVE_DIR}/trilinos.tar.gz && \
     export TRILINOS_SOURCE_DIR=${SOURCE_DIR}/trilinos && \
@@ -166,6 +166,7 @@ RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
         -DTrilinos_ENABLE_ALL_OPTIONAL_PACKAGES=OFF \
         -DTrilinos_ENABLE_TESTS=OFF \
         -DTrilinos_ENABLE_EXAMPLES=OFF \
+        -DTrilinos_ENABLE_Anasazi=ON \
         -DTrilinos_ENABLE_Amesos=ON \
         -DTrilinos_ENABLE_AztecOO=ON \
         -DTrilinos_ENABLE_Epetra=ON \
@@ -188,7 +189,7 @@ RUN export TRILINOS_HASH=89b8c7f016c247568f7c9c1f32d250c8d2683de0 && \
 ENV TRILINOS_DIR=${INSTALL_DIR}/trilinos
 
 # Install p4est
-RUN export P4EST_VERSION=2.0 && \
+RUN export P4EST_VERSION=2.2 && \
     export P4EST_URL=http://p4est.github.io/release/p4est-${P4EST_VERSION}.tar.gz && \
     export P4EST_ARCHIVE=${ARCHIVE_DIR}/p4est-${P4EST_VERSION}.tar.gz && \
     export P4EST_SOURCE_DIR=${SOURCE_DIR}/p4est && \
@@ -205,7 +206,7 @@ RUN export P4EST_VERSION=2.0 && \
 ENV P4EST_DIR=${INSTALL_DIR}/p4est
 
 # Install Arpack-NG
-RUN export ARPACK_VERSION=3.6.3 && \
+RUN export ARPACK_VERSION=3.7.0 && \
     export ARPACK_URL=https://github.com/opencollab/arpack-ng/archive/${ARPACK_VERSION}.tar.gz && \
     export ARPACK_ARCHIVE=${ARCHIVE_DIR}/arpack-${ARPACK_VERSION}.tar.gz && \
     export ARPACK_SOURCE_DIR=${SOURCE_DIR}/arpack && \
