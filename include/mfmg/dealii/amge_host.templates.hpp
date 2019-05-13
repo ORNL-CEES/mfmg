@@ -217,7 +217,7 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
 {
   boost::property_tree::ptree anasazi_params;
   anasazi_params.put("num_eigenpairs", n_eigenvectors);
-  anasazi_params.put("tolerance", std::max(tolerance, 1e-4));
+  anasazi_params.put("tolerance", std::max(tolerance, 1e-2));
   anasazi_params.put("max_iterations",
                      eigensolver_params.get("max_iterations", 1000));
 
