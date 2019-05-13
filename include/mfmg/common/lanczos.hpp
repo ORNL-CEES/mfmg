@@ -60,8 +60,6 @@ private:
   details_calc_evecs(const int num_requested, const int n,
                      std::vector<VectorType> const &lanc_vectors,
                      std::vector<double> const &evecs_tridiag);
-
-  static void details_set_initial_guess(VectorType &v, int seed = 0);
 };
 
 } // namespace mfmg
