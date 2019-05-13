@@ -14,6 +14,8 @@
 
 #include <mfmg/common/exceptions.hpp>
 
+#include <deal.II/lac/sparse_matrix.h>
+
 #include <algorithm>
 #include <random>
 
@@ -383,6 +385,27 @@ public:
   {
     throw std::runtime_error("Not implemented");
   }
+};
+
+template <typename VectorType, typename ValueType>
+class OperatorTraits<double, mfmg::MultiVector<VectorType>,
+                     dealii::SparseMatrix<ValueType>>
+{
+  using MultiVectorType = mfmg::MultiVector<VectorType>;
+  using OperatorType = dealii::SparseMatrix<ValueType>;
+
+public:
+  static void Apply(const OperatorType &op, const MultiVectorType &x,
+                    MultiVectorType &y)
+  {
+    auto n_vectors = x.n_vectors();
+
+    ASSERT(x.size() == y.size(), "");
+    ASSERT(y.n_vectors() == n_vectors, "");
+
+    for (int i = 0; i < n_vectors; i++)
+      op.vmult(*y[i], *x[i]);
+  };
 };
 
 } // namespace Anasazi

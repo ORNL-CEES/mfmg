@@ -15,6 +15,7 @@
 #include <mfmg/common/lanczos.templates.hpp>
 #include <mfmg/common/utils.hpp>
 #include <mfmg/dealii/amge_host.hpp>
+#include <mfmg/dealii/anasazi.templates.hpp>
 #include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
 
 #include <deal.II/base/work_stream.h>
@@ -129,7 +130,35 @@ AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
       _eigensolver_params(eigensolver_params)
 {
 }
+} // namespace mfmg
 
+namespace Anasazi
+{
+template <typename VectorType, typename MeshEvaluator>
+class OperatorTraits<double, mfmg::MultiVector<VectorType>,
+                     mfmg::MatrixFreeAgglomerateOperator<MeshEvaluator>>
+{
+  using MultiVectorType = mfmg::MultiVector<VectorType>;
+  using OperatorType = mfmg::MatrixFreeAgglomerateOperator<MeshEvaluator>;
+
+public:
+  static void Apply(const OperatorType &op, const MultiVectorType &x,
+                    MultiVectorType &y)
+  {
+    auto n_vectors = x.n_vectors();
+
+    ASSERT(x.size() == y.size(), "");
+    ASSERT(y.n_vectors() == n_vectors, "");
+
+    for (int i = 0; i < n_vectors; i++)
+      op.vmult(*y[i], *x[i]);
+  };
+};
+
+} // namespace Anasazi
+
+namespace mfmg
+{
 namespace
 {
 template <typename AgglomerateOperator>
@@ -169,6 +198,35 @@ void lanczos_compute_eigenvalues_and_eigenvectors(
   std::vector<double> real_eigenvalues;
   std::tie(real_eigenvalues, eigenvectors) =
       solver.solve(lanczos_params, initial_guess);
+  ASSERT(n_eigenvectors == eigenvectors.size(),
+         "Wrong number of computed eigenpairs");
+
+  // Copy real eigenvalues to complex
+  std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
+            eigenvalues.begin());
+}
+
+template <typename AgglomerateOperator>
+void anasazi_compute_eigenvalues_and_eigenvectors(
+    unsigned int n_eigenvectors, double tolerance,
+    boost::property_tree::ptree const &eigensolver_params,
+    AgglomerateOperator const &agglomerate_operator,
+    dealii::Vector<double> const &initial_guess,
+    std::vector<std::complex<double>> &eigenvalues,
+    std::vector<dealii::Vector<double>> &eigenvectors)
+{
+  boost::property_tree::ptree anasazi_params;
+  anasazi_params.put("num_eigenpairs", n_eigenvectors);
+  anasazi_params.put("tolerance", std::max(tolerance, 1e-4));
+  anasazi_params.put("max_iterations",
+                     eigensolver_params.get("max_iterations", 1000));
+
+  AnasaziSolver<AgglomerateOperator, dealii::Vector<double>> solver(
+      agglomerate_operator);
+
+  std::vector<double> real_eigenvalues;
+  std::tie(real_eigenvalues, eigenvectors) =
+      solver.solve(anasazi_params, initial_guess);
   ASSERT(n_eigenvectors == eigenvectors.size(),
          "Wrong number of computed eigenpairs");
 
@@ -217,6 +275,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   if (eigensolver_type == "lanczos")
   {
     lanczos_compute_eigenvalues_and_eigenvectors(
+        n_eigenvectors, tolerance, _eigensolver_params, agglomerate_operator,
+        initial_vector, eigenvalues, eigenvectors);
+  }
+  else if (eigensolver_type == "anasazi")
+  {
+    anasazi_compute_eigenvalues_and_eigenvectors(
         n_eigenvectors, tolerance, _eigensolver_params, agglomerate_operator,
         initial_vector, eigenvalues, eigenvectors);
   }
@@ -329,6 +393,12 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   else if (eigensolver_type == "lanczos")
   {
     lanczos_compute_eigenvalues_and_eigenvectors(
+        n_eigenvectors, tolerance, _eigensolver_params,
+        agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
+  }
+  else if (eigensolver_type == "anasazi")
+  {
+    anasazi_compute_eigenvalues_and_eigenvectors(
         n_eigenvectors, tolerance, _eigensolver_params,
         agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
   }
