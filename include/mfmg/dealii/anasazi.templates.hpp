@@ -56,9 +56,12 @@ AnasaziSolver<OperatorType, VectorType>::solve(
   ASSERT(r, "Anasazi could not setup the problem");
 
   Teuchos::ParameterList solverParams;
-  solverParams.set("Which", "SM");
   solverParams.set("Convergence Tolerance", params.get<double>("tolerance"));
   solverParams.set("Maximum Iterations", params.get<int>("max_iterations"));
+  solverParams.set("Which", "SM");
+  // Specify that the residuals norms should not be scaled by their eigenvalues
+  // for the purposing of deciding convergence
+  solverParams.set("Relative Convergence Tolerance", false);
   // solverParams.set("Verbosity", 127);
   auto solver = Anasazi::Factory::create("LOBPCG", Teuchos::rcpFromRef(problem),
                                          solverParams);
