@@ -52,18 +52,18 @@ struct MatrixFreeAgglomerateOperator
       : _mesh_evaluator(mesh_evaluator), _dof_handler(dof_handler),
         _constraints(constraints)
   {
+    _mesh_evaluator.initialize_agglomerate(dof_handler);
   }
 
   void vmult(dealii::Vector<double> &dst,
              const dealii::Vector<double> &src) const
   {
-    _mesh_evaluator.matrix_free_evaluate_agglomerate(_dof_handler, src, dst);
+    _mesh_evaluator.matrix_free_evaluate_agglomerate(src, dst);
   }
 
   std::vector<double> get_diag_elements() const
   {
-    return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_dof_handler,
-                                                                _constraints);
+    return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_constraints);
   }
 
   size_type m() const { return _dof_handler.n_dofs(); }
@@ -73,7 +73,7 @@ struct MatrixFreeAgglomerateOperator
 private:
   MeshEvaluator const &_mesh_evaluator;
   static int constexpr dim = MeshEvaluator::_dim;
-  dealii::DoFHandler<dim> &_dof_handler;
+  dealii::DoFHandler<dim> const &_dof_handler;
   dealii::AffineConstraints<double> &_constraints;
 };
 

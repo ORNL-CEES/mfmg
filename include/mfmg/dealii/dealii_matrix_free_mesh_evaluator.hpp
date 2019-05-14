@@ -45,15 +45,19 @@ public:
   dealii::types::global_dof_index m() const;
 
   virtual void
-  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> & /*dof_handler*/,
-                                   dealii::Vector<double> const & /*src*/,
+  initialize_agglomerate(dealii::DoFHandler<dim> & /*dof_handler*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
+  virtual void
+  matrix_free_evaluate_agglomerate(dealii::Vector<double> const & /*src*/,
                                    dealii::Vector<double> & /*dst*/) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
   virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
-      dealii::DoFHandler<dim> & /*dof_handler*/,
       dealii::AffineConstraints<double> & /*constraints*/) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();

@@ -131,7 +131,7 @@ private:
    * independent set of data.
    */
   void local_worker(unsigned int const n_eigenvectors, double const tolerance,
-                    MeshEvaluator const &evalute,
+                    MeshEvaluator const &evaluate,
                     std::vector<unsigned int>::iterator const &agg_id,
                     ScratchData &scratch_data, CopyData &copy_data);
 
