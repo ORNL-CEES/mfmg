@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #ifndef AMGE_DEVICE_TEMPLATES_CUH
@@ -422,7 +422,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
     n_local_eigenvectors.push_back(n_eigenvectors);
   }
 
-  // Get the locally relevant global diag
+  // Get the locally relevant global diagonal
   auto locally_relevant_global_diag = evaluator.get_locally_relevant_diag();
 
   return compute_restriction_sparse_matrix(
