@@ -302,10 +302,6 @@ public:
     // Unfortunately, dealii::MatrixFreeOperators::Base only supports
     // dealii::LinearAlgebra::distributed::Vector so unless we duplicate a lot
     // of code, we need copy src and dst.
-    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_dst(
-        dst.size());
-    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_src(
-        src.size());
     std::copy(src.begin(), src.end(), distributed_src.begin());
     _agg_laplace_operator->vmult(distributed_dst, distributed_src);
     std::copy(distributed_dst.begin(), distributed_dst.end(), dst.begin());
