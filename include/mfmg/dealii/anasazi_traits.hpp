@@ -13,19 +13,21 @@
 #define MFMG_ANASAZI_TRAITS_HPP
 
 #include <mfmg/common/exceptions.hpp>
+#include <mfmg/dealii/multivector.hpp>
 
 #include <deal.II/lac/sparse_matrix.h>
 
 #include <algorithm>
 #include <random>
+#include <vector>
 
-#include "multivector.hpp"
 #include <AnasaziMultiVecTraits.hpp>
 #include <AnasaziOperatorTraits.hpp>
 
 namespace Anasazi
 {
 using mfmg::ASSERT;
+using mfmg::ASSERT_THROW_NOT_IMPLEMENTED;
 
 template <typename VectorType>
 class MultiVecTraits<double, mfmg::MultiVector<VectorType>>
@@ -353,7 +355,7 @@ public:
   {
     std::ignore = A;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
   /*! \brief Replace the vectors in \c mv with random vectors.
@@ -387,7 +389,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = os;
-    throw std::runtime_error("Not implemented");
+    ASSERT_THROW_NOT_IMPLEMENTED();
   }
 };
 

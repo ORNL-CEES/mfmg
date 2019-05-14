@@ -14,6 +14,10 @@
 
 #include <mfmg/common/exceptions.hpp>
 
+#include <algorithm>
+#include <memory>
+#include <vector>
+
 namespace mfmg
 {
 template <typename VectorType>

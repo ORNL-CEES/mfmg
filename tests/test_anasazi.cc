@@ -11,7 +11,7 @@
 
 #define BOOST_TEST_MODULE anasazi
 
-#include "mfmg/dealii/anasazi.templates.hpp"
+#include <mfmg/dealii/anasazi.templates.hpp>
 
 #include <boost/test/data/test_case.hpp>
 
@@ -45,7 +45,7 @@ public:
 
     for (int i = 0; i < n_vectors; i++)
       op.vmult(*y[i], *x[i]);
-  };
+  }
 };
 
 } // namespace Anasazi
@@ -102,7 +102,7 @@ BOOST_DATA_TEST_CASE(anasazi,
 
   // Testing eigenvectors is tricky. Specifically, when multiplicity > 1, one
   // gets a subspace of possible solutions. One way to test that is to
-  //   a) test that each eigenvector is indeed an eigenvector correponsding to
+  //   a) test that each eigenvector is indeed an eigenvector corresponding to
   //   the eigenvalue
   //   b) test that the eigenvectors corresponding to the same eigenvalue are
   //   orthogonal

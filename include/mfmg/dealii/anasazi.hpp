@@ -28,7 +28,7 @@ public:
   AnasaziSolver<OperatorType, VectorType> &
   operator=(AnasaziSolver<OperatorType, VectorType> const &) = delete;
 
-  // Solve eigen system given rhs
+  // Solve the eigenproblem
   std::tuple<std::vector<double>, std::vector<VectorType>>
   solve(boost::property_tree::ptree const &params,
         VectorType initial_guess) const;

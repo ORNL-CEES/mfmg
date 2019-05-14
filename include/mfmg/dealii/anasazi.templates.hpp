@@ -13,11 +13,10 @@
 #define MFMG_ANASAZI_TEMPLATES_HPP
 
 #include <mfmg/common/exceptions.hpp>
-
-#include "anasazi.hpp"
-#include "anasazi_traits.hpp"
+#include <mfmg/dealii/anasazi.hpp>
+#include <mfmg/dealii/anasazi_traits.hpp>
 #ifdef HAVE_ANASAZI_BELOS
-#include "belos_traits.hpp"
+#include <mfmg/dealii/belos_traits.hpp>
 #endif
 #include <AnasaziBasicEigenproblem.hpp>
 #include <AnasaziFactory.hpp>

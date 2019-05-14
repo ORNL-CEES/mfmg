@@ -13,8 +13,12 @@
 #define MFMG_BELOS_TRAITS_HPP
 
 #include <mfmg/common/exceptions.hpp>
+#include <mfmg/dealii/multivector.hpp>
 
-#include "multivector.hpp"
+#include <Teuchos_RCP.hpp>
+
+#include <vector>
+
 #include <BelosMultiVecTraits.hpp>
 
 // FIXME: Belos traits are only used for compilation
@@ -23,7 +27,7 @@
 
 namespace Belos
 {
-using mfmg::ASSERT;
+using mfmg::NotImplementedExc;
 
 template <typename VectorType>
 class MultiVecTraits<double, mfmg::MultiVector<VectorType>>
@@ -40,7 +44,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = numvecs;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Creates a new \c MV and copies contents of \c mv into the new
@@ -51,7 +55,7 @@ public:
   static Teuchos::RCP<MultiVectorType> CloneCopy(const MultiVectorType &mv)
   {
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Creates a new \c MV and copies the selected contents of \c mv into
@@ -66,7 +70,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief Deep copy of specified columns of mv
@@ -83,7 +87,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Creates a new \c MV that shares the selected contents of \c mv
@@ -98,7 +102,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief Non-const view of specified columns of mv
@@ -115,7 +119,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Creates a new const \c MV that shares the selected contents of \c
@@ -130,7 +134,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief Const view of specified columns of mv
@@ -147,21 +151,21 @@ public:
   {
     std::ignore = mv;
     std::ignore = index;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// Return the number of rows in the given multivector \c mv.
   static ptrdiff_t GetGlobalLength(const MultiVectorType &mv)
   {
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   //! Obtain the number of vectors in \c mv
   static int GetNumberVecs(const MultiVectorType &mv)
   {
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Update \c mv with \f$ \alpha AB + \beta mv \f$.
@@ -175,7 +179,7 @@ public:
     std::ignore = B;
     std::ignore = beta;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Replace \c mv with \f$\alpha A + \beta B\f$.
@@ -189,14 +193,14 @@ public:
     std::ignore = B;
     std::ignore = beta;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   static void MvScale(MultiVectorType &mv, const double alpha)
   {
     std::ignore = mv;
     std::ignore = alpha;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Scale each element of the vectors in \c mv with \c alpha.
@@ -205,7 +209,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = alpha;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief Compute <tt>C := alpha * A^H B</tt>.
@@ -219,7 +223,7 @@ public:
     std::ignore = A;
     std::ignore = B;
     std::ignore = C;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Compute a vector \c b where the components are the individual
@@ -232,7 +236,7 @@ public:
     std::ignore = mv;
     std::ignore = A;
     std::ignore = b;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   //@}
@@ -252,7 +256,7 @@ public:
     std::ignore = mv;
     std::ignore = normvec;
     std::ignore = type;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   //@}
@@ -271,7 +275,7 @@ public:
     std::ignore = A;
     std::ignore = index;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief Deep copy of A into specified columns of mv
@@ -292,7 +296,7 @@ public:
     std::ignore = A;
     std::ignore = index;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /// \brief mv := A
@@ -302,7 +306,7 @@ public:
   {
     std::ignore = A;
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Replace the vectors in \c mv with random vectors.
@@ -310,7 +314,7 @@ public:
   static void MvRandom(MultiVectorType &mv)
   {
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Replace each element of the vectors in \c mv with \c alpha.
@@ -319,7 +323,7 @@ public:
   {
     std::ignore = mv;
     std::ignore = alpha;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   /*! \brief Print the \c mv multi-vector to the \c os output stream.
@@ -328,13 +332,13 @@ public:
   {
     std::ignore = mv;
     std::ignore = os;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 
   static bool HasConstantStride(const MultiVectorType &mv)
   {
     std::ignore = mv;
-    throw std::runtime_error("Not implemented");
+    throw NotImplementedExc();
   }
 };
 
