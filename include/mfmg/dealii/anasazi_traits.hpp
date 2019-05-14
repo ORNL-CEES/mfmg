@@ -69,7 +69,7 @@ public:
   static Teuchos::RCP<MultiVectorType> CloneCopy(const MultiVectorType &mv,
                                                  const std::vector<int> &index)
   {
-    auto n_vectors = index.size();
+    int n_vectors = index.size();
 
     auto new_mv = Teuchos::rcp(new MultiVectorType(n_vectors));
     for (int i = 0; i < n_vectors; i++)
@@ -109,7 +109,7 @@ public:
   static Teuchos::RCP<MultiVectorType>
   CloneViewNonConst(MultiVectorType &mv, const std::vector<int> &index)
   {
-    auto n_vectors = index.size();
+    int n_vectors = index.size();
 
     auto new_mv = Teuchos::rcp(new MultiVectorType(n_vectors));
     for (int i = 0; i < n_vectors; i++)
@@ -149,7 +149,7 @@ public:
   static Teuchos::RCP<const MultiVectorType>
   CloneView(const MultiVectorType &mv, const std::vector<int> &index)
   {
-    auto n_vectors = index.size();
+    int n_vectors = index.size();
 
     auto new_mv = Teuchos::rcp(new MultiVectorType(n_vectors));
     for (int i = 0; i < n_vectors; i++)
@@ -239,7 +239,7 @@ public:
   {
     auto n_vectors = mv.n_vectors();
 
-    ASSERT(alpha.size() == n_vectors, "");
+    ASSERT(int(alpha.size()) == n_vectors, "");
     for (int i = 0; i < n_vectors; i++)
       *mv[i] *= alpha[i];
   }
@@ -311,10 +311,10 @@ public:
   static void SetBlock(const MultiVectorType &A, const std::vector<int> &index,
                        MultiVectorType &mv)
   {
-    auto n_vectors = index.size();
+    int n_vectors = index.size();
 
-    ASSERT(A.n_vectors() == index.size(), "");
-    ASSERT(mv.n_vectors() >= index.size(), "");
+    ASSERT(A.n_vectors() == n_vectors, "");
+    ASSERT(mv.n_vectors() >= n_vectors, "");
     ASSERT(A.size() == mv.size(), "");
 
     for (int i = 0; i < n_vectors; i++)
@@ -351,6 +351,8 @@ public:
   /// Assign (deep copy) A into mv.
   static void Assign(const MultiVectorType &A, MultiVectorType &mv)
   {
+    std::ignore = A;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -366,7 +368,7 @@ public:
     {
       auto &v = *mv[i];
       std::transform(v.begin(), v.end(), v.begin(),
-                     [&](auto &x) { return dist(gen); });
+                     [&](auto &) { return dist(gen); });
     }
   }
 
@@ -374,8 +376,8 @@ public:
    */
   static void MvInit(MultiVectorType &mv, const double alpha = 0.)
   {
-    auto n_vectors = mv.n_vectors();
-    for (int i = 0; i < mv.n_vectors(); i++)
+    int n_vectors = mv.n_vectors();
+    for (int i = 0; i < n_vectors; i++)
       *mv[i] = alpha;
   }
 
@@ -383,6 +385,8 @@ public:
    */
   static void MvPrint(const MultiVectorType &mv, std::ostream &os)
   {
+    std::ignore = mv;
+    std::ignore = os;
     throw std::runtime_error("Not implemented");
   }
 };

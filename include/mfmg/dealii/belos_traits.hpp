@@ -38,6 +38,8 @@ public:
   static Teuchos::RCP<MultiVectorType> Clone(const MultiVectorType &mv,
                                              const int numvecs)
   {
+    std::ignore = mv;
+    std::ignore = numvecs;
     throw std::runtime_error("Not implemented");
   }
 
@@ -48,6 +50,7 @@ public:
   */
   static Teuchos::RCP<MultiVectorType> CloneCopy(const MultiVectorType &mv)
   {
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -61,6 +64,8 @@ public:
   static Teuchos::RCP<MultiVectorType> CloneCopy(const MultiVectorType &mv,
                                                  const std::vector<int> &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
@@ -76,6 +81,8 @@ public:
   static Teuchos::RCP<MultiVectorType> CloneCopy(const MultiVectorType &mv,
                                                  const Teuchos::Range1D &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
@@ -89,6 +96,8 @@ public:
   static Teuchos::RCP<MultiVectorType>
   CloneViewNonConst(MultiVectorType &mv, const std::vector<int> &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
@@ -104,6 +113,8 @@ public:
   static Teuchos::RCP<MultiVectorType>
   CloneViewNonConst(MultiVectorType &mv, const Teuchos::Range1D &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
@@ -117,6 +128,8 @@ public:
   static Teuchos::RCP<const MultiVectorType>
   CloneView(const MultiVectorType &mv, const std::vector<int> &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
@@ -132,18 +145,22 @@ public:
   static Teuchos::RCP<const MultiVectorType>
   CloneView(MultiVectorType &mv, const Teuchos::Range1D &index)
   {
+    std::ignore = mv;
+    std::ignore = index;
     throw std::runtime_error("Not implemented");
   }
 
   /// Return the number of rows in the given multivector \c mv.
   static ptrdiff_t GetGlobalLength(const MultiVectorType &mv)
   {
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
   //! Obtain the number of vectors in \c mv
   static int GetNumberVecs(const MultiVectorType &mv)
   {
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -153,6 +170,11 @@ public:
                               const Teuchos::SerialDenseMatrix<int, double> &B,
                               const double beta, MultiVectorType &mv)
   {
+    std::ignore = alpha;
+    std::ignore = A;
+    std::ignore = B;
+    std::ignore = beta;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -162,11 +184,18 @@ public:
                       const double beta, const MultiVectorType &B,
                       MultiVectorType &mv)
   {
+    std::ignore = alpha;
+    std::ignore = A;
+    std::ignore = B;
+    std::ignore = beta;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
   static void MvScale(MultiVectorType &mv, const double alpha)
   {
+    std::ignore = mv;
+    std::ignore = alpha;
     throw std::runtime_error("Not implemented");
   }
 
@@ -174,6 +203,8 @@ public:
    */
   static void MvScale(MultiVectorType &mv, const std::vector<double> &alpha)
   {
+    std::ignore = mv;
+    std::ignore = alpha;
     throw std::runtime_error("Not implemented");
   }
 
@@ -184,6 +215,10 @@ public:
                         const MultiVectorType &B,
                         Teuchos::SerialDenseMatrix<int, double> &C)
   {
+    std::ignore = alpha;
+    std::ignore = A;
+    std::ignore = B;
+    std::ignore = C;
     throw std::runtime_error("Not implemented");
   }
 
@@ -194,6 +229,9 @@ public:
   static void MvDot(const MultiVectorType &mv, const MultiVectorType &A,
                     std::vector<double> &b)
   {
+    std::ignore = mv;
+    std::ignore = A;
+    std::ignore = b;
     throw std::runtime_error("Not implemented");
   }
 
@@ -211,6 +249,9 @@ public:
              &normvec,
          NormType type = TwoNorm)
   {
+    std::ignore = mv;
+    std::ignore = normvec;
+    std::ignore = type;
     throw std::runtime_error("Not implemented");
   }
 
@@ -227,6 +268,9 @@ public:
   static void SetBlock(const MultiVectorType &A, const std::vector<int> &index,
                        MultiVectorType &mv)
   {
+    std::ignore = A;
+    std::ignore = index;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -245,6 +289,9 @@ public:
   static void SetBlock(const MultiVectorType &A, const Teuchos::Range1D &index,
                        MultiVectorType &mv)
   {
+    std::ignore = A;
+    std::ignore = index;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -253,6 +300,8 @@ public:
   /// Assign (deep copy) A into mv.
   static void Assign(const MultiVectorType &A, MultiVectorType &mv)
   {
+    std::ignore = A;
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -260,6 +309,7 @@ public:
    */
   static void MvRandom(MultiVectorType &mv)
   {
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 
@@ -267,6 +317,8 @@ public:
    */
   static void MvInit(MultiVectorType &mv, const double alpha = 0.)
   {
+    std::ignore = mv;
+    std::ignore = alpha;
     throw std::runtime_error("Not implemented");
   }
 
@@ -274,11 +326,14 @@ public:
    */
   static void MvPrint(const MultiVectorType &mv, std::ostream &os)
   {
+    std::ignore = mv;
+    std::ignore = os;
     throw std::runtime_error("Not implemented");
   }
 
   static bool HasConstantStride(const MultiVectorType &mv)
   {
+    std::ignore = mv;
     throw std::runtime_error("Not implemented");
   }
 };
