@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #ifndef MFMG_TEST_HIERARCHY_HELPERS_HPP
@@ -300,7 +300,7 @@ public:
                                    dealii::Vector<double> const &src,
                                    dealii::Vector<double> &dst) const override
   {
-    // FIXME create a intialize function so that we don't need to do it
+    // FIXME create a initialize function so that we don't need to do it
     // everytime we need the diagonal or to do a vmult
     initialize_matrix_free_agglomerate(dof_handler);
 
@@ -320,8 +320,8 @@ public:
       dealii::DoFHandler<dim> &dof_handler,
       dealii::AffineConstraints<double> &constraints) const override
   {
-    // FIXME create a intialize function so that we don't need to do it
-    // everytime we need the diagonal or to do a vmult
+    // FIXME create a initialize function so that we don't need to do it
+    // every time we need the diagonal or to do a vmult
     initialize_matrix_free_agglomerate(dof_handler);
 
     constraints.copy_from(_agg_constraints);

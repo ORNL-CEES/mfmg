@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #define BOOST_TEST_MODULE utils_device
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(trilinos_sparse_matrix)
   // We need serialize the access to the GPU so that we don't have any problem
   // when multiple MPI ranks want to access the GPU. In practice, we would need
   // to use MPS but we don't have any control on this (it is the user
-  // responsability to set up her GPU correctly). We cannot use MPI_Barrier to
+  // responsibility to set up her GPU correctly). We cannot use MPI_Barrier to
   // serialize the access because the constructor of SparseMatrixDevice calls
   // MPI_AllReduce. So we run the test in serial
 

@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
@@ -96,7 +96,7 @@ CudaMatrixOperator<VectorType>::transpose() const
 {
   if (!_transposed_matrix)
   {
-    // Copy the data to the cpu and then, use trilinos to compute the
+    // Copy the data to the cpu and then, use Trilinos to compute the
     // transpose. This is not the most efficient way to do this but it is the
     // easiest.
     auto sparse_matrix = convert_to_trilinos_matrix(*_matrix);
@@ -158,7 +158,7 @@ CudaMatrixOperator<VectorType>::multiply_transpose(
       std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(b);
 
   // TODO: to do this on the GPU
-  // Copy the data to the cpu and then, use trilinos to compute the
+  // Copy the data to the cpu and then, use Trilinos to compute the
   // transpose. This is not the most efficient way to do this but it is the
   // easiest.
   auto b_sparse_matrix_dev = downcast_b->get_matrix();

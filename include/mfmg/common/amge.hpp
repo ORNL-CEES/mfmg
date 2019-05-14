@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #ifndef AMGE_HPP
@@ -63,7 +63,7 @@ public:
           &agglomerate_to_global_tria_map) const;
 
   /**
-   * Create a Triangulation \p agglomerate_triangulation assoicated with an
+   * Create a Triangulation \p agglomerate_triangulation associated with an
    * agglomerate formed of a given vector of cell indices \p cell_index and a
    * map that matches cells in the local triangulation with cells in the global
    * triangulation.

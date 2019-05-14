@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #ifndef MFMG_LANCZOS_SIMPLEOP_HPP
@@ -51,7 +51,7 @@ private:
   size_t _dim;
   size_t _multiplicity;
 
-  // This will be a diagonal matrix; specify the diag entries here
+  // This will be a diagonal matrix; specify the diagonal entries here
   double diag_value_(size_t i) const { return 1 + i / _multiplicity; }
 }; // namespace mfmg
 

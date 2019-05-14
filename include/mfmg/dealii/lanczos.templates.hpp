@@ -1,12 +1,12 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
 #ifndef MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
@@ -70,7 +70,7 @@ Lanczos<OperatorType, VectorType>::solve(
   {
     // For the first cycle, we use the untouched user-provided initial guess.
     // This is consistent with what's done in ARPACK and this avoid any bad
-    // suprise where the initial guess provided is different than the initial
+    // surprise where the initial guess provided is different than the initial
     // guess used.
     if (cycle > 0)
       details_set_initial_guess(initial_guess, cycle);
@@ -313,7 +313,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
 
   bool is_converged = true;
 
-  // Terminate if every approximage eigenvalue has converged to tolerance
+  // Terminate if every approximate eigenvalue has converged to tolerance
   // ISSUE: here ignoring possible nuances regarding the correctness
   // of this check.
   // NOTE: k may be desirable to "scale" the stopping criterion
