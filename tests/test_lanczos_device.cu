@@ -31,8 +31,6 @@ BOOST_DATA_TEST_CASE(lanczos,
                      multiplicity, is_deflated, n_distinct_eigenvalues)
 {
   using namespace mfmg;
-  std::cout << multiplicity << " " << is_deflated << " "
-            << n_distinct_eigenvalues << std::endl;
 
   using VectorType =
       dealii::LinearAlgebra::distributed::Vector<double,
@@ -77,8 +75,6 @@ BOOST_DATA_TEST_CASE(lanczos,
                  initial_guess_host.begin(),
                  [&](auto &v) { return v + dist(gen); });
   auto initial_guess_dev = copy_from_host(initial_guess_host);
-  std::cout << "initial guess " << initial_guess_dev.l2_norm() << " "
-            << initial_guess_host.l2_norm() << std::endl;
 
   std::vector<double> computed_evals;
   std::vector<VectorType> computed_evecs;
@@ -101,7 +97,7 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   // Testing eigenvectors is tricky. Specifically, when multiplicity > 1, one
   // gets a subspace of possible solutions. One way to test that is to
-  //   a) test that each eigenvector is indeed an eigenvector corresponsding to
+  //   a) test that each eigenvector is indeed an eigenvector corresponding to
   //   the eigenvalue
   //   b) test that the eigenvectors corresponding to the same eigenvalue are
   //   orthogonal
