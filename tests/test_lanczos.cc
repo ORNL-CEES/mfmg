@@ -92,7 +92,7 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   // Testing eigenvectors is tricky. Specifically, when multiplicity > 1, one
   // gets a subspace of possible solutions. One way to test that is to
-  //   a) test that each eigenvector is indeed an eigenvector correponsding to
+  //   a) test that each eigenvector is indeed an eigenvector correponding to
   //   the eigenvalue
   //   b) test that the eigenvectors corresponding to the same eigenvalue are
   //   orthogonal
