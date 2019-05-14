@@ -16,7 +16,9 @@
 
 #include "anasazi.hpp"
 #include "anasazi_traits.hpp"
+#ifdef HAVE_ANASAZI_BELOS
 #include "belos_traits.hpp"
+#endif
 #include <AnasaziBasicEigenproblem.hpp>
 #include <AnasaziFactory.hpp>
 
