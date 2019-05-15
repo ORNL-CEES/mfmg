@@ -178,10 +178,13 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
-  for (auto cell_id : cell_index)
+  auto cell = _dof_handler.begin_active();
+  std::advance(cell, cell_index[0]);
+  agglomerate.push_back(cell);
+
+  for (unsigned int i = 1; i < cell_index.size(); ++i)
   {
-    auto cell = _dof_handler.begin_active();
-    std::advance(cell, cell_id);
+    std::advance(cell, cell_index[i] - cell_index[i - 1]);
     agglomerate.push_back(cell);
   }
 
