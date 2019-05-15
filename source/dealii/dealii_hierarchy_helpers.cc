@@ -244,8 +244,9 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     auto const range_end = eigenvector_matrix->local_range().second;
     for (unsigned int row = range_start; row < range_end; ++row)
     {
+      auto const end_iterator = eigenvector_matrix->end(row);
       for (auto column_iterator = eigenvector_matrix->begin(row);
-           column_iterator != eigenvector_matrix->end(row); ++column_iterator)
+           column_iterator != end_iterator; ++column_iterator)
       {
         column_iterator->value() *= eigenvalues.at(row - range_start);
       }
