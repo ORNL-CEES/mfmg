@@ -27,11 +27,9 @@ public:
   MultiVector(int n_vectors, int vector_size = 0)
   {
     _vectors.resize(n_vectors);
-    std::for_each(_vectors.begin(), _vectors.end(),
-                  [](auto &v) { v = std::make_shared<VectorType>(); });
-    if (vector_size)
-      std::for_each(_vectors.begin(), _vectors.end(),
-                    [vector_size](auto &v) { v->reinit(vector_size); });
+    std::for_each(_vectors.begin(), _vectors.end(), [vector_size](auto &v) {
+      v = std::make_shared<VectorType>(vector_size);
+    });
   }
   int size() const { return _vectors.empty() ? 0 : _vectors[0]->size(); }
   int n_vectors() const { return _vectors.size(); }

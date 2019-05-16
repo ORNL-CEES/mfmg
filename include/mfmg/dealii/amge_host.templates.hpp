@@ -142,7 +142,7 @@ class OperatorTraits<double, mfmg::MultiVector<VectorType>,
   using OperatorType = mfmg::MatrixFreeAgglomerateOperator<MeshEvaluator>;
 
 public:
-  static void Apply(const OperatorType &op, const MultiVectorType &x,
+  static void Apply(OperatorType const &op, MultiVectorType const &x,
                     MultiVectorType &y)
   {
     auto n_vectors = x.n_vectors();

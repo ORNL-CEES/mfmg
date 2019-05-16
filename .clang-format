@@ -18,6 +18,10 @@ IncludeCategories:
     Priority: 310
   - Regex: "Teuchos_*"
     Priority: 320
+  - Regex: "Anasazi_*"
+    Priority: 330
+  - Regex: "Belos_*"
+    Priority: 340
 # Then boost
   - Regex: "boost*"
     Priority: 400
