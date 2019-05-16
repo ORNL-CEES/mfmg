@@ -186,7 +186,7 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 
               // Perform the matrix-vector multiplication
               dealii::Vector<ScalarType> correction(n_elem);
-              dealii_mesh_evaluator->initialize_agglomerate(
+              dealii_mesh_evaluator->matrix_free_initialize_agglomerate(
                   agglomerate_dof_handler);
               dealii_mesh_evaluator->matrix_free_evaluate_agglomerate(
                   delta_eig, correction);

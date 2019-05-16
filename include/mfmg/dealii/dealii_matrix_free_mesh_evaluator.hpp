@@ -44,8 +44,8 @@ public:
 
   dealii::types::global_dof_index m() const;
 
-  virtual void
-  initialize_agglomerate(dealii::DoFHandler<dim> & /*dof_handler*/) const
+  virtual void matrix_free_initialize_agglomerate(
+      dealii::DoFHandler<dim> & /*dof_handler*/) const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
   }

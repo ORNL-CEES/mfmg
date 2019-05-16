@@ -342,8 +342,8 @@ public:
     return vector;
   }
 
-  virtual void
-  initialize_agglomerate(dealii::DoFHandler<dim> &dof_handler) const override
+  virtual void matrix_free_initialize_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler) const override
   {
     // FIXME dof_handler should be const and initialized somewhere else
     dof_handler.distribute_dofs(_fe);

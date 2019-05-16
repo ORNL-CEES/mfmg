@@ -52,7 +52,7 @@ struct MatrixFreeAgglomerateOperator
       : _mesh_evaluator(mesh_evaluator), _dof_handler(dof_handler),
         _constraints(constraints)
   {
-    _mesh_evaluator.initialize_agglomerate(dof_handler);
+    _mesh_evaluator.matrix_free_initialize_agglomerate(dof_handler);
   }
 
   void vmult(dealii::Vector<double> &dst,
