@@ -40,11 +40,23 @@ struct Identity
   }
 };
 
+/**
+ * A class representing the operator on a given agglomerate
+ * wrapping a MeshEvaluator object to restrict the interface
+ * to the operations required on an agglomerate.
+ */
 template <typename MeshEvaluator>
 struct MatrixFreeAgglomerateOperator
 {
   using size_type = typename MeshEvaluator::size_type;
 
+  /**
+   * This constructor expects @p mesh_evaluator to be an object that performs
+   * the actual operator evaluation. @p dof_handler is used to initialize the
+   * appropriate data structures in the MeshEvaluator and is expected to be
+   * initialized itself with respect to a given dealii::FiniteElement object
+   * in that call.
+   */
   template <typename DoFHandler>
   MatrixFreeAgglomerateOperator(MeshEvaluator const &mesh_evaluator,
                                 DoFHandler &dof_handler,
@@ -55,25 +67,57 @@ struct MatrixFreeAgglomerateOperator
     _mesh_evaluator.matrix_free_initialize_agglomerate(dof_handler);
   }
 
+  /**
+   * Perform the operator evaluation on the agglomerate.
+   */
   void vmult(dealii::Vector<double> &dst,
              const dealii::Vector<double> &src) const
   {
     _mesh_evaluator.matrix_free_evaluate_agglomerate(src, dst);
   }
 
+  /**
+   * Return the diagonal entries the matrix corresponding to the operator would
+   * have. This data is necessary for certain smoothers to work.
+   * @p _constraints is used to restrict the diagonal to the correct
+   * (constrained) finite element subspace.
+   */
   std::vector<double> get_diag_elements() const
   {
     return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_constraints);
   }
 
+  /**
+   * Return the dimension of the range of the agglomerate operator.
+   */
   size_type m() const { return _dof_handler.n_dofs(); }
 
+  /**
+   * Return the dimension of the domain of the agglomerate operator.
+   */
   size_type n() const { return _dof_handler.n_dofs(); }
 
 private:
+  /**
+   * The actual operator wrapped.
+   */
   MeshEvaluator const &_mesh_evaluator;
+
+  /**
+   * The dimension for the underlying mesh.
+   */
   static int constexpr dim = MeshEvaluator::_dim;
+
+  /**
+   * The DoFHandler containing information about the degrees of freedom on the
+   * agglomerate.
+   */
   dealii::DoFHandler<dim> const &_dof_handler;
+
+  /**
+   * The constraints needed for restricting the vector returned by
+   * get_diag_elements() to the correct subspace.
+   */
   dealii::AffineConstraints<double> &_constraints;
 };
 
