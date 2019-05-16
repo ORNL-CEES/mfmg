@@ -26,7 +26,7 @@ namespace tt = boost::test_tools;
 
 BOOST_DATA_TEST_CASE(lanczos,
                      bdata::make({1, 2}) * bdata::make({false, true}) *
-                         bdata::make({1, 2, 3, 5}),
+                         bdata::make({1, 2, 3, 5, 10, 20, 40}),
                      multiplicity, is_deflated, n_distinct_eigenvalues)
 {
   using namespace mfmg;
@@ -56,7 +56,7 @@ BOOST_DATA_TEST_CASE(lanczos,
     }
   }
 
-  lanczos_params.put("max_iterations", 200);
+  lanczos_params.put("max_iterations", 2000);
   lanczos_params.put("tolerance", 1e-2);
   lanczos_params.put("percent_overshoot", 5);
 
