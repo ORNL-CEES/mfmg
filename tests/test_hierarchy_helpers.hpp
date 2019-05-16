@@ -296,34 +296,20 @@ public:
   }
 
   virtual void
-  matrix_free_evaluate_agglomerate(dealii::DoFHandler<dim> &dof_handler,
-                                   dealii::Vector<double> const &src,
+  matrix_free_evaluate_agglomerate(dealii::Vector<double> const &src,
                                    dealii::Vector<double> &dst) const override
   {
-    // FIXME create a initialize function so that we don't need to do it
-    // everytime we need the diagonal or to do a vmult
-    initialize_matrix_free_agglomerate(dof_handler);
-
     // Unfortunately, dealii::MatrixFreeOperators::Base only supports
     // dealii::LinearAlgebra::distributed::Vector so unless we duplicate a lot
     // of code, we need copy src and dst.
-    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_dst(
-        dst.size());
-    dealii::LinearAlgebra::distributed::Vector<ScalarType> distributed_src(
-        src.size());
     std::copy(src.begin(), src.end(), distributed_src.begin());
     _agg_laplace_operator->vmult(distributed_dst, distributed_src);
     std::copy(distributed_dst.begin(), distributed_dst.end(), dst.begin());
   }
 
   virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
-      dealii::DoFHandler<dim> &dof_handler,
       dealii::AffineConstraints<double> &constraints) const override
   {
-    // FIXME create a initialize function so that we don't need to do it
-    // every time we need the diagonal or to do a vmult
-    initialize_matrix_free_agglomerate(dof_handler);
-
     constraints.copy_from(_agg_constraints);
 
     auto diag_matrix = _agg_laplace_operator->get_matrix_diagonal();
@@ -356,54 +342,59 @@ public:
     return vector;
   }
 
-private:
-  void initialize_matrix_free_agglomerate(
-      dealii::DoFHandler<dim> &dof_handler) const;
+  virtual void matrix_free_initialize_agglomerate(
+      dealii::DoFHandler<dim> &dof_handler) const override
+  {
+    // FIXME dof_handler should be const and initialized somewhere else
+    dof_handler.distribute_dofs(_fe);
 
+    dealii::IndexSet locally_relevant_dofs;
+    dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
+                                                    locally_relevant_dofs);
+    // Compute the constraints
+    _agg_constraints.clear();
+    _agg_constraints.reinit(locally_relevant_dofs);
+    dealii::DoFTools::make_hanging_node_constraints(dof_handler,
+                                                    _agg_constraints);
+    dealii::VectorTools::interpolate_boundary_values(
+        dof_handler, 1, dealii::Functions::ZeroFunction<dim>(),
+        _agg_constraints);
+    _agg_constraints.close();
+
+    // Initialize the MatrixFree object
+    typename dealii::MatrixFree<dim, ScalarType>::AdditionalData
+        additional_data;
+    additional_data.tasks_parallel_scheme =
+        dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
+    additional_data.mapping_update_flags = dealii::update_gradients |
+                                           dealii::update_JxW_values |
+                                           dealii::update_quadrature_points;
+    std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage(
+        new dealii::MatrixFree<dim, ScalarType>());
+    mf_storage->reinit(dof_handler, _agg_constraints,
+                       dealii::QGauss<1>(fe_degree + 1), additional_data);
+
+    _agg_laplace_operator =
+        std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>();
+    _agg_laplace_operator->initialize(mf_storage);
+    _agg_laplace_operator->evaluate_coefficient(*_material_property);
+    _agg_laplace_operator->compute_diagonal();
+
+    distributed_dst.reinit(dof_handler.n_dofs());
+    distributed_src.reinit(dof_handler.n_dofs());
+  }
+
+private:
   std::shared_ptr<Coefficient<dim>> _material_property;
   dealii::FE_Q<dim> _fe;
   mutable dealii::AffineConstraints<double> _agg_constraints;
   LaplaceOperator<dim, fe_degree, ScalarType> &_laplace_operator;
   mutable std::unique_ptr<LaplaceOperator<dim, fe_degree, ScalarType>>
       _agg_laplace_operator;
+  mutable dealii::LinearAlgebra::distributed::Vector<ScalarType>
+      distributed_dst;
+  mutable dealii::LinearAlgebra::distributed::Vector<ScalarType>
+      distributed_src;
 };
-
-template <int dim, int fe_degree, typename ScalarType>
-void TestMFMeshEvaluator<dim, fe_degree, ScalarType>::
-    initialize_matrix_free_agglomerate(
-        dealii::DoFHandler<dim> &dof_handler) const
-{
-  dof_handler.distribute_dofs(_fe);
-
-  dealii::IndexSet locally_relevant_dofs;
-  dealii::DoFTools::extract_locally_relevant_dofs(dof_handler,
-                                                  locally_relevant_dofs);
-  // Compute the constraints
-  _agg_constraints.clear();
-  _agg_constraints.reinit(locally_relevant_dofs);
-  dealii::DoFTools::make_hanging_node_constraints(dof_handler,
-                                                  _agg_constraints);
-  dealii::VectorTools::interpolate_boundary_values(
-      dof_handler, 1, dealii::Functions::ZeroFunction<dim>(), _agg_constraints);
-  _agg_constraints.close();
-
-  // Initialize the MatrixFree object
-  typename dealii::MatrixFree<dim, ScalarType>::AdditionalData additional_data;
-  additional_data.tasks_parallel_scheme =
-      dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
-  additional_data.mapping_update_flags = dealii::update_gradients |
-                                         dealii::update_JxW_values |
-                                         dealii::update_quadrature_points;
-  std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage(
-      new dealii::MatrixFree<dim, ScalarType>());
-  mf_storage->reinit(dof_handler, _agg_constraints,
-                     dealii::QGauss<1>(fe_degree + 1), additional_data);
-
-  _agg_laplace_operator =
-      std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>();
-  _agg_laplace_operator->initialize(mf_storage);
-  _agg_laplace_operator->evaluate_coefficient(*_material_property);
-  _agg_laplace_operator->compute_diagonal();
-}
 
 #endif // #ifdef MFMG_TEST_HIERARCHY_HELPERS_HPP
