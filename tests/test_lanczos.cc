@@ -1,13 +1,13 @@
-/*************************************************************************
- * Copyright (c) 2017-2019 by the mfmg authors                           *
- * All rights reserved.                                                  *
- *                                                                       *
- * This file is part of the mfmg libary. mfmg is distributed under a BSD *
- * 3-clause license. For the licensing terms see the LICENSE file in the *
- * top-level directory                                                   *
- *                                                                       *
- * SPDX-License-Identifier: BSD-3-Clause                                 *
- *************************************************************************/
+/**************************************************************************
+ * Copyright (c) 2017-2019 by the mfmg authors                            *
+ * All rights reserved.                                                   *
+ *                                                                        *
+ * This file is part of the mfmg library. mfmg is distributed under a BSD *
+ * 3-clause license. For the licensing terms see the LICENSE file in the  *
+ * top-level directory                                                    *
+ *                                                                        *
+ * SPDX-License-Identifier: BSD-3-Clause                                  *
+ **************************************************************************/
 
 #define BOOST_TEST_MODULE lanczos
 
@@ -92,7 +92,7 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   // Testing eigenvectors is tricky. Specifically, when multiplicity > 1, one
   // gets a subspace of possible solutions. One way to test that is to
-  //   a) test that each eigenvector is indeed an eigenvector correponding to
+  //   a) test that each eigenvector is indeed an eigenvector corresponding to
   //   the eigenvalue
   //   b) test that the eigenvectors corresponding to the same eigenvalue are
   //   orthogonal
