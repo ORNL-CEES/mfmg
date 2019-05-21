@@ -7,7 +7,7 @@
  * top-level directory                                                    *
  *                                                                        *
  * SPDX-License-Identifier: BSD-3-Clause                                  *
- *************************************************************************/
+ **************************************************************************/
 
 #ifndef MFMG_DEALII_UTILS_H
 #define MFMG_DEALII_UTILS_H

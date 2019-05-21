@@ -7,7 +7,7 @@
  * top-level directory                                                    *
  *                                                                        *
  * SPDX-License-Identifier: BSD-3-Clause                                  *
- *************************************************************************/
+ **************************************************************************/
 
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/dealii/dealii_utils.hpp>

@@ -12,10 +12,10 @@
 #ifndef AMGE_HOST_TEMPLATES_HPP
 #define AMGE_HOST_TEMPLATES_HPP
 
+#include <mfmg/common/lanczos.templates.hpp>
 #include <mfmg/common/utils.hpp>
 #include <mfmg/dealii/amge_host.hpp>
 #include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>
-#include <mfmg/dealii/lanczos.templates.hpp>
 
 #include <deal.II/base/work_stream.h>
 #include <deal.II/dofs/dof_accessor.h>

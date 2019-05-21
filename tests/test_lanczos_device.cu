@@ -9,9 +9,10 @@
  * SPDX-License-Identifier: BSD-3-Clause                                  *
  **************************************************************************/
 
-#define BOOST_TEST_MODULE lanczos
+#define BOOST_TEST_MODULE lanczos_device
 
-#include "mfmg/common/lanczos.templates.hpp"
+#include <mfmg/common/lanczos.templates.hpp>
+#include <mfmg/cuda/utils.cuh>
 
 #include <boost/test/data/test_case.hpp>
 
@@ -31,7 +32,9 @@ BOOST_DATA_TEST_CASE(lanczos,
 {
   using namespace mfmg;
 
-  using VectorType = dealii::Vector<double>;
+  using VectorType =
+      dealii::LinearAlgebra::distributed::Vector<double,
+                                                 dealii::MemorySpace::CUDA>;
   using OperatorType = SimpleOperator<VectorType>;
 
   const int n = 1000;
@@ -62,19 +65,21 @@ BOOST_DATA_TEST_CASE(lanczos,
 
   Lanczos<OperatorType, VectorType> solver(op);
 
-  VectorType initial_guess(n);
-  initial_guess = 1.;
+  dealii::LinearAlgebra::distributed::Vector<double> initial_guess_host(n);
+  initial_guess_host = 1.;
 
   // Add random noise to the guess
   std::mt19937 gen(0);
   std::uniform_real_distribution<double> dist(0, 1);
-  std::transform(initial_guess.begin(), initial_guess.end(),
-                 initial_guess.begin(), [&](auto &v) { return v + dist(gen); });
+  std::transform(initial_guess_host.begin(), initial_guess_host.end(),
+                 initial_guess_host.begin(),
+                 [&](auto &v) { return v + dist(gen); });
+  auto initial_guess_dev = copy_from_host(initial_guess_host);
 
   std::vector<double> computed_evals;
   std::vector<VectorType> computed_evecs;
   std::tie(computed_evals, computed_evecs) =
-      solver.solve(lanczos_params, initial_guess);
+      solver.solve(lanczos_params, initial_guess_dev);
 
   auto ref_evals = op.get_evals();
 

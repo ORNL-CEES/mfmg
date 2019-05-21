@@ -12,6 +12,8 @@
 #ifndef MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
 #define MFMG_LANCZOS_LANCZOS_TEMPLATE_HPP
 
+#include <mfmg/cuda/utils.cuh>
+
 #include <algorithm>
 #include <random>
 #include <vector>
@@ -28,6 +30,47 @@
 
 namespace mfmg
 {
+
+namespace internal
+{
+template <typename VectorType>
+void details_set_initial_guess(VectorType &initial_guess, int seed)
+{
+  // Modify initial guess with a random noise by multiplying each entry of the
+  // vector with a random value from a uniform distribution. This specific
+  // procedure guarantees that zero entries of the vector stay zero, which is
+  // important for situations where they are associated with constrained dofs in
+  // Deal.II
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<double> dist(0, 1);
+  std::transform(initial_guess.begin(), initial_guess.end(),
+                 initial_guess.begin(),
+                 [&](auto &v) { return (1. + dist(gen)) * v; });
+}
+
+#ifdef __CUDACC__
+template <>
+void details_set_initial_guess(
+    dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA> &initial_guess,
+    int seed)
+{
+  // Modify initial guess with a random noise by multiplying each entry of the
+  // vector with a random value from a uniform distribution. This specific
+  // procedure guarantees that zero entries of the vector stay zero, which is
+  // important for situations where they are associated with constrained dofs in
+  // Deal.II
+  std::mt19937 gen(seed);
+  std::uniform_real_distribution<double> dist(0, 1);
+  std::vector<double> initial_guess_host(initial_guess.local_size());
+  cuda_mem_copy_to_host(initial_guess.get_values(), initial_guess_host);
+  std::transform(initial_guess_host.begin(), initial_guess_host.end(),
+                 initial_guess_host.begin(),
+                 [&](auto &v) { return (1. + dist(gen)) * v; });
+  cuda_mem_copy_to_dev(initial_guess_host, initial_guess.get_values());
+}
+#endif
+} // namespace internal
 
 /// \brief Lanczos solver: constructor
 template <typename OperatorType, typename VectorType>
@@ -73,7 +116,7 @@ Lanczos<OperatorType, VectorType>::solve(
     // surprise where the initial guess provided is different than the initial
     // guess used.
     if (cycle > 0)
-      details_set_initial_guess(initial_guess, cycle);
+      internal::details_set_initial_guess(initial_guess, cycle);
 
     deflated_op.deflate(initial_guess);
 
@@ -349,22 +392,6 @@ std::vector<VectorType> Lanczos<OperatorType, VectorType>::details_calc_evecs(
   }
 
   return evecs;
-}
-
-template <typename OperatorType, typename VectorType>
-void Lanczos<OperatorType, VectorType>::details_set_initial_guess(
-    VectorType &initial_guess, int seed)
-{
-  // Modify initial guess with a random noise by multiplying each entry of the
-  // vector with a random value from a uniform distribution. This specific
-  // procedure guarantees that zero entries of the vector stay zero, which is
-  // important for situations where they are associated with constrained dofs in
-  // Deal.II
-  std::mt19937 gen(seed);
-  std::uniform_real_distribution<double> dist(0, 1);
-  std::transform(initial_guess.begin(), initial_guess.end(),
-                 initial_guess.begin(),
-                 [&](auto &v) { return (1. + dist(gen)) * v; });
 }
 
 } // namespace mfmg
