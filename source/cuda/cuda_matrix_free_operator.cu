@@ -13,11 +13,71 @@
 #include <mfmg/cuda/cuda_matrix_free_mesh_evaluator.cuh>
 #include <mfmg/cuda/cuda_matrix_free_operator.cuh>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
-#include <mfmg/cuda/vector_device.cuh>
+#include <mfmg/cuda/utils.cuh>
 #include <mfmg/dealii/dealii_utils.hpp>
 
 namespace mfmg
 {
+namespace
+{
+template <typename VectorType>
+struct RangeVector
+{
+  static std::shared_ptr<VectorType>
+  build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator);
+};
+
+template <typename VectorType>
+std::shared_ptr<VectorType>
+RangeVector<VectorType>::build_vector(std::shared_ptr<MeshEvaluator> const &)
+{
+  ASSERT_THROW_NOT_IMPLEMENTED();
+
+  return nullptr;
+}
+
+template <>
+std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>
+RangeVector<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::Host>>::
+    build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
+{
+  auto dealii_range_vector =
+      mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
+                mesh_evaluator)
+                ->build_range_vector()
+          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
+                mesh_evaluator)
+                ->build_range_vector();
+  return dealii_range_vector;
+}
+
+template <>
+std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>
+RangeVector<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
+    build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
+{
+  auto dealii_range_vector =
+      mesh_evaluator->get_dim() == 2
+          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
+                mesh_evaluator)
+                ->build_range_vector()
+          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
+                mesh_evaluator)
+                ->build_range_vector();
+  auto range_vector =
+      std::make_shared<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>(
+          copy_from_host(*dealii_range_vector));
+
+  return range_vector;
+}
+} // namespace
+
 template <typename VectorType>
 CudaMatrixFreeOperator<VectorType>::CudaMatrixFreeOperator(
     std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
@@ -122,9 +182,14 @@ CudaMatrixFreeOperator<dealii::LinearAlgebra::distributed::Vector<double>>::
 }
 
 template <>
-std::shared_ptr<Operator<VectorDevice<double>>>
-CudaMatrixFreeOperator<VectorDevice<double>>::multiply_transpose(
-    std::shared_ptr<Operator<VectorDevice<double>> const> b) const
+std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>>
+CudaMatrixFreeOperator<dealii::LinearAlgebra::distributed::Vector<
+    double, dealii::MemorySpace::CUDA>>::
+    multiply_transpose(
+        std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<
+            double, dealii::MemorySpace::CUDA>> const>
+            b) const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
@@ -145,17 +210,7 @@ template <typename VectorType>
 std::shared_ptr<VectorType>
 CudaMatrixFreeOperator<VectorType>::build_range_vector() const
 {
-  auto dealii_range_vector =
-      _mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-                _mesh_evaluator)
-                ->build_range_vector()
-          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-                _mesh_evaluator)
-                ->build_range_vector();
-  std::shared_ptr<VectorType> range_vector(
-      new VectorType(*dealii_range_vector));
-  return range_vector;
+  return RangeVector<VectorType>::build_vector(_mesh_evaluator);
 }
 
 template <typename VectorType>
@@ -197,6 +252,9 @@ CudaHandle const &CudaMatrixFreeOperator<VectorType>::get_cuda_handle() const
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::CudaMatrixFreeOperator<mfmg::VectorDevice<double>>;
 template class mfmg::CudaMatrixFreeOperator<
-    dealii::LinearAlgebra::distributed::Vector<double>>;
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::CUDA>>;
+template class mfmg::CudaMatrixFreeOperator<
+    dealii::LinearAlgebra::distributed::Vector<double,
+                                               dealii::MemorySpace::Host>>;

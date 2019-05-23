@@ -173,7 +173,8 @@ CudaSmoother<VectorType>::CudaSmoother(
     unsigned int const size = partitioner->local_size();
     value_type *val_dev = nullptr;
     cuda_malloc(val_dev, size);
-    if (std::is_same<VectorType, mfmg::VectorDevice<double>>::value)
+    if (std::is_same<VectorType, dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::CUDA>>::value)
     {
       cudaError_t cuda_error_code =
           cudaMemcpy(val_dev, inv_diagonal.get_values(), size * sizeof(double),

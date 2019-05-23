@@ -14,7 +14,6 @@
 #include <mfmg/cuda/cuda_matrix_free_mesh_evaluator.cuh>
 #include <mfmg/cuda/cuda_matrix_free_operator.cuh>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
-#include <mfmg/cuda/vector_device.cuh>
 
 namespace mfmg
 {
@@ -71,11 +70,15 @@ CudaMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 } // namespace mfmg
 
 // Explicit Instantiation
-template class mfmg::CudaMatrixFreeHierarchyHelpers<2,
-                                                    mfmg::VectorDevice<double>>;
-template class mfmg::CudaMatrixFreeHierarchyHelpers<3,
-                                                    mfmg::VectorDevice<double>>;
 template class mfmg::CudaMatrixFreeHierarchyHelpers<
-    2, dealii::LinearAlgebra::distributed::Vector<double>>;
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;
 template class mfmg::CudaMatrixFreeHierarchyHelpers<
-    3, dealii::LinearAlgebra::distributed::Vector<double>>;
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;
+template class mfmg::CudaMatrixFreeHierarchyHelpers<
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::Host>>;
+template class mfmg::CudaMatrixFreeHierarchyHelpers<
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::Host>>;

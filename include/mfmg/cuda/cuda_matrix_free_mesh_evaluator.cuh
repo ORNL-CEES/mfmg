@@ -29,10 +29,15 @@ public:
   {
   }
 
-  void apply(VectorDevice<double> const &src, VectorDevice<double> &dst) const;
+  void apply(dealii::LinearAlgebra::distributed::Vector<
+                 double, dealii::MemorySpace::CUDA> const &src,
+             dealii::LinearAlgebra::distributed::Vector<
+                 double, dealii::MemorySpace::CUDA> &dst) const;
 
-  void apply(dealii::LinearAlgebra::distributed::Vector<double> const &src,
-             dealii::LinearAlgebra::distributed::Vector<double> &dst) const;
+  void apply(dealii::LinearAlgebra::distributed::Vector<
+                 double, dealii::MemorySpace::Host> const &src,
+             dealii::LinearAlgebra::distributed::Vector<
+                 double, dealii::MemorySpace::Host> &dst) const;
 
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
