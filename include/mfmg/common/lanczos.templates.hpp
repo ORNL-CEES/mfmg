@@ -351,8 +351,15 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   std::vector<bool> is_marked(n);
   for (int i = 0; i < n; ++i)
   {
+    // A Ritz value is considered repeated if it is within tolerance tol2 of
+    // any other value. As evals are sorted, it is sufficient to check whether
+    // the value is within tol2 of the previous and next values.
     is_repeated[i] = ((i > 0 && (evals[i] <= evals[i - 1] + tol2)) ||
                       (i < n - 1 && (evals[i + 1] <= evals[i] + tol2)));
+
+    // A Ritz value is marked (i.e., a good value) if it is either more than
+    // tol2 distance away from all other values, or it is the first one of the
+    // repeated values.
     is_marked[i] = (i == 0 || (evals[i] > evals[i - 1] + tol2));
   }
 
