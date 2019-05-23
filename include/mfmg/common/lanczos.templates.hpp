@@ -274,6 +274,8 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
       it_prev_check = it;
     }
   }
+  it = it < maxit ? it : maxit;
+
   ASSERT(it >= num_requested,
          "Internal error: required number of iterations not reached");
 
@@ -308,7 +310,9 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   std::vector<double> evecs; // flat array
 
   if (n < num_requested)
+  {
     return std::make_tuple(evals, evecs);
+  }
 
   // dstyev destroys storage
   evals = main_diagonal;
@@ -327,6 +331,111 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
                     sub_diagonal_aux.data(), evecs_aux.data(), n);
   ASSERT(!info, "Call to LAPACKE_dstev failed.");
 
+  // The following approach is taken from Cullum and Willoughby vol. 1, to
+  // identify and remove spurious and redundant eigenvalues. Here, one computes
+  // the eigenvalues of the tridiagonal matrix T and also the matrix T2 formed
+  // by removing the first row and col of T. If an eigenvalue of T is not
+  // repeated, and it is also an eigenvalue of T2, then it is considered
+  // spurious.
+  //
+  // The C/W algorithm has other nuances which may necessitate more
+  // revisions of the simplified algorithm implemented here.
+
+  // The following tolerance may need adjustment, however this doesn't
+  // seem critical (cf. C/W vol. 1). Cullum/Willoughby use 1e-12.
+  const double tol2 = 5.e-12;
+
+  // Identify repeated eigenvalues.
+  // A "marked" eigenvalue here is nonrepeated or first of a set of repeated.
+  std::vector<bool> is_repeated(n);
+  std::vector<bool> is_marked(n);
+  for (int i = 0; i < n; ++i)
+  {
+    // A Ritz value is considered repeated if it is within tolerance tol2 of
+    // any other value. As evals are sorted, it is sufficient to check whether
+    // the value is within tol2 of the previous and next values.
+    is_repeated[i] = ((i > 0 && (evals[i] <= evals[i - 1] + tol2)) ||
+                      (i < n - 1 && (evals[i + 1] <= evals[i] + tol2)));
+
+    // A Ritz value is marked (i.e., a good value) if it is either more than
+    // tol2 distance away from all other values, or it is the first one of the
+    // repeated values.
+    is_marked[i] = (i == 0 || (evals[i] > evals[i - 1] + tol2));
+  }
+
+  // Identify spurious eigenvalues
+  std::vector<bool> is_spurious(n, false);
+  const int n2 = n - 1;
+  if (n2 >= 1 && n2 >= num_requested)
+  {
+    // Solve an eigenproblem based on deleting the first row and col of the
+    // original tridiag matrix.
+    // NOTE: as we only need eigenvalues and not eigenvectors, a different
+    // LAPACK call may be more appropriate.
+    std::vector<double> evals2(++main_diagonal.begin(), main_diagonal.end());
+    std::vector<double> sub_diagonal_aux2(++sub_diagonal.begin(),
+                                          sub_diagonal.end());
+    std::vector<double> evecs_aux2(n2 * n2);
+
+    const lapack_int info2 =
+        LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n2, evals2.data(),
+                      sub_diagonal_aux2.data(), evecs_aux2.data(), n2);
+    ASSERT(!info2, "Call to LAPACKE_dstev failed.");
+
+    // Loop over original eigenvalues to check for spuriousness.
+    // NOTE: assuming here evals and evals2 are in ascending order.
+    int j_start = 0;
+    for (int i = 0; i < n; ++i)
+    {
+      if (is_repeated[i])
+      {
+        // A repeated eigenvalue of T is never spurious.
+        continue;
+      }
+
+      // Seek matching T2 eigenvalue. If found, then evals[i] is spurious.
+      // Note the looping is rigged here to avoid an O(n^2) algorithm.
+      for (int j = j_start; j < n2; ++j)
+      {
+        const bool is_t2j_below = (evals2[j] < evals[i] - tol2);
+        if (is_t2j_below)
+        {
+          // For the next i, evals[i] will be >= this one,
+          // so not examining this j for next i will be ok.
+          j_start = j;
+          continue;
+        }
+
+        const bool is_t2j_above = (evals2[j] > evals[i] + tol2);
+        if (is_t2j_above)
+          // we have passed up evals[i], so no match.
+          break;
+
+        // in interval surrounding evals[i], thus evals[i] spurious.
+        is_spurious[i] = true;
+        break;
+      }
+    }
+  }
+
+  // Purge spurious and redundant eigenvalues and corresponding eigenvectors
+  int num_available = n;
+  for (int i = n - 1; i >= 0; --i)
+  {
+    if (is_spurious[i] || !is_marked[i])
+    {
+      evals.erase(evals.begin() + i);
+      evecs_aux.erase(evecs_aux.begin() + n * i,
+                      evecs_aux.begin() + n * (i + 1));
+      num_available--;
+    }
+  }
+
+  if (num_available < num_requested)
+  {
+    return std::make_tuple(std::vector<double>(), std::vector<double>());
+  }
+
   // Save results.
   evals.resize(num_requested);
   evecs.resize(n * num_requested);
@@ -340,7 +449,6 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::transform(aux_first, aux_last, first,
                    [norm](auto &v) { return v / norm; });
   }
-
   return std::make_tuple(evals, evecs);
 }
 
