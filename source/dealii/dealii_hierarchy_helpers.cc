@@ -294,14 +294,6 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
 }
 
 template <int dim, typename VectorType>
-std::shared_ptr<Operator<VectorType>>
-DealIIHierarchyHelpers<dim, VectorType>::fast_multiply_transpose()
-{
-
-  return _ap_operator;
-}
-
-template <int dim, typename VectorType>
 std::shared_ptr<Smoother<VectorType>>
 DealIIHierarchyHelpers<dim, VectorType>::build_smoother(
     std::shared_ptr<Operator<VectorType> const> op,
@@ -318,6 +310,14 @@ DealIIHierarchyHelpers<dim, VectorType>::build_coarse_solver(
 {
   return std::make_shared<DealIISolver<VectorType>>(op, params);
 }
+
+template <int dim, typename VectorType>
+std::shared_ptr<Operator<VectorType>>
+DealIIHierarchyHelpers<dim, VectorType>::fast_multiply_transpose()
+{
+  return _ap_operator;
+}
+
 } // namespace mfmg
 
 // Explicit Instantiation
