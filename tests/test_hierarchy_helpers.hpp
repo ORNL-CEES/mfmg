@@ -43,6 +43,8 @@ class Source final : public dealii::Function<dim>
 public:
   Source() = default;
 
+  virtual ~Source() override = default;
+
   virtual double value(dealii::Point<dim> const &,
                        unsigned int const = 0) const override
   {
@@ -54,6 +56,8 @@ template <int dim>
 class Coefficient : public dealii::Function<dim>
 {
 public:
+  virtual ~Coefficient() override = default;
+
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
         unsigned int const = 0) const = 0;
@@ -67,6 +71,8 @@ class ConstantMaterialProperty final : public Coefficient<dim>
 {
 public:
   ConstantMaterialProperty() = default;
+
+  virtual ~ConstantMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &,
@@ -88,6 +94,8 @@ class LinearXMaterialProperty final : public Coefficient<dim>
 public:
   LinearXMaterialProperty() = default;
 
+  virtual ~LinearXMaterialProperty() override = default;
+
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
         unsigned int const = 0) const override
@@ -108,6 +116,8 @@ class LinearMaterialProperty final : public Coefficient<dim>
 {
 public:
   LinearMaterialProperty() = default;
+
+  virtual ~LinearMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
@@ -137,6 +147,8 @@ class DiscontinuousMaterialProperty final : public Coefficient<dim>
 {
 public:
   DiscontinuousMaterialProperty() = default;
+
+  virtual ~DiscontinuousMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
@@ -200,6 +212,8 @@ public:
         _matrix(matrix), _material_property(material_property)
   {
   }
+
+  virtual ~TestMeshEvaluator() override = default;
 
   virtual void evaluate_global(
       dealii::DoFHandler<dim> &, dealii::AffineConstraints<double> &,
@@ -294,6 +308,8 @@ public:
         _laplace_operator(laplace_operator)
   {
   }
+
+  virtual ~TestMFMeshEvaluator() override = default;
 
   virtual void
   matrix_free_evaluate_agglomerate(dealii::Vector<double> const &src,

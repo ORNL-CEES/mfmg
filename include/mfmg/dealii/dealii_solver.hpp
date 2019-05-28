@@ -27,6 +27,8 @@ public:
   DealIISolver(std::shared_ptr<Operator<vector_type> const> op,
                std::shared_ptr<boost::property_tree::ptree const> params);
 
+  virtual ~DealIISolver() override = default;
+
   void apply(vector_type const &b, vector_type &x) const override;
 
 private:

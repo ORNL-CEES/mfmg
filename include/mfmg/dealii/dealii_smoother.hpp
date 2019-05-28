@@ -32,6 +32,8 @@ public:
   DealIISmoother(std::shared_ptr<Operator<vector_type> const> op,
                  std::shared_ptr<boost::property_tree::ptree const> params);
 
+  virtual ~DealIISmoother() override = default;
+
   void apply(vector_type const &b, vector_type &x) const override final;
 
 private:

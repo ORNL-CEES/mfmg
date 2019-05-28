@@ -24,6 +24,8 @@ class ExactSolution : public dealii::Function<dim>
 public:
   ExactSolution() = default;
 
+  virtual ~ExactSolution() override = default;
+
   double value(dealii::Point<dim> const &p,
                unsigned int const component = 0) const override;
 };

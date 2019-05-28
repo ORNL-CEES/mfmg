@@ -52,6 +52,11 @@ public:
                                 dealii::AffineConstraints<double> &constraints);
 
   /**
+   * Destructor.
+   */
+  virtual ~DealIIMatrixFreeMeshEvaluator() override = default;
+
+  /**
    * Return the class name as std::string.
    */
   std::string get_mesh_evaluator_type() const override final;

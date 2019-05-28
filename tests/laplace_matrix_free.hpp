@@ -37,6 +37,8 @@ public:
 
   LaplaceOperator();
 
+  virtual ~LaplaceOperator() override = default;
+
   virtual void compute_diagonal() override final;
 
   template <typename MaterialPropertyType>

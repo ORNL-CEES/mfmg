@@ -31,6 +31,8 @@ public:
       std::shared_ptr<dealii::SparseMatrix<typename VectorType::value_type>>
           sparse_matrix);
 
+  virtual ~DealIIMatrixOperator() override = default;
+
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override final;
 
