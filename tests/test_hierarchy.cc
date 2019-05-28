@@ -193,6 +193,8 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
 
 BOOST_AUTO_TEST_CASE(benchmark)
 {
+  dealii::MultithreadInfo::set_thread_limit(1);
+
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
 
@@ -201,6 +203,8 @@ BOOST_AUTO_TEST_CASE(benchmark)
 
 BOOST_AUTO_TEST_CASE(benchmark_mf)
 {
+  dealii::MultithreadInfo::set_thread_limit(1);
+
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("smoother.type", "Chebyshev");
@@ -213,6 +217,8 @@ typedef std::tuple<mfmg::DealIIMeshEvaluator<2>,
     mesh_evaluator_types;
 BOOST_AUTO_TEST_CASE_TEMPLATE(ml, MeshEvaluator, mesh_evaluator_types)
 {
+  dealii::MultithreadInfo::set_thread_limit(1);
+
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   bool is_matrix_free = false;
@@ -252,6 +258,8 @@ BOOST_DATA_TEST_CASE(
         bdata::make<std::string>({"arpack", "lanczos"}),
     mesh, distort_random, reordering, mesh_evaluator_type, eigensolver)
 {
+  dealii::MultithreadInfo::set_thread_limit(1);
+
   // TODO investigate why there is large difference in convergence rate when
   // running in parallel.
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
@@ -336,6 +344,9 @@ BOOST_DATA_TEST_CASE(
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(zoltan, MeshEvaluator, mesh_evaluator_types)
 {
+  dealii::MultithreadInfo::set_thread_limit(
+      dealii::numbers::invalid_unsigned_int);
+
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
     auto params = std::make_shared<boost::property_tree::ptree>();
@@ -424,6 +435,9 @@ dealii::TrilinosWrappers::SparseMatrix gimme_identity(unsigned int n_local_rows)
 
 BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
 {
+  dealii::MultithreadInfo::set_thread_limit(
+      dealii::numbers::invalid_unsigned_int);
+
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
@@ -490,6 +504,8 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
 
 BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
 {
+  dealii::MultithreadInfo::set_thread_limit(1);
+
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;

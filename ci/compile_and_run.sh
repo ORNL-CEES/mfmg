@@ -19,8 +19,7 @@ ARGS=(
   )
 cmake "${ARGS[@]}" ../
 make -j12
-# Because Arpack is not thread-safe we cannot use multithreading
-export DEAL_II_NUM_THREADS=1
+export DEAL_II_NUM_THREADS=3
 ctest -j12 --no-compress-output -T Test
 
 # Code coverage
