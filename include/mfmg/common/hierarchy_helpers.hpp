@@ -32,6 +32,8 @@ class HierarchyHelpers
 public:
   using vector_type = VectorType;
 
+  virtual ~HierarchyHelpers() = default;
+
   virtual std::shared_ptr<Operator<vector_type>>
   get_global_operator(std::shared_ptr<MeshEvaluator> mesh_evaluator) = 0;
 

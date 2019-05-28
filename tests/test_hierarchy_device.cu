@@ -29,6 +29,8 @@ class Source : public dealii::Function<dim>
 public:
   Source() = default;
 
+  virtual ~Source() override = default;
+
   virtual double value(dealii::Point<dim> const &,
                        unsigned int const = 0) const override final
   {
@@ -41,6 +43,8 @@ class ConstantMaterialProperty : public dealii::Function<dim>
 {
 public:
   ConstantMaterialProperty() = default;
+
+  virtual ~ConstantMaterialProperty() override = default;
 
   virtual double value(dealii::Point<dim> const &,
                        unsigned int const = 0) const override final
@@ -55,6 +59,8 @@ class LinearXMaterialProperty : public dealii::Function<dim>
 public:
   LinearXMaterialProperty() = default;
 
+  virtual ~LinearXMaterialProperty() override = default;
+
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override final
   {
@@ -67,6 +73,8 @@ class LinearMaterialProperty : public dealii::Function<dim>
 {
 public:
   LinearMaterialProperty() = default;
+
+  virtual ~LinearMaterialProperty() override = default;
 
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override final
@@ -84,6 +92,8 @@ class DiscontinuousMaterialProperty : public dealii::Function<dim>
 {
 public:
   DiscontinuousMaterialProperty() = default;
+
+  virtual ~DiscontinuousMaterialProperty() override = default;
 
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const = 0) const override final
@@ -137,6 +147,8 @@ public:
         _material_property(material_property)
   {
   }
+
+  virtual ~TestMeshEvaluator() override = default;
 
   virtual dealii::LinearAlgebra::distributed::Vector<double>
   get_locally_relevant_diag() const override final

@@ -64,6 +64,10 @@ inline void ASSERT_THROW(bool cond, std::string const &message)
 
 class NotImplementedExc : public std::exception
 {
+public:
+  virtual ~NotImplementedExc() override = default;
+
+private:
   virtual const char *what() const throw() final override
   {
     return "The function is not implemented";

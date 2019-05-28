@@ -19,6 +19,8 @@ namespace mfmg
 class MeshEvaluator
 {
 public:
+  virtual ~MeshEvaluator() = default;
+
   virtual int get_dim() const = 0;
 
   virtual std::string get_mesh_evaluator_type() const = 0;

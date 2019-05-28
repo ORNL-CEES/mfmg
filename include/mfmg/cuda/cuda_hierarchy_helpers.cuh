@@ -27,6 +27,8 @@ public:
 
   CudaHierarchyHelpers(CudaHandle const &cuda_handle);
 
+  virtual ~CudaHierarchyHelpers() override = default;
+
   std::shared_ptr<Operator<vector_type>> get_global_operator(
       std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
 

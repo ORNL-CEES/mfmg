@@ -36,6 +36,8 @@ public:
   DealIIMatrixFreeOperator(std::shared_ptr<DealIIMatrixFreeMeshEvaluator<dim>>
                                matrix_free_mesh_evaluator);
 
+  virtual ~DealIIMatrixFreeOperator() override = default;
+
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override final;
 

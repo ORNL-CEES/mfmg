@@ -26,6 +26,8 @@ class ExactSolution : public dealii::Function<dim>
 public:
   ExactSolution() = default;
 
+  virtual ~ExactSolution() override = default;
+
   double value(dealii::Point<dim> const &p,
                unsigned int const component = 0) const override;
 };
@@ -46,6 +48,8 @@ class Source : public dealii::Function<dim>
 {
 public:
   Source() = default;
+
+  virtual ~Source() override = default;
 
   double value(dealii::Point<dim> const &p,
                unsigned int const component = 0) const override;
@@ -73,6 +77,8 @@ class MaterialProperty : public dealii::Function<dim>
 {
 public:
   MaterialProperty() = default;
+
+  virtual ~MaterialProperty() override = default;
 
   double value(dealii::Point<dim> const &p,
                unsigned int const component = 0) const override;

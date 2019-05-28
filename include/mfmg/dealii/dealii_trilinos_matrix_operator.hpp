@@ -27,6 +27,8 @@ public:
   DealIITrilinosMatrixOperator(
       std::shared_ptr<dealii::TrilinosWrappers::SparseMatrix> sparse_matrix);
 
+  virtual ~DealIITrilinosMatrixOperator() override = default;
+
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override;
 

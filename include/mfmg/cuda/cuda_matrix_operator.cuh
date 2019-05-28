@@ -29,6 +29,8 @@ public:
   CudaMatrixOperator(
       std::shared_ptr<SparseMatrixDevice<value_type>> sparse_matrix);
 
+  virtual ~CudaMatrixOperator() override = default;
+
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override final;
 

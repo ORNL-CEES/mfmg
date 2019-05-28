@@ -29,8 +29,11 @@ public:
   DealIIMeshEvaluator(dealii::DoFHandler<dim> &dof_handler,
                       dealii::AffineConstraints<double> &constraints);
 
+  virtual ~DealIIMeshEvaluator() override = default;
+
   static int constexpr _dim = dim;
-  int get_dim() const override final;
+
+  virtual int get_dim() const override final;
 
   std::string get_mesh_evaluator_type() const override /*final*/;
 

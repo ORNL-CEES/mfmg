@@ -35,6 +35,8 @@ public:
   {
   }
 
+  virtual ~DiagonalTestMeshEvaluator() override = default;
+
   void evaluate_agglomerate(
       dealii::DoFHandler<2> &dof_handler,
       dealii::AffineConstraints<double> &constraint_matrix,

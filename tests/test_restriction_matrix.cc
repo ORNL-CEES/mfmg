@@ -42,6 +42,8 @@ public:
   {
   }
 
+  virtual ~DummyMeshEvaluator() override = default;
+
   void
   evaluate_global(dealii::DoFHandler<dim> &,
                   dealii::AffineConstraints<double> &,
@@ -171,6 +173,8 @@ class Source : public dealii::Function<dim>
 public:
   Source() = default;
 
+  virtual ~Source() override = default;
+
   virtual double value(dealii::Point<dim> const &p,
                        unsigned int const component = 0) const override final;
 };
@@ -186,6 +190,8 @@ class ConstantMaterialProperty : public dealii::Function<dim>
 {
 public:
   ConstantMaterialProperty() = default;
+
+  virtual ~ConstantMaterialProperty() override = default;
 
   virtual double value(dealii::Point<dim> const &,
                        unsigned int const = 0) const override final
@@ -205,6 +211,8 @@ public:
         _matrix(matrix)
   {
   }
+
+  virtual ~TestMeshEvaluator() override = default;
 
   void evaluate_global(dealii::DoFHandler<dim> &,
                        dealii::AffineConstraints<double> &,

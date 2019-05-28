@@ -37,6 +37,8 @@ public:
   {
   }
 
+  virtual ~DiagonalTestMeshEvaluator() override = default;
+
   // Diagonal matrices. We only need local evaluate function.
   void evaluate_agglomerate(
       dealii::DoFHandler<dim> &dof_handler,
@@ -135,6 +137,8 @@ public:
       : mfmg::DealIIMeshEvaluator<dim>(dof_handler, constraints)
   {
   }
+
+  virtual ~ConstrainedDiagonalTestMeshEvaluator() override = default;
 
   // Diagonal matrices. We only need local evaluate function.
   void evaluate_agglomerate(
