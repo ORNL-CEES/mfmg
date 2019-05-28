@@ -122,8 +122,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
       } scratch_data;
       struct CopyData
       {
-        std::vector<unsigned int> rows;
-        std::vector<unsigned int> cols;
+        std::vector<dealii::types::global_dof_index> rows;
+        std::vector<dealii::types::global_dof_index> cols;
         std::vector<std::vector<dealii::TrilinosScalar>> values_per_row;
       } copy_data;
 
