@@ -234,6 +234,11 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     // Fill delta_correction_matrix
     delta_correction_matrix.compress(dealii::VectorOperation::insert);
 
+    // Scale the eigenvectors by their corresponding eigenvalues.
+    // It turned out that accessing the individual matrix entries through the
+    // deal.II TrilinosWrapper::SparseMatrix::begin() interface is much slower
+    // than constucting a representation of the eigenvalues as
+    // Epetra_MultiVector and calling a Epetra_CrsMatrix member function.
     auto const range_start = eigenvector_matrix->local_range().first;
     auto const range_end = eigenvector_matrix->local_range().second;
 
@@ -241,7 +246,8 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     locally_owned_elements.add_range(range_start, range_end);
     dealii::TrilinosWrappers::MPI::Vector vector_eigenvalues(
         locally_owned_elements, comm);
-    std::vector<unsigned int> local_indices(eigenvalues.size());
+    std::vector<dealii::types::global_dof_index> local_indices(
+        eigenvalues.size());
     std::iota(local_indices.begin(), local_indices.end(), range_start);
     vector_eigenvalues.set(local_indices, eigenvalues);
     vector_eigenvalues.compress(dealii::VectorOperation::insert);
