@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
   namespace boost_po = boost::program_options;
 
   MPI_Init(&argc, &argv);
+  dealii::MultithreadInfo::set_thread_limit(1);
 
   boost_po::options_description cmd("Available options");
   cmd.add_options()("help,h", "produce help message");
