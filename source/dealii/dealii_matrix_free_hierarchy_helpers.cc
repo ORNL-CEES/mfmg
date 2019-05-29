@@ -157,6 +157,9 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
             auto const &dof_indices_map = local_copy_data.cols;
             unsigned int const n_elem = dof_indices_map.size();
 
+            // We need a clean reset for the values we are going to store.
+            // Otherwise, we would accumulate values across patches
+            // corresponding to different degrees of freedom.
             local_copy_data.values_per_row.resize(n_local_eigenvectors);
             std::fill(local_copy_data.values_per_row.begin(),
                       local_copy_data.values_per_row.end(),
