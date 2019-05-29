@@ -237,7 +237,7 @@ DealIIHierarchyHelpers<dim, VectorType>::build_restrictor(
     // Scale the eigenvectors by their corresponding eigenvalues.
     // It turned out that accessing the individual matrix entries through the
     // deal.II TrilinosWrapper::SparseMatrix::begin() interface is much slower
-    // than constucting a representation of the eigenvalues as
+    // than constructing a representation of the eigenvalues as
     // Epetra_MultiVector and calling a Epetra_CrsMatrix member function.
     auto const range_start = eigenvector_matrix->local_range().first;
     auto const range_end = eigenvector_matrix->local_range().second;

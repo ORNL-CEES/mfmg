@@ -178,9 +178,10 @@ void AMGe<dim, VectorType>::build_agglomerate_triangulation(
 {
   std::vector<typename dealii::DoFHandler<dim>::active_cell_iterator>
       agglomerate;
-  auto cell = _dof_handler.begin_active();
+  agglomerate.reserve(cell_index.size());
   if (cell_index.size() > 0)
   {
+    auto cell = _dof_handler.begin_active();
     std::advance(cell, cell_index[0]);
     agglomerate.push_back(cell);
 
