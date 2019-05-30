@@ -44,8 +44,8 @@ public:
   // don't need this as we can apply the constraints immediately after
   // applying the matrix and before any norms and dot products.
   // In addition, this has to work only for ARPACK with dealii::Vector<double>
-  void set_initial_guess(dealii::AffineConstraints<double> &constraints,
-                         dealii::Vector<double> &x) const;
+  static void set_initial_guess(dealii::AffineConstraints<double> &constraints,
+                                dealii::Vector<double> &x);
 
   virtual dealii::LinearAlgebra::distributed::Vector<double> get_diagonal();
 
