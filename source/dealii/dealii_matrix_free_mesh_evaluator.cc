@@ -36,10 +36,13 @@ DealIIMatrixFreeMeshEvaluator<dim>::build_range_vector() const
   auto const &triangulation = (this->_dof_handler).get_triangulation();
   using Triangulation =
       typename std::remove_reference<decltype(triangulation)>::type;
-  auto comm = static_cast<dealii::parallel::Triangulation<
-      Triangulation::dimension, Triangulation::space_dimension> const &>(
-                  triangulation)
-                  .get_communicator();
+  MPI_Comm comm;
+  if (const auto parallel_tria = dynamic_cast<dealii::parallel::Triangulation<
+          Triangulation::dimension, Triangulation::space_dimension> const *>(
+          &triangulation))
+    comm = parallel_tria->get_communicator();
+  else
+    comm = MPI_COMM_SELF;
 
   // Get the set of locally owned DoFs
   auto const &locally_owned_dofs = (this->_dof_handler).locally_owned_dofs();
