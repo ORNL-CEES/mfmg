@@ -203,7 +203,8 @@ BOOST_AUTO_TEST_CASE(benchmark)
 
 BOOST_AUTO_TEST_CASE(benchmark_mf)
 {
-  dealii::MultithreadInfo::set_thread_limit(1);
+  dealii::MultithreadInfo::set_thread_limit(
+      dealii::numbers::invalid_unsigned_int);
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
