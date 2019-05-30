@@ -120,17 +120,15 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
       } scratch_data;
       struct CopyData
       {
-        std::unordered_map<std::pair<unsigned int, unsigned int>, double,
-                           boost::hash<std::pair<unsigned int, unsigned int>>>
-            delta_correction_local_acc;
+        std::vector<dealii::types::global_dof_index> rows;
+        std::vector<dealii::types::global_dof_index> cols;
+        std::vector<std::vector<dealii::TrilinosScalar>> values_per_row;
       } copy_data;
 
       auto worker =
           [&](const std::vector<std::vector<unsigned int>>::const_iterator
                   &agglomerate_it,
               ScratchData &, CopyData &local_copy_data) {
-            local_copy_data.delta_correction_local_acc.clear();
-
             dealii::Triangulation<dim> agglomerate_triangulation;
             std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                      typename dealii::DoFHandler<dim>::active_cell_iterator>
@@ -152,11 +150,23 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
 
             // Put the result in the matrix
             // Compute the map between the local and the global dof indices.
-            std::vector<dealii::types::global_dof_index> dof_indices_map =
-                amge.compute_dof_index_map(patch_to_global_map,
-                                           agglomerate_dof_handler);
+            local_copy_data.rows.resize(n_local_eigenvectors);
+
+            local_copy_data.cols = amge.compute_dof_index_map(
+                patch_to_global_map, agglomerate_dof_handler);
+            auto const &dof_indices_map = local_copy_data.cols;
             unsigned int const n_elem = dof_indices_map.size();
+
+            // We need a clean reset for the values we are going to store.
+            // Otherwise, we would accumulate values across patches
+            // corresponding to different degrees of freedom.
+            local_copy_data.values_per_row.resize(n_local_eigenvectors);
+            std::fill(local_copy_data.values_per_row.begin(),
+                      local_copy_data.values_per_row.end(),
+                      std::vector<dealii::TrilinosScalar>(n_elem));
+
             unsigned int const i = agglomerate_it - agglomerates_vector.begin();
+
             for (unsigned int j = 0; j < n_local_eigenvectors; ++j)
             {
               unsigned int const local_row = i * n_local_eigenvectors + j;
@@ -191,23 +201,25 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
               dealii_mesh_evaluator->matrix_free_evaluate_agglomerate(
                   delta_eig, correction);
 
-              // We would like to fill the delta correction matrix but we can't
-              // because we don't know the sparsity pattern. So we accumulate
-              // all the values and then fill the matrix using the set()
-              // function.
-              for (unsigned int k = 0; k < n_elem; ++k)
-              {
-                local_copy_data.delta_correction_local_acc[std::make_pair(
-                    global_row, dof_indices_map[k])] += correction[k];
-              }
+              // Store the values the delta correction matrix is to be filled
+              // with.
+              local_copy_data.rows[j] = global_row;
+              std::transform(correction.begin(), correction.end(),
+                             local_copy_data.values_per_row[j].begin(),
+                             local_copy_data.values_per_row[j].begin(),
+                             std::plus<double>());
             }
           };
 
       auto copier = [&](const CopyData &local_copy_data) {
-        for (const auto &local_pair :
-             local_copy_data.delta_correction_local_acc)
+        for (unsigned int i = 0; i < local_copy_data.rows.size(); ++i)
         {
-          delta_correction_acc[local_pair.first] += local_pair.second;
+          // Since we didn't provide a sparsity pattern this "set" operation
+          // actually acts as an "add" operation until "compress" is called.
+          delta_correction_matrix.set(
+              local_copy_data.rows[i], local_copy_data.cols.size(),
+              local_copy_data.cols.data(),
+              local_copy_data.values_per_row[i].data(), true);
         }
       };
 
@@ -219,12 +231,33 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
     }
 
     // Fill delta_correction_matrix
-    for (auto const &entry : delta_correction_acc)
-    {
-      delta_correction_matrix.set(entry.first.first, entry.first.second,
-                                  entry.second);
-    }
     delta_correction_matrix.compress(dealii::VectorOperation::insert);
+
+    // Scale the eigenvectors by their corresponding eigenvalues.
+    // It turned out that accessing the individual matrix entries through the
+    // deal.II TrilinosWrapper::SparseMatrix::begin() interface is much slower
+    // than constructing a representation of the eigenvalues as
+    // Epetra_MultiVector and calling a Epetra_CrsMatrix member function.
+    auto const range_start = eigenvector_matrix->local_range().first;
+    auto const range_end = eigenvector_matrix->local_range().second;
+
+    dealii::IndexSet locally_owned_elements(eigenvector_matrix->m());
+    locally_owned_elements.add_range(range_start, range_end);
+    dealii::TrilinosWrappers::MPI::Vector vector_eigenvalues(
+        locally_owned_elements, comm);
+    std::vector<dealii::types::global_dof_index> local_indices(
+        eigenvalues.size());
+    std::iota(local_indices.begin(), local_indices.end(), range_start);
+    vector_eigenvalues.set(local_indices, eigenvalues);
+    vector_eigenvalues.compress(dealii::VectorOperation::insert);
+
+    Epetra_MultiVector &dummy_multi_vector =
+        vector_eigenvalues.trilinos_vector();
+    auto &dummy_matrix =
+        const_cast<Epetra_CrsMatrix &>(eigenvector_matrix->trilinos_matrix());
+    dummy_matrix.LeftScale(*dummy_multi_vector(0));
+
+    eigenvector_matrix->compress(dealii::VectorOperation::insert);
 
     // Add the eigenvector matrix and the delta correction matrix to create ap
     Epetra_CrsMatrix *ap = nullptr;
@@ -235,20 +268,6 @@ DealIIMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
     Epetra_Map range_map = eigenvector_matrix->domain_partitioner();
     Epetra_Map domain_map = eigenvector_matrix->range_partitioner();
 #pragma GCC diagnostic pop
-
-    auto const range_start = eigenvector_matrix->local_range().first;
-    auto const range_end = eigenvector_matrix->local_range().second;
-    for (unsigned int row = range_start; row < range_end; ++row)
-    {
-      auto const end_iterator = eigenvector_matrix->end(row);
-      for (auto column_iterator = eigenvector_matrix->begin(row);
-           column_iterator != end_iterator; ++column_iterator)
-      {
-        column_iterator->value() *= eigenvalues.at(row - range_start);
-      }
-    }
-    eigenvector_matrix->compress(dealii::VectorOperation::insert);
-
     bool const transpose = true;
     int error_code = EpetraExt::MatrixMatrix::Add(
         eigenvector_matrix->trilinos_matrix(), transpose, 1.,
