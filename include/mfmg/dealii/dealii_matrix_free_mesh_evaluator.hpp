@@ -57,6 +57,16 @@ public:
   virtual ~DealIIMatrixFreeMeshEvaluator() override = default;
 
   /**
+   * Create a deep copy of this class such that initializing on another
+   * agglomerate works.
+   */
+  virtual std::unique_ptr<DealIIMatrixFreeMeshEvaluator> clone() const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+    return std::make_unique<DealIIMatrixFreeMeshEvaluator>(*this);
+  }
+
+  /**
    * Return the class name as std::string.
    */
   std::string get_mesh_evaluator_type() const override final;
