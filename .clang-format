@@ -12,15 +12,15 @@ IncludeCategories:
   - Regex: "deal.II/*"
     Priority: 200
 # Then Trilinos
-  - Regex: "Epetra_*"
-    Priority: 300
-  - Regex: "ml_*"
-    Priority: 310
-  - Regex: "Teuchos_*"
-    Priority: 320
   - Regex: "Anasazi_*"
-    Priority: 330
+    Priority: 300
   - Regex: "Belos_*"
+    Priority: 310
+  - Regex: "ml_*"
+    Priority: 320
+  - Regex: "Epetra_*"
+    Priority: 330
+  - Regex: "Teuchos_*"
     Priority: 340
 # Then boost
   - Regex: "boost*"

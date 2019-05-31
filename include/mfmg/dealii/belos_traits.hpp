@@ -15,9 +15,9 @@
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/dealii/multivector.hpp>
 
-#include <Teuchos_RCP.hpp>
-
 #include <BelosMultiVecTraits.hpp>
+
+#include <Teuchos_RCP.hpp>
 
 #include <vector>
 
