@@ -63,6 +63,10 @@ AnasaziSolver<OperatorType, VectorType>::solve(
   // Specify that the residuals norms should not be scaled by their eigenvalues
   // for the purposing of deciding convergence
   solverParams.set("Relative Convergence Tolerance", false);
+  // Specity whether solver should employ a full orthogonalization technique
+  // This is may solve Chebyshev failure for large number of eigenvectors as
+  // noted in "Basis selection in LOBPCG" 2006 paper by Hetmaniuk and Lehoucq
+  solverParams.set("Full Ortho", params.get<bool>("full_ortho", true));
   // solverParams.set("Verbosity", 127);
   auto solver = Anasazi::Factory::create("LOBPCG", Teuchos::rcpFromRef(problem),
                                          solverParams);
