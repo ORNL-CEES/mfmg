@@ -19,6 +19,8 @@ bool init_function() { return true; }
 
 int main(int argc, char *argv[])
 {
+  // Set the maximum number of threads used to the minimum of the number of
+  // cores reported by TBB and the environment variable DEAL_II_NUM_THREADS.
   dealii::Utilities::MPI::MPI_InitFinalize mpi_init(
       argc, argv, dealii::numbers::invalid_unsigned_int);
 
