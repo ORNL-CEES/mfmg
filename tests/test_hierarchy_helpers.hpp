@@ -309,6 +309,10 @@ public:
   {
   }
 
+  // We need a copy constructor since the evaluator has to cloned for each
+  // agglomerate. Here, we just copy the minimum number of member variables
+  // required. In particular, we should not need to copy mutable members since
+  // they are set up in matrix_free_initialize_agglomerate only.
   TestMFMeshEvaluator(
       TestMFMeshEvaluator<dim, fe_degree, ScalarType> const &_other_evaluator)
       : mfmg::DealIIMatrixFreeMeshEvaluator<dim>(*this),
