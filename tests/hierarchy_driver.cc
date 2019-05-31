@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
     dim = vm["dim"].as<int>();
   mfmg::ASSERT(dim == 2 || dim == 3, "Dimension must be 2 or 3");
 
-  bool matrix_free = false;
+  bool matrix_free = true;
   if (vm.count("matrix_free"))
     matrix_free = vm["matrix_free"].as<bool>();
 
@@ -274,7 +274,6 @@ int main(int argc, char *argv[])
   if (matrix_free)
   {
     params->put("smoother.type", "Chebyshev");
-
     if (dim == 2)
     {
       switch (fe_degree)
@@ -418,6 +417,7 @@ int main(int argc, char *argv[])
   }
   else
   {
+    dealii::MultithreadInfo::set_thread_limit(1);
     if (dim == 2)
       matrix_based_two_grids<2>(params);
     else
