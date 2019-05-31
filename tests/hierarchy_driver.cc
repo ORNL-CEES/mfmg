@@ -20,7 +20,12 @@
 template <int dim, int fe_degree>
 void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
 {
-  const bool test_preconditioner = params->get("is preconditioner", true);
+  // In case the operator was configured to act as a solver, i.e.
+  // "is preconditioner" is false, we perform a set number of V-cycles and
+  // report the convergence rate. Otherwise, we solve the Laplace problem using
+  // the Hierarchy object as a solver and report the number of iterations
+  // required.
+  bool const test_preconditioner = params->get("is preconditioner", true);
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
 
@@ -100,6 +105,7 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
     dealii::SolverControl solver_control(solution.size(), 1.e-6, true, true);
     dealii::SolverCG<DVector> solver(solver_control);
 
+    // We frequently like to compare to not applying a preconditioner at all.
     solver.solve(mf_laplace._laplace_operator, solution, rhs,
                  //                 dealii::PreconditionIdentity()
                  hierarchy);
@@ -130,7 +136,7 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   Source<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
-  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 4);
+  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
   Laplace<dim, DVector> laplace(comm, fe_degree);
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
@@ -228,7 +234,7 @@ int main(int argc, char *argv[])
   auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
-  int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 4);
+  int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 1);
   params->put("fast_ap", true);
   params->put("eigensolver.type", "lanczos");
 
