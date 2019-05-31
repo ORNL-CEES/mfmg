@@ -179,15 +179,15 @@ matrix_transpose_matrix_multiply(
 }
 
 void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::SparseMatrix &matrix);
+    std::string const &filename,
+    dealii::TrilinosWrappers::SparseMatrix const &matrix);
 
-void matrix_market_output_file(const std::string &filename,
-                               const dealii::SparseMatrix<double> &matrix);
+void matrix_market_output_file(std::string const &filename,
+                               dealii::SparseMatrix<double> const &matrix);
 
 void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::MPI::Vector &vector);
+    std::string const &filename,
+    dealii::TrilinosWrappers::MPI::Vector const &vector);
 } // namespace mfmg
 
 #endif

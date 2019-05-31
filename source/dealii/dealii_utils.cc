@@ -61,8 +61,8 @@ extract_row(dealii::TrilinosWrappers::SparseMatrix const &matrix,
 
 // TODO: write down 4 maps
 void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::SparseMatrix &matrix)
+    std::string const &filename,
+    dealii::TrilinosWrappers::SparseMatrix const &matrix)
 {
   int rv = EpetraExt::RowMatrixToMatrixMarketFile(filename.c_str(),
                                                   matrix.trilinos_matrix());
@@ -70,8 +70,8 @@ void matrix_market_output_file(
                       std::to_string(rv));
 }
 
-void matrix_market_output_file(const std::string &filename,
-                               const dealii::SparseMatrix<double> &matrix)
+void matrix_market_output_file(std::string const &filename,
+                               dealii::SparseMatrix<double> const &matrix)
 {
   dealii::TrilinosWrappers::SparseMatrix trilinos_matrix;
   trilinos_matrix.reinit(matrix);
@@ -81,8 +81,8 @@ void matrix_market_output_file(const std::string &filename,
 
 // TODO: write the map
 void matrix_market_output_file(
-    const std::string &filename,
-    const dealii::TrilinosWrappers::MPI::Vector &vector)
+    std::string const &filename,
+    dealii::TrilinosWrappers::MPI::Vector const &vector)
 {
   int rv = EpetraExt::MultiVectorToMatrixMarketFile(filename.c_str(),
                                                     vector.trilinos_vector());

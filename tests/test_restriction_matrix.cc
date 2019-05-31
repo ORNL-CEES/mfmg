@@ -285,7 +285,7 @@ public:
   }
 
 private:
-  const dealii::TrilinosWrappers::SparseMatrix &_matrix;
+  dealii::TrilinosWrappers::SparseMatrix const &_matrix;
 };
 
 // FIXME relaxed tolerance from 1e-14 to 1e-4 for this test to pass while using

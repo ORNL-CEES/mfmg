@@ -43,21 +43,21 @@ private:
 
   template <typename FullOperatorType>
   static std::tuple<std::vector<double>, std::vector<VectorType>>
-  details_solve_lanczos(FullOperatorType const &op, const int num_requested,
+  details_solve_lanczos(FullOperatorType const &op, int const num_requested,
                         boost::property_tree::ptree const &params,
                         VectorType const &initial_guess);
 
   static std::tuple<std::vector<double>, std::vector<double>>
   details_calc_tridiag_epairs(std::vector<double> const &main_diagonal,
                               std::vector<double> const &sub_diagonal,
-                              const int num_requested);
+                              int const num_requested);
 
-  static bool details_check_convergence(double beta, const int num_evecs,
-                                        const int num_requested, double tol,
+  static bool details_check_convergence(double beta, int const num_evecs,
+                                        int const num_requested, double tol,
                                         std::vector<double> const &evecs);
 
   static std::vector<VectorType>
-  details_calc_evecs(const int num_requested, const int n,
+  details_calc_evecs(int const num_requested, int const n,
                      std::vector<VectorType> const &lanc_vectors,
                      std::vector<double> const &evecs_tridiag);
 };
