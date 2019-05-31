@@ -53,11 +53,17 @@ SimpleOperator<VectorType>::SimpleOperator(size_t dim, size_t multiplicity)
 template <typename VectorType>
 std::vector<double> SimpleOperator<VectorType>::get_evals() const
 {
-  std::vector<double> evals(_dim);
-  for (size_t i = 0; i < _dim; i++)
-    evals[i] = diag_value(i, _multiplicity);
+  return get_diag_elements();
+}
 
-  return evals;
+template <typename VectorType>
+std::vector<double> SimpleOperator<VectorType>::get_diag_elements() const
+{
+  std::vector<double> diag(_dim);
+  for (size_t i = 0; i < _dim; i++)
+    diag[i] = diag_value(i, _multiplicity);
+
+  return diag;
 }
 
 /// \brief Simple test operator: apply operator to a vector

@@ -47,9 +47,11 @@ struct Identity
  * to the operations required on an agglomerate.
  */
 template <typename MeshEvaluator>
-struct MatrixFreeAgglomerateOperator
+struct MatrixFreeAgglomerateOperator : OperatorBase<dealii::Vector<double>>
 {
   using size_type = typename MeshEvaluator::size_type;
+  using operator_type = MatrixFreeAgglomerateOperator<MeshEvaluator>;
+  using vector_type = dealii::Vector<double>;
 
   /**
    * This constructor expects @p mesh_evaluator to be an object that performs
@@ -88,15 +90,19 @@ struct MatrixFreeAgglomerateOperator
     return _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_constraints);
   }
 
-  /**
-   * Return the dimension of the range of the agglomerate operator.
-   */
-  size_type m() const { return _dof_handler.n_dofs(); }
+  double diag_element(const size_type i) const
+  {
+    auto x = _mesh_evaluator.matrix_free_get_agglomerate_diagonal(_dof_handler,
+                                                                  _constraints);
+    return x[i];
+  }
+
+  size_t m() const override { return _dof_handler.n_dofs(); }
 
   /**
    * Return the dimension of the domain of the agglomerate operator.
    */
-  size_type n() const { return _dof_handler.n_dofs(); }
+  size_t n() const override { return _dof_handler.n_dofs(); }
 
 private:
   /**
@@ -120,7 +126,7 @@ private:
    * get_diag_elements() to the correct subspace.
    */
   dealii::AffineConstraints<double> &_constraints;
-};
+}; // namespace mfmg
 
 template <int dim, typename MeshEvaluator, typename VectorType>
 AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
@@ -131,31 +137,6 @@ AMGe_host<dim, MeshEvaluator, VectorType>::AMGe_host(
 {
 }
 } // namespace mfmg
-
-namespace Anasazi
-{
-template <typename VectorType, typename MeshEvaluator>
-class OperatorTraits<double, mfmg::MultiVector<VectorType>,
-                     mfmg::MatrixFreeAgglomerateOperator<MeshEvaluator>>
-{
-  using MultiVectorType = mfmg::MultiVector<VectorType>;
-  using OperatorType = mfmg::MatrixFreeAgglomerateOperator<MeshEvaluator>;
-
-public:
-  static void Apply(OperatorType const &op, MultiVectorType const &x,
-                    MultiVectorType &y)
-  {
-    auto n_vectors = x.n_vectors();
-
-    ASSERT(x.size() == y.size(), "");
-    ASSERT(y.n_vectors() == n_vectors, "");
-
-    for (int i = 0; i < n_vectors; i++)
-      op.vmult(*y[i], *x[i]);
-  }
-};
-
-} // namespace Anasazi
 
 namespace mfmg
 {
@@ -206,12 +187,11 @@ void lanczos_compute_eigenvalues_and_eigenvectors(
             eigenvalues.begin());
 }
 
-template <typename AgglomerateOperator>
+template <typename OperatorType>
 void anasazi_compute_eigenvalues_and_eigenvectors(
     unsigned int n_eigenvectors, double tolerance,
     boost::property_tree::ptree const &eigensolver_params,
-    AgglomerateOperator const &agglomerate_operator,
-    dealii::Vector<double> const &initial_guess,
+    OperatorType const &op, dealii::Vector<double> const &initial_guess,
     std::vector<std::complex<double>> &eigenvalues,
     std::vector<dealii::Vector<double>> &eigenvectors)
 {
@@ -221,8 +201,7 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
   anasazi_params.put("max_iterations",
                      eigensolver_params.get("max_iterations", 1000));
 
-  AnasaziSolver<AgglomerateOperator, dealii::Vector<double>> solver(
-      agglomerate_operator);
+  AnasaziSolver<OperatorType, dealii::Vector<double>> solver(op);
 
   std::vector<double> real_eigenvalues;
   std::tie(real_eigenvalues, eigenvectors) =
@@ -234,6 +213,7 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
   std::copy(real_eigenvalues.begin(), real_eigenvalues.end(),
             eigenvalues.begin());
 }
+
 } // namespace
 
 template <int dim, typename MeshEvaluator, typename VectorType>
@@ -398,9 +378,11 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   }
   else if (eigensolver_type == "anasazi")
   {
-    anasazi_compute_eigenvalues_and_eigenvectors(
-        n_eigenvectors, tolerance, _eigensolver_params,
-        agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
+    ASSERT(false,
+           "Anasazi is disabled for regular matrix because of preconditioning");
+    // anasazi_compute_eigenvalues_and_eigenvectors(
+    // n_eigenvectors, tolerance, _eigensolver_params,
+    // agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
   }
   else if (eigensolver_type == "lapack")
   {

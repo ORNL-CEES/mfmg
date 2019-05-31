@@ -24,35 +24,10 @@
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
-namespace Anasazi
-{
-
-template <typename VectorType>
-class OperatorTraits<double, mfmg::MultiVector<VectorType>,
-                     mfmg::SimpleOperator<VectorType>>
-{
-  using MultiVectorType = mfmg::MultiVector<VectorType>;
-  using OperatorType = mfmg::SimpleOperator<VectorType>;
-
-public:
-  static void Apply(const OperatorType &op, const MultiVectorType &x,
-                    MultiVectorType &y)
-  {
-    auto n_vectors = x.n_vectors();
-
-    ASSERT(x.size() == y.size(), "");
-    ASSERT(y.n_vectors() == n_vectors, "");
-
-    for (int i = 0; i < n_vectors; i++)
-      op.vmult(*y[i], *x[i]);
-  }
-};
-
-} // namespace Anasazi
-
 BOOST_DATA_TEST_CASE(anasazi,
-                     bdata::make({1, 2}) * bdata::make({1, 2, 3, 5, 10}),
-                     multiplicity, n_distinct_eigenvalues)
+                     bdata::make({1, 2}) * bdata::make({1, 2, 3, 5, 10}) *
+                         bdata::make({false, true}),
+                     multiplicity, n_distinct_eigenvalues, use_preconditioner)
 {
   using namespace mfmg;
 
@@ -66,9 +41,9 @@ BOOST_DATA_TEST_CASE(anasazi,
 
   boost::property_tree::ptree anasazi_params;
   anasazi_params.put("num_eigenpairs", n_eigenvectors);
-
   anasazi_params.put("max_iterations", 1000);
   anasazi_params.put("tolerance", 1e-2);
+  anasazi_params.put("use_preconditioner", use_preconditioner);
 
   mfmg::AnasaziSolver<OperatorType, VectorType> solver(op);
 

@@ -23,6 +23,19 @@ enum class OperatorMode
 };
 
 template <typename VectorType>
+class OperatorBase
+{
+public:
+  using operator_type = OperatorBase<VectorType>;
+  using vector_type = VectorType;
+
+  virtual size_t m() const = 0;
+  virtual size_t n() const = 0;
+
+  virtual void vmult(VectorType &y, VectorType const &x) const = 0;
+};
+
+template <typename VectorType>
 class Operator
 {
 public:
