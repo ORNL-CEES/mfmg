@@ -37,8 +37,8 @@ BOOST_DATA_TEST_CASE(lanczos,
                                                  dealii::MemorySpace::CUDA>;
   using OperatorType = SimpleOperator<VectorType>;
 
-  const int n = 1000;
-  const int n_eigenvectors = n_distinct_eigenvalues * multiplicity;
+  int const n = 1000;
+  int const n_eigenvectors = n_distinct_eigenvalues * multiplicity;
 
   OperatorType op(n, multiplicity);
 
@@ -86,7 +86,7 @@ BOOST_DATA_TEST_CASE(lanczos,
   BOOST_TEST(computed_evals.size() == n_eigenvectors);
 
   // Loop to ensure each Ritz value is near an eigenvalue.
-  const double tolerance =
+  double const tolerance =
       lanczos_params.get<double>("tolerance"); // this may need adjustment
 
   std::sort(ref_evals.begin(), ref_evals.end());

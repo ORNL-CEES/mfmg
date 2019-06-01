@@ -22,7 +22,7 @@ namespace mfmg
 /// \brief Deflated operator: constructor
 template <typename OperatorType, typename VectorType>
 DeflatedOperator<OperatorType, VectorType>::DeflatedOperator(
-    const OperatorType &base_op)
+    OperatorType const &base_op)
     : _base_op(base_op)
 {
 }
@@ -59,8 +59,8 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
     std::vector<VectorType> const &vecs)
 {
 
-  const int num_old = _deflation_vecs.size();
-  const int num_new = vecs.size();
+  int const num_old = _deflation_vecs.size();
+  int const num_new = vecs.size();
 
   // Copy in new vectors
   for (auto const &v : vecs)
@@ -89,7 +89,7 @@ void DeflatedOperator<OperatorType, VectorType>::add_deflation_vecs(
 
     for (int j = i; j < num_new; ++j)
     {
-      const double dot_this =
+      double const dot_this =
           _deflation_vecs[perm_ind[j]] * _deflation_vecs[perm_ind[j]];
 
       if (dot_this > dot_best)

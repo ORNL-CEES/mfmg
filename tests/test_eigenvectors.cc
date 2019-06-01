@@ -73,7 +73,7 @@ public:
 
 BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
 {
-  const int dim = 2;
+  int const dim = 2;
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 
@@ -176,7 +176,7 @@ public:
 
 BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
 {
-  const int dim = 2;
+  int const dim = 2;
   using Vector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<2>;
 

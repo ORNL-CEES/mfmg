@@ -72,7 +72,7 @@ struct MatrixFreeAgglomerateOperator
    * Perform the operator evaluation on the agglomerate.
    */
   void vmult(dealii::Vector<double> &dst,
-             const dealii::Vector<double> &src) const
+             dealii::Vector<double> const &src) const
   {
     _mesh_evaluator.matrix_free_evaluate_agglomerate(src, dst);
   }
@@ -342,13 +342,13 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     diag_elements[i] = agglomerate_system_matrix.diag_element(i);
 
   // Shift eigenvalues away from zero
-  const double average_diagonal =
+  double const average_diagonal =
       std::accumulate(diag_elements.begin(), diag_elements.end(), 0.) / size;
   for (unsigned int i = 0; i < size; ++i)
     agglomerate_system_matrix.diag_element(i) += average_diagonal;
   // Shift diagonal entries for constrained degrees of freedom, to avoid
   // using the corresponding eigenvectors
-  for (const auto constraint : agglomerate_constraints.get_lines())
+  for (auto const constraint : agglomerate_constraints.get_lines())
   {
     agglomerate_system_matrix.diag_element(constraint.index) = 200;
   }

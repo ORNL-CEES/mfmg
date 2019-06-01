@@ -169,7 +169,7 @@ public:
     _n_smoothing_steps = params->get("smoother.n_smoothing_steps", 1);
 
     // TODO: add stopping criteria for levels (number of levels / coarse size)
-    const int num_levels = params->get("max levels", 2);
+    int const num_levels = params->get("max levels", 2);
     _levels.resize(num_levels);
 
     _levels[0].set_operator(hierarchy_helpers->get_global_operator(evaluator));

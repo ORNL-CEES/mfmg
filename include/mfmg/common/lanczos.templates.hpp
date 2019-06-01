@@ -85,9 +85,9 @@ std::tuple<std::vector<double>, std::vector<VectorType>>
 Lanczos<OperatorType, VectorType>::solve(
     boost::property_tree::ptree const &params, VectorType initial_guess) const
 {
-  const bool is_deflated = params.get<bool>("is_deflated", false);
+  bool const is_deflated = params.get<bool>("is_deflated", false);
 
-  const int n_eigenvectors = params.get<int>("num_eigenpairs");
+  int const n_eigenvectors = params.get<int>("num_eigenpairs");
 
   int num_cycles = 1;
   int num_evecs_per_cycle = n_eigenvectors;
@@ -180,12 +180,12 @@ template <typename OperatorType, typename VectorType>
 template <typename FullOperatorType>
 std::tuple<std::vector<double>, std::vector<VectorType>>
 Lanczos<OperatorType, VectorType>::details_solve_lanczos(
-    FullOperatorType const &op, const int num_requested,
+    FullOperatorType const &op, int const num_requested,
     boost::property_tree::ptree const &params, VectorType const &initial_guess)
 {
-  const int maxit = params.get<int>("max_iterations");
-  const double tol = params.get<double>("tolerance");
-  const int percent_overshoot = params.get<int>("percent_overshoot", 0);
+  int const maxit = params.get<int>("max_iterations");
+  double const tol = params.get<double>("tolerance");
+  int const percent_overshoot = params.get<int>("percent_overshoot", 0);
 
   ASSERT(0 <= percent_overshoot && percent_overshoot < 100,
          "Lanczos overshoot percentage should be in [0, 100)");
@@ -193,7 +193,7 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
   ASSERT(maxit >= num_requested, "Lanczos max iterations is too small to "
                                  "produce required number of eigenvectors.");
 
-  const int n = op.n();
+  int const n = op.n();
 
   std::vector<double> evals;
   std::vector<VectorType> evecs;
@@ -256,7 +256,7 @@ Lanczos<OperatorType, VectorType>::details_solve_lanczos(
         (100 * (it - it_prev_check) > percent_overshoot * it_prev_check);
     if (first_iteration || max_iterations_reached || percent_overshoot_exceeded)
     {
-      const int dim_hessenberg = it;
+      int const dim_hessenberg = it;
       ASSERT((size_t)dim_hessenberg == main_diagonal.size(), "Internal error");
 
       // Calculate eigenpairs of tridiagonal matrix for convergence test or at
@@ -298,9 +298,9 @@ template <typename OperatorType, typename VectorType>
 std::tuple<std::vector<double>, std::vector<double>>
 Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
     std::vector<double> const &main_diagonal,
-    std::vector<double> const &sub_diagonal, const int num_requested)
+    std::vector<double> const &sub_diagonal, int const num_requested)
 {
-  const int n = main_diagonal.size();
+  int const n = main_diagonal.size();
 
   ASSERT(n >= 1, "Internal error: tridigonal matrix size must be positive");
   ASSERT(sub_diagonal.size() == (size_t)(n - 1),
@@ -326,7 +326,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
   // It guarantees that the eigenvalues are returned in ascending order.
   // NOTE: as some arguments are invalidated during the routine, we make a copy
   // of the off-diagonal prior to the call.
-  const lapack_int info =
+  lapack_int const info =
       LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n, evals.data(),
                     sub_diagonal_aux.data(), evecs_aux.data(), n);
   ASSERT(!info, "Call to LAPACKE_dstev failed.");
@@ -343,7 +343,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 
   // The following tolerance may need adjustment, however this doesn't
   // seem critical (cf. C/W vol. 1). Cullum/Willoughby use 1e-12.
-  const double tol2 = 5.e-12;
+  double const tol2 = 5.e-12;
 
   // Identify repeated eigenvalues.
   // A "marked" eigenvalue here is nonrepeated or first of a set of repeated.
@@ -365,7 +365,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 
   // Identify spurious eigenvalues
   std::vector<bool> is_spurious(n, false);
-  const int n2 = n - 1;
+  int const n2 = n - 1;
   if (n2 >= 1 && n2 >= num_requested)
   {
     // Solve an eigenproblem based on deleting the first row and col of the
@@ -377,7 +377,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
                                           sub_diagonal.end());
     std::vector<double> evecs_aux2(n2 * n2);
 
-    const lapack_int info2 =
+    lapack_int const info2 =
         LAPACKE_dstev(LAPACK_COL_MAJOR, 'V', n2, evals2.data(),
                       sub_diagonal_aux2.data(), evecs_aux2.data(), n2);
     ASSERT(!info2, "Call to LAPACKE_dstev failed.");
@@ -397,7 +397,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
       // Note the looping is rigged here to avoid an O(n^2) algorithm.
       for (int j = j_start; j < n2; ++j)
       {
-        const bool is_t2j_below = (evals2[j] < evals[i] - tol2);
+        bool const is_t2j_below = (evals2[j] < evals[i] - tol2);
         if (is_t2j_below)
         {
           // For the next i, evals[i] will be >= this one,
@@ -406,7 +406,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
           continue;
         }
 
-        const bool is_t2j_above = (evals2[j] > evals[i] + tol2);
+        bool const is_t2j_above = (evals2[j] > evals[i] + tol2);
         if (is_t2j_above)
           // we have passed up evals[i], so no match.
           break;
@@ -455,7 +455,7 @@ Lanczos<OperatorType, VectorType>::details_calc_tridiag_epairs(
 /// \brief Lanczos solver: perform convergence check
 template <typename OperatorType, typename VectorType>
 bool Lanczos<OperatorType, VectorType>::details_check_convergence(
-    double beta, const int num_evecs, const int num_requested, double tol,
+    double beta, int const num_evecs, int const num_requested, double tol,
     std::vector<double> const &evecs)
 {
   // Must iterate at least until we have num_requested eigenpairs
@@ -471,7 +471,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
   // based on (estimate of) matrix norm or similar.
   for (int i = 0; i < num_requested; ++i)
   {
-    const double bound = beta * std::abs(evecs[num_evecs - 1 + num_evecs * i]);
+    double const bound = beta * std::abs(evecs[num_evecs - 1 + num_evecs * i]);
     is_converged = is_converged && bound <= tol;
   }
 
@@ -482,7 +482,7 @@ bool Lanczos<OperatorType, VectorType>::details_check_convergence(
 /// eigenvectors
 template <typename OperatorType, typename VectorType>
 std::vector<VectorType> Lanczos<OperatorType, VectorType>::details_calc_evecs(
-    const int num_requested, const int n,
+    int const num_requested, int const n,
     std::vector<VectorType> const &lanc_vectors,
     std::vector<double> const &evecs_tridiag)
 {
