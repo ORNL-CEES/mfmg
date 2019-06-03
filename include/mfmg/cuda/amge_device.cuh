@@ -15,6 +15,8 @@
 #include <mfmg/common/amge.hpp>
 #include <mfmg/common/exceptions.hpp>
 #include <mfmg/cuda/cuda_handle.cuh>
+#include <mfmg/cuda/cuda_matrix_free_mesh_evaluator.cuh>
+#include <mfmg/cuda/cuda_mesh_evaluator.cuh>
 #include <mfmg/cuda/sparse_matrix_device.cuh>
 
 #include <deal.II/lac/cuda_vector.h>
@@ -28,7 +30,9 @@ public:
   using ScalarType = typename VectorType::value_type;
 
   AMGe_device(MPI_Comm comm, dealii::DoFHandler<dim> const &dof_handler,
-              CudaHandle const &cuda_handle);
+              CudaHandle const &cuda_handle,
+              boost::property_tree::ptree const &eigensolver_params =
+                  boost::property_tree::ptree());
 
   /**
    * Compute the eigenvalues, the eigenvectors, the local diagonal elements, the
@@ -40,15 +44,34 @@ public:
    *  operator
    */
   // The function cannot be const because we use the handles
+  template <typename TriangulationType>
   std::tuple<ScalarType *, ScalarType *, ScalarType *,
              std::vector<dealii::types::global_dof_index>>
   compute_local_eigenvectors(
-      unsigned int n_eigenvectors,
-      dealii::Triangulation<dim> const &agglomerate_triangulation,
+      unsigned int n_eigenvectors, double const tolerance,
+      TriangulationType const &agglomerate_triangulation,
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      MeshEvaluator const &evaluator);
+      MeshEvaluator const &evaluator,
+      typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<TriangulationType>::value,
+                                int> = 0);
+
+  template <typename TriangulationType>
+  std::tuple<ScalarType *, ScalarType *, ScalarType *,
+             std::vector<dealii::types::global_dof_index>>
+  compute_local_eigenvectors(
+      unsigned int n_eigenvectors, double const tolerance,
+      TriangulationType const &agglomerate_triangulation,
+      std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
+               typename dealii::DoFHandler<dim>::active_cell_iterator> const
+          &patch_to_global_map,
+      MeshEvaluator const &evaluator,
+
+      typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
+                                    std::is_class<TriangulationType>::value,
+                                int> = 0);
 
   /**
    * Compute the restriction sparse matrix. The rows of the matrix are the
@@ -78,6 +101,7 @@ public:
 
 private:
   CudaHandle const &_cuda_handle;
+  boost::property_tree::ptree _eigensolver_params;
 };
 } // namespace mfmg
 

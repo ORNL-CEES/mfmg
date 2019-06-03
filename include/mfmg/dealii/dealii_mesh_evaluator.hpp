@@ -72,12 +72,6 @@ protected:
   dealii::DoFHandler<dim> &_dof_handler;
   dealii::AffineConstraints<double> &_constraints;
 };
-
-template <typename T>
-struct is_matrix_free : std::false_type
-{
-};
-
 } // namespace mfmg
 
 #endif

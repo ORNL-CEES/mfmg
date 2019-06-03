@@ -24,6 +24,12 @@ CudaMatrixFreeHierarchyHelpers<dim, VectorType>::CudaMatrixFreeHierarchyHelpers(
 {
 }
 
+template <int dim>
+std::string CudaMeshEvaluator<dim>::get_mesh_evaluator_type() const
+{
+  return "CudaMatrixFreeMeshEvaluator";
+}
+
 template <int dim, typename VectorType>
 std::shared_ptr<Operator<VectorType>>
 CudaMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
@@ -50,7 +56,7 @@ CudaMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
           mesh_evaluator);
 
   auto eigensolver_params = params->get_child("eigensolver");
-  AMGe_device<dim, CudaMeshEvaluator<dim>, vector_type> amge(
+  AMGe_device<dim, CudaMatrixFreeMeshEvaluator<dim>, vector_type> amge(
       comm, cuda_mesh_evaluator->get_dof_handler(), this->_cuda_handle);
 
   auto agglomerate_params = params->get_child("agglomeration");

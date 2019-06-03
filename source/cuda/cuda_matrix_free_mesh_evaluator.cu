@@ -14,6 +14,12 @@
 namespace mfmg
 {
 template <int dim>
+std::string CudaMatrixFreeMeshEvaluator<dim>::get_mesh_evaluator_type() const
+{
+  return "CudaMatrixFreeMeshEvaluator";
+}
+
+template <int dim>
 std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
 CudaMatrixFreeMeshEvaluator<dim>::build_range_vector() const
 {

@@ -34,7 +34,7 @@ public:
 
   virtual int get_dim() const override final;
 
-  virtual std::string get_mesh_evaluator_type() const override final;
+  virtual std::string get_mesh_evaluator_type() const override;
 
   virtual void evaluate_agglomerate(dealii::DoFHandler<dim> &,
                                     dealii::AffineConstraints<double> &,
@@ -69,6 +69,7 @@ protected:
   dealii::DoFHandler<dim> &_dof_handler;
   dealii::AffineConstraints<double> &_constraints;
 };
+
 } // namespace mfmg
 
 #endif

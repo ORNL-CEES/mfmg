@@ -22,12 +22,18 @@ template <int dim>
 class CudaMatrixFreeMeshEvaluator : public CudaMeshEvaluator<dim>
 {
 public:
+  using size_type = unsigned int;
+
+  static int constexpr _dim = dim;
+
   CudaMatrixFreeMeshEvaluator(CudaHandle const &cuda_handle,
                               dealii::DoFHandler<dim> &dof_handler,
                               dealii::AffineConstraints<double> &constraints)
       : CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints)
   {
   }
+
+  virtual std::string get_mesh_evaluator_type() const override final;
 
   void apply(dealii::LinearAlgebra::distributed::Vector<
                  double, dealii::MemorySpace::CUDA> const &src,
@@ -42,6 +48,36 @@ public:
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
   build_range_vector() const;
 
+  void set_initial_guess(dealii::AffineConstraints<double> & /*constraints*/,
+                         dealii::LinearAlgebra::distributed::Vector<
+                             double, dealii::MemorySpace::CUDA> & /*x*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
+  virtual void matrix_free_initialize_agglomerate(dealii::DoFHandler<dim> &
+                                                  /*dof_handler*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
+  virtual void matrix_free_evaluate_agglomerate(
+      dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA> const & /*src*/,
+      dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA> & /*dst*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
+  virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
+      dealii::AffineConstraints<double> & /*constraints*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return std::vector<double>();
+  }
+
   // TODO
   template <typename VectorType>
   VectorType get_diagonal_inverse() const
@@ -49,6 +85,12 @@ public:
     return VectorType();
   }
 };
+
+template <int dim>
+struct is_matrix_free<CudaMatrixFreeMeshEvaluator<dim>> : std::true_type
+{
+};
+
 } // namespace mfmg
 
 #endif

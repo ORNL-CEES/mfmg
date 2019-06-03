@@ -28,3 +28,17 @@ template class mfmg::AMGe_device<2, mfmg::CudaMeshEvaluator<2>,
 template class mfmg::AMGe_device<3, mfmg::CudaMeshEvaluator<3>,
                                  dealii::LinearAlgebra::distributed::Vector<
                                      double, dealii::MemorySpace::CUDA>>;
+
+template class mfmg::AMGe_device<2, mfmg::CudaMatrixFreeMeshEvaluator<2>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::Host>>;
+template class mfmg::AMGe_device<3, mfmg::CudaMatrixFreeMeshEvaluator<3>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::Host>>;
+
+template class mfmg::AMGe_device<2, mfmg::CudaMatrixFreeMeshEvaluator<2>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::CUDA>>;
+template class mfmg::AMGe_device<3, mfmg::CudaMatrixFreeMeshEvaluator<3>,
+                                 dealii::LinearAlgebra::distributed::Vector<
+                                     double, dealii::MemorySpace::CUDA>>;
