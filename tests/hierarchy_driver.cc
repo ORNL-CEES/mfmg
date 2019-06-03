@@ -119,6 +119,8 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
 template <int dim>
 void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
 {
+  bool const test_preconditioner = params->get<bool>("is preconditioner");
+
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
   using MeshEvaluator = mfmg::DealIIMeshEvaluator<dim>;
 
@@ -167,31 +169,48 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
           material_property));
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params, timer);
 
-  // We want to do 20 V-cycle iterations. The rhs of is zero.
-  // Use D(istributed)Vector because deal has its own Vector class
-  DVector residual(rhs);
-  unsigned int const n_cycles = 20;
-  std::vector<double> res(n_cycles + 1);
-
-  a.vmult(residual, solution);
-  residual.sadd(-1., 1., rhs);
-  auto const residual0_norm = residual.l2_norm();
-
-  std::cout << std::scientific;
-  res[0] = 1.0;
-  for (unsigned int i = 0; i < n_cycles; ++i)
+  if (!test_preconditioner)
   {
-    hierarchy.vmult(solution, rhs);
+    // We want to do 20 V-cycle iterations. The rhs of is zero.
+    // Use D(istributed)Vector because deal has its own Vector class
+    DVector residual(rhs);
+    unsigned int const n_cycles = 20;
+    std::vector<double> res(n_cycles + 1);
 
     a.vmult(residual, solution);
     residual.sadd(-1., 1., rhs);
-    double rel_residual = residual.l2_norm() / residual0_norm;
-    res[i + 1] = rel_residual;
-  }
+    auto const residual0_norm = residual.l2_norm();
 
-  double const conv_rate = res[n_cycles] / res[n_cycles - 1];
-  pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
-        << conv_rate << std::endl;
+    std::cout << std::scientific;
+    res[0] = 1.0;
+    for (unsigned int i = 0; i < n_cycles; ++i)
+    {
+      hierarchy.vmult(solution, rhs);
+
+      a.vmult(residual, solution);
+      residual.sadd(-1., 1., rhs);
+      double rel_residual = residual.l2_norm() / residual0_norm;
+      res[i + 1] = rel_residual;
+    }
+
+    double const conv_rate = res[n_cycles] / res[n_cycles - 1];
+    pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
+          << conv_rate << std::endl;
+  }
+  else
+  {
+    auto const solver_tolerance =
+        params->get<double>("solver.tolerance", 1.e-6);
+    dealii::SolverControl solver_control(solution.size(), solver_tolerance);
+    dealii::SolverCG<DVector> solver(solver_control);
+
+    // We frequently like to compare to not applying a preconditioner at all.
+    solver.solve(a, solution, rhs,
+                 //                 dealii::PreconditionIdentity()
+                 hierarchy);
+    pcout << "Converging after " << solver_control.last_step()
+          << " iterations.\n";
+  }
 }
 
 int main(int argc, char *argv[])
@@ -206,8 +225,6 @@ int main(int argc, char *argv[])
   cmd.add_options()("filename,f", boost_po::value<std::string>()->multitoken(),
                     "file containing input parameters");
   cmd.add_options()("dim,d", boost_po::value<int>(), "dimension");
-  cmd.add_options()("matrix_free,m", boost_po::value<bool>(),
-                    "use matrix-free algorithm");
   cmd.add_options()("tolerance,t", boost_po::value<double>(),
                     "tolerance to use for the solver");
 
@@ -231,10 +248,6 @@ int main(int argc, char *argv[])
     dim = vm["dim"].as<int>();
   mfmg::ASSERT(dim == 2 || dim == 3, "Dimension must be 2 or 3");
 
-  bool matrix_free = false;
-  if (vm.count("matrix_free"))
-    matrix_free = vm["matrix_free"].as<bool>();
-
   auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
@@ -249,12 +262,16 @@ int main(int argc, char *argv[])
   }
   params->put("solver.tolerance", solver_tolerance);
 
-  std::cout << "input file: " << filename << ", dimension: " << dim
-            << ", matrix-free: " << matrix_free << ", fe_degree: " << fe_degree
-            << ", solver_tolerance: " << solver_tolerance << std::endl;
-
-  if (matrix_free)
+  // matrix-free
+  for (bool preconditioner : {true, false})
   {
+    params->put("is preconditioner", preconditioner);
+    params->put("smoother.type", "Chebyshev");
+    std::cout << "input file: " << filename << ", dimension: " << dim
+              << ", matrix-free: true, preconditioner: " << preconditioner
+              << ", fe_degree: " << fe_degree
+              << ", solver_tolerance: " << solver_tolerance << std::endl;
+
     if (dim == 2)
     {
       switch (fe_degree)
@@ -396,8 +413,16 @@ int main(int argc, char *argv[])
       }
     }
   }
-  else
+
+  // matrix-based
+  for (bool preconditioner : {true, false})
   {
+    params->put("is preconditioner", preconditioner);
+    params->put("smoother.type", "Gauss-Seidel");
+    std::cout << "input file: " << filename << ", dimension: " << dim
+              << ", matrix-free: false, preconditioner: " << preconditioner
+              << ", fe_degree: " << fe_degree
+              << ", solver_tolerance: " << solver_tolerance << std::endl;
     if (dim == 2)
       matrix_based_two_grids<2>(params);
     else
