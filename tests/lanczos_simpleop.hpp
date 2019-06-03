@@ -28,7 +28,7 @@ namespace mfmg
 ///        multiplicity.
 
 template <typename VectorType_>
-class SimpleOperator
+class SimpleOperator : public OperatorBase<VectorType_>
 {
 public:
   // Typedefs
@@ -42,10 +42,12 @@ public:
 
   std::vector<double> get_evals() const;
 
-  void vmult(VectorType &y, VectorType const &x) const;
+  void vmult(VectorType &y, VectorType const &x) const override;
 
-  size_t m() const { return _dim; }
-  size_t n() const { return _dim; }
+  std::vector<double> get_diag_elements() const;
+
+  size_t m() const override { return _dim; }
+  size_t n() const override { return _dim; }
 
 private:
   size_t _dim;

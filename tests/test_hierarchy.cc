@@ -283,7 +283,8 @@ BOOST_DATA_TEST_CASE(
     params->put("laplace.distort_random", distort_random);
     params->put("laplace.reordering", reordering);
 
-    if (is_matrix_free && eigensolver == "arpack")
+    if (is_matrix_free && eigensolver == "arpack" ||
+        !is_matrix_free && eigensolver == "anasazi")
     {
       // skipping since ARPACK eigensolver is not available in matrix-free mode
       std::cout << "skip\n";

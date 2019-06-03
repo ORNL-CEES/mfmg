@@ -13,6 +13,7 @@
 #define MFMG_ANASAZI_TEMPLATES_HPP
 
 #include <mfmg/common/exceptions.hpp>
+#include <mfmg/common/operator.hpp>
 #include <mfmg/dealii/anasazi.hpp>
 #include <mfmg/dealii/anasazi_traits.hpp>
 #ifdef HAVE_ANASAZI_BELOS
@@ -20,6 +21,71 @@
 #endif
 #include <AnasaziBasicEigenproblem.hpp>
 #include <AnasaziFactory.hpp>
+
+namespace mfmg
+{
+
+template <typename VectorType>
+class DiagonalOperator : public OperatorBase<VectorType>
+{
+public:
+  using operator_type = DiagonalOperator<VectorType>;
+  using vector_type = dealii::Vector<double>;
+
+  DiagonalOperator(std::vector<double> const &diag)
+  {
+    _diag.resize(diag.size());
+    std::transform(diag.begin(), diag.end(), _diag.begin(),
+                   [](auto v) { return (v ? 1. / v : 0.); });
+  }
+
+  DiagonalOperator(const DiagonalOperator<VectorType> &) = delete;
+  DiagonalOperator<VectorType> &
+  operator=(const DiagonalOperator<VectorType> &) = delete;
+
+  void vmult(VectorType &y, VectorType const &x) const
+  {
+    auto dim = _diag.size();
+    ASSERT(x.size() == dim, "");
+    ASSERT(y.size() == dim, "");
+
+    for (size_t i = 0; i < dim; ++i)
+      y[i] = _diag[i] * x[i];
+  }
+
+  size_t m() const override { return _diag.size(); }
+  size_t n() const override { return _diag.size(); }
+
+private:
+  std::vector<double> _diag;
+};
+} // namespace mfmg
+
+namespace Anasazi
+{
+
+template <typename VectorType>
+class OperatorTraits<double, mfmg::MultiVector<VectorType>,
+                     mfmg::OperatorBase<VectorType>>
+{
+  using MultiVectorType = mfmg::MultiVector<VectorType>;
+  using OperatorType = mfmg::OperatorBase<VectorType>;
+
+public:
+  static void Apply(const OperatorType &op, const MultiVectorType &x,
+                    MultiVectorType &y)
+  {
+    auto n_vectors = x.n_vectors();
+
+    ASSERT(x.size() == y.size(), "");
+    ASSERT(y.n_vectors() == n_vectors, "");
+
+    for (int i = 0; i < n_vectors; i++)
+      op.vmult(*y[i], *x[i]);
+  }
+};
+
+} // namespace Anasazi
 
 namespace mfmg
 {
@@ -41,7 +107,9 @@ AnasaziSolver<OperatorType, VectorType>::solve(
   using MultiVectorType = MultiVector<VectorType>;
   const int n_eigenvectors = params.get<int>("num_eigenpairs");
 
-  Anasazi::BasicEigenproblem<double, MultiVectorType, OperatorType> problem;
+  Anasazi::BasicEigenproblem<double, MultiVectorType,
+                             mfmg::OperatorBase<VectorType>>
+      problem;
 
   MultiVectorType mv_initial_guess(1);
   *mv_initial_guess[0] = initial_guess;
@@ -52,6 +120,10 @@ AnasaziSolver<OperatorType, VectorType>::solve(
   problem.setA(Teuchos::rcpFromRef(_op));
   problem.setNEV(n_eigenvectors);
   problem.setInitVec(Teuchos::rcpFromRef(mv_initial_guess));
+
+  DiagonalOperator<VectorType> prec(_op.get_diag_elements());
+  if (params.get<bool>("use_preconditioner", true))
+    problem.setPrec(Teuchos::rcpFromRef(prec));
 
   bool r = problem.setProblem();
   ASSERT(r, "Anasazi could not setup the problem");

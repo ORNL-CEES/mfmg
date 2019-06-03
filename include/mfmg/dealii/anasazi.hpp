@@ -21,6 +21,9 @@ template <typename OperatorType, typename VectorType>
 class AnasaziSolver
 {
 public:
+  using operator_type = OperatorBase<VectorType>;
+  using vector_type = VectorType;
+
   // Constructors
   AnasaziSolver(OperatorType const &op);
 
