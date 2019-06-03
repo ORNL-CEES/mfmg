@@ -25,7 +25,7 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   // report the convergence rate. Otherwise, we solve the Laplace problem using
   // the Hierarchy object as a solver and report the number of iterations
   // required.
-  bool const test_preconditioner = params->get("is preconditioner", true);
+  bool const test_preconditioner = params->get<bool>("is preconditioner");
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
 
@@ -102,7 +102,9 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   }
   else
   {
-    dealii::SolverControl solver_control(solution.size(), 1.e-6, true, true);
+    auto const solver_tolerance =
+        params->get<double>("solver.tolerance", 1.e-6);
+    dealii::SolverControl solver_control(solution.size(), solver_tolerance);
     dealii::SolverCG<DVector> solver(solver_control);
 
     // We frequently like to compare to not applying a preconditioner at all.
@@ -206,6 +208,8 @@ int main(int argc, char *argv[])
   cmd.add_options()("dim,d", boost_po::value<int>(), "dimension");
   cmd.add_options()("matrix_free,m", boost_po::value<bool>(),
                     "use matrix-free algorithm");
+  cmd.add_options()("tolerance,t", boost_po::value<double>(),
+                    "tolerance to use for the solver");
 
   boost_po::variables_map vm;
   boost_po::store(boost_po::parse_command_line(argc, argv, cmd), vm);
@@ -238,9 +242,16 @@ int main(int argc, char *argv[])
   params->put("fast_ap", true);
   params->put("eigensolver.type", "lanczos");
 
+  double solver_tolerance = 1.e-6;
+  if (vm.count("tolerance"))
+  {
+    solver_tolerance = vm["tolerance"].as<double>();
+  }
+  params->put("solver.tolerance", solver_tolerance);
+
   std::cout << "input file: " << filename << ", dimension: " << dim
             << ", matrix-free: " << matrix_free << ", fe_degree: " << fe_degree
-            << std::endl;
+            << ", solver_tolerance: " << solver_tolerance << std::endl;
 
   if (matrix_free)
   {
