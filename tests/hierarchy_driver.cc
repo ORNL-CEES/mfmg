@@ -225,6 +225,8 @@ int main(int argc, char *argv[])
   cmd.add_options()("filename,f", boost_po::value<std::string>()->multitoken(),
                     "file containing input parameters");
   cmd.add_options()("dim,d", boost_po::value<int>(), "dimension");
+  cmd.add_options()("matrix_free,m", boost_po::value<bool>(),
+                    "use matrix-free algorithm");
   cmd.add_options()("tolerance,t", boost_po::value<double>(),
                     "tolerance to use for the solver");
 
@@ -248,6 +250,10 @@ int main(int argc, char *argv[])
     dim = vm["dim"].as<int>();
   mfmg::ASSERT(dim == 2 || dim == 3, "Dimension must be 2 or 3");
 
+  bool matrix_free = false;
+  if (vm.count("matrix_free"))
+    matrix_free = vm["matrix_free"].as<bool>();
+
   auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
@@ -262,15 +268,13 @@ int main(int argc, char *argv[])
   }
   params->put("solver.tolerance", solver_tolerance);
 
-  // matrix-free
-  for (bool preconditioner : {true, false})
+  std::cout << "input file: " << filename << ", dimension: " << dim
+            << ", matrix-free: " << matrix_free << ", fe_degree: " << fe_degree
+            << ", solver_tolerance: " << solver_tolerance << std::endl;
+
+  if (matrix_free)
   {
-    params->put("is preconditioner", preconditioner);
     params->put("smoother.type", "Chebyshev");
-    std::cout << "input file: " << filename << ", dimension: " << dim
-              << ", matrix-free: true, preconditioner: " << preconditioner
-              << ", fe_degree: " << fe_degree
-              << ", solver_tolerance: " << solver_tolerance << std::endl;
 
     if (dim == 2)
     {
@@ -413,16 +417,8 @@ int main(int argc, char *argv[])
       }
     }
   }
-
-  // matrix-based
-  for (bool preconditioner : {true, false})
+  else
   {
-    params->put("is preconditioner", preconditioner);
-    params->put("smoother.type", "Gauss-Seidel");
-    std::cout << "input file: " << filename << ", dimension: " << dim
-              << ", matrix-free: false, preconditioner: " << preconditioner
-              << ", fe_degree: " << fe_degree
-              << ", solver_tolerance: " << solver_tolerance << std::endl;
     if (dim == 2)
       matrix_based_two_grids<2>(params);
     else
