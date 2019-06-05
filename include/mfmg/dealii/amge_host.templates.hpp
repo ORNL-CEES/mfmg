@@ -215,6 +215,11 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
     std::vector<std::complex<double>> &eigenvalues,
     std::vector<dealii::Vector<double>> &eigenvectors)
 {
+#ifdef ANASAZI_TEUCHOS_TIME_MONITOR
+  ASSERT(false, "ANASAZI_TEUCHOS_TIME_MONITOR interferes with thread-support "
+                "and must be disabled.");
+#endif
+
   boost::property_tree::ptree anasazi_params;
   anasazi_params.put("num_eigenpairs", n_eigenvectors);
   anasazi_params.put("tolerance", std::max(tolerance, 1e-2));
