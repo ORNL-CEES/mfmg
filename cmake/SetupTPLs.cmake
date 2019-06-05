@@ -19,6 +19,26 @@ IF(NOT DEAL_II_WITH_TRILINOS)
           "Error! deal.II must be compiled with Trilinos support.")
 ENDIF()
 
+INCLUDE(CheckCXXSourceCompiles)
+SET(CMAKE_REQUIRED_INCLUDES ${DEAL_II_INCLUDE_DIRS})
+CHECK_CXX_SOURCE_COMPILES(
+  "
+  #include <Anasazi_config.h>
+
+  #ifdef ANASAZI_TEUCHOS_TIME_MONITOR
+  error
+  #endif
+  int main(){}
+  "
+  MFMG_APPROPRIATE_ANASAZI
+  )
+UNSET(CMAKE_REQUIRED_INCLUDES)
+IF(NOT MFMG_APPROPRIATE_ANASAZI)
+  MESSAGE(FATAL_ERROR
+          "Error! Trilinos was not configured with Anasazi support or defines "
+	  "ANASAZI_TEUCHOS_TIME_MONITOR.")
+ENDIF()
+
 # If deal.II was configured in DebugRelease mode, then if mfmg was configured
 # in Debug mode, we link against the Debug version of deal.II. If mfmg was
 # configured in Release mode, we link against the Release version of deal.II. If
