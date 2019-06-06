@@ -167,6 +167,7 @@ RUN export TRILINOS_HASH=316ed8236deebb613301e41bcf901aebc08cee74 && \
         -DTrilinos_ENABLE_TESTS=OFF \
         -DTrilinos_ENABLE_EXAMPLES=OFF \
         -DTrilinos_ENABLE_Anasazi=ON \
+        -DAnasazi_ENABLE_TEUCHOS_TIME_MONITOR=OFF \
         -DTrilinos_ENABLE_Amesos=ON \
         -DTrilinos_ENABLE_AztecOO=ON \
         -DTrilinos_ENABLE_Epetra=ON \

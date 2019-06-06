@@ -15,8 +15,30 @@ FIND_PACKAGE(Boost 1.65.1 REQUIRED COMPONENTS ${Boost_COMPONENTS})
 FIND_PACKAGE(deal.II 9.0 REQUIRED PATHS ${DEAL_II_DIR})
 
 IF(NOT DEAL_II_WITH_TRILINOS)
-  MESSAGE(FATAL_ERROR 
+  MESSAGE(SEND_ERROR
           "Error! deal.II must be compiled with Trilinos support.")
+ENDIF()
+
+# ANASAZI_TEUCHOS_TIME_MONITOR interferes with thread-support
+# and must be disabled in Trilinos.
+INCLUDE(CheckCXXSourceCompiles)
+SET(CMAKE_REQUIRED_INCLUDES ${DEAL_II_INCLUDE_DIRS})
+CHECK_CXX_SOURCE_COMPILES(
+  "
+  #include <Anasazi_config.h>
+
+  #ifdef ANASAZI_TEUCHOS_TIME_MONITOR
+  error
+  #endif
+  int main(){}
+  "
+  MFMG_APPROPRIATE_ANASAZI
+  )
+UNSET(CMAKE_REQUIRED_INCLUDES)
+IF(NOT MFMG_APPROPRIATE_ANASAZI)
+  MESSAGE(SEND_ERROR
+          "Error! Trilinos was not configured with Anasazi support or defines "
+	  "ANASAZI_TEUCHOS_TIME_MONITOR.")
 ENDIF()
 
 # If deal.II was configured in DebugRelease mode, then if mfmg was configured
@@ -45,7 +67,7 @@ FIND_PATH(LAPACKE_INCLUDE_DIR lapacke.h
 
 IF(NOT LAPACKE_INCLUDE_DIR)
   MESSAGE(STATUS "${LAPACKE_INCLUDE_DIR}")
-  MESSAGE(FATAL_ERROR
+  MESSAGE(SEND_ERROR
           "Error! Could not locate LAPACKE.")
 ENDIF()
 
@@ -63,7 +85,7 @@ ELSE()
                PATH_SUFFIXES lib)
 
   IF(NOT LAPACKE_LIBRARY)
-    MESSAGE(FATAL_ERROR
+    MESSAGE(SEND_ERROR
             "Error! Could not locate LAPACKE.")
   ENDIF()
 ENDIF()
