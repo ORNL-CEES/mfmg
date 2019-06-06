@@ -12,6 +12,8 @@
 #include <mfmg/common/instantiation.hpp>
 #include <mfmg/common/operator.hpp>
 #include <mfmg/dealii/amge_host.hpp>
+// Needed for MatrixFreeAgglomerateOperator, the definition should be moved
+// elsewhere.
 #include <mfmg/dealii/amge_host.templates.hpp>
 #include <mfmg/dealii/dealii_matrix_free_hierarchy_helpers.hpp>
 #include <mfmg/dealii/dealii_matrix_free_mesh_evaluator.hpp>

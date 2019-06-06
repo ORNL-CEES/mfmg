@@ -58,7 +58,11 @@ public:
 
   /**
    * Create a deep copy of this class such that initializing on another
-   * agglomerate works.
+   * agglomerate works. This was introduced because calls to member functions
+   * matrix_free_initialize_agglomerate() and matrix_free_evaluate_agglomerate()
+   * (implemented in user provided classes deriving from
+   * DealIIMatrixFreeMeshEvaluator) are not thread-safe. There might be other
+   * options to solve this problem.
    */
   virtual std::unique_ptr<DealIIMatrixFreeMeshEvaluator> clone() const
   {
