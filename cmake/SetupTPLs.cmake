@@ -19,6 +19,8 @@ IF(NOT DEAL_II_WITH_TRILINOS)
           "Error! deal.II must be compiled with Trilinos support.")
 ENDIF()
 
+# ANASAZI_TEUCHOS_TIME_MONITOR interferes with thread-support
+# and must be disabled in Trilinos.
 INCLUDE(CheckCXXSourceCompiles)
 SET(CMAKE_REQUIRED_INCLUDES ${DEAL_II_INCLUDE_DIRS})
 CHECK_CXX_SOURCE_COMPILES(
