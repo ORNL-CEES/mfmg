@@ -36,6 +36,15 @@
 #include "main.cc"
 #include "test_hierarchy_helpers.hpp"
 
+// In a lot of places in this file, we explicitly set the number of threads to
+// use since some of the tests cases don't work with multiple threads yet. This
+// works as follow: dealii::MultithreadInfo::set_thread_limit sets the number of
+// threads to the minimum its the argument and the environment variable
+// DEAL_II_NUM_THREADS. TBB is asked for the maximum nuber of cores if the
+// minimum is dealii::numbers::invalid_unsigned_int. Consequently,
+// MultithreadInfo::set_thread_limit(numbers::invalid_unsigned int) sets the
+// number of threads to the ones specified in the environment variable.
+
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
@@ -203,7 +212,8 @@ BOOST_AUTO_TEST_CASE(benchmark)
 
 BOOST_AUTO_TEST_CASE(benchmark_mf)
 {
-  dealii::MultithreadInfo::set_thread_limit(1);
+  dealii::MultithreadInfo::set_thread_limit(
+      dealii::numbers::invalid_unsigned_int);
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
