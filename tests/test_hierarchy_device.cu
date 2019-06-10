@@ -15,14 +15,100 @@
 #include <mfmg/cuda/utils.cuh>
 
 #include <deal.II/base/conditional_ostream.h>
+#include <deal.II/lac/read_write_vector.h>
 
 #include <boost/property_tree/info_parser.hpp>
 
 #include <random>
 
 #include "laplace.hpp"
+#include "laplace_matrix_free_device.cuh"
 #include "main.cc"
 #include "test_hierarchy_helpers_device.cuh"
+
+template <int dim>
+double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
+{
+  using DVector =
+      dealii::LinearAlgebra::distributed::Vector<double,
+                                                 dealii::MemorySpace::CUDA>;
+  using value_type = typename DVector::value_type;
+  using MeshEvaluator = mfmg::CudaMatrixFreeMeshEvaluator<dim>;
+
+  mfmg::CudaHandle cuda_handle;
+
+  MPI_Comm comm = MPI_COMM_WORLD;
+
+  dealii::ConditionalOStream pcout(
+      std::cout, dealii::Utilities::MPI::this_mpi_process(comm) == 0);
+
+  auto material_property =
+      MaterialPropertyFactory<dim>::create_material_property(
+          params->get<std::string>("material_property.type"));
+  Source<dim> source;
+
+  auto laplace_ptree = params->get_child("laplace");
+  int constexpr fe_degree = 1;
+  LaplaceMatrixFreeDevice<dim, fe_degree, value_type> mf_laplace(comm);
+  mf_laplace.setup_system(laplace_ptree, *material_property);
+
+  auto const locally_owned_dofs = mf_laplace._locally_owned_dofs;
+  DVector solution(locally_owned_dofs, comm);
+  DVector rhs(mf_laplace._system_rhs);
+
+  dealii::LinearAlgebra::ReadWriteVector<value_type> rw_vector(
+      locally_owned_dofs);
+  std::default_random_engine generator;
+  std::uniform_real_distribution<value_type> distribution(0., 1.);
+  for (auto const index : locally_owned_dofs)
+  {
+    // Make the solution satisfy the Dirichlet conditions because these should
+    // be treated outside the preconditioner
+    if (mf_laplace._constraints.is_constrained(index))
+      rw_vector[index] = 0.;
+    else
+      rw_vector[index] = distribution(generator);
+  }
+  solution.import(rw_vector, dealii::VectorOperation::insert);
+
+  auto evaluator =
+      std::make_shared<TestMFMeshEvaluator<dim, fe_degree, value_type>>(
+          mf_laplace._dof_handler, mf_laplace._constraints,
+          *mf_laplace._laplace_operator, material_property, cuda_handle);
+  mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
+
+  auto const &laplace_operator = mf_laplace._laplace_operator;
+
+  // We want to do 20 V-cycle iterations. The rhs of is zero.
+  // Use D(istributed)Vector because deal has its own Vector class
+  DVector residual(rhs);
+  unsigned int const n_cycles = 20;
+  std::vector<double> res(n_cycles + 1);
+
+  laplace_operator->vmult(residual, solution);
+  residual.sadd(-1., 1., rhs);
+  auto const residual0_norm = residual.l2_norm();
+
+  std::cout << std::scientific;
+  pcout << "#0: " << 1.0 << std::endl;
+  res[0] = 1.0;
+  for (unsigned int i = 0; i < n_cycles; ++i)
+  {
+    hierarchy.apply(rhs, solution);
+
+    laplace_operator->vmult(residual, solution);
+    residual.sadd(-1., 1., rhs);
+    double rel_residual = residual.l2_norm() / residual0_norm;
+    pcout << "#" << i + 1 << ": " << rel_residual << std::endl;
+    res[i + 1] = rel_residual;
+  }
+
+  double const conv_rate = res[n_cycles] / res[n_cycles - 1];
+  pcout << "Convergence rate: " << std::fixed << std::setprecision(2)
+        << conv_rate << std::endl;
+
+  return conv_rate;
+}
 
 template <int dim>
 double test(std::shared_ptr<boost::property_tree::ptree> params)

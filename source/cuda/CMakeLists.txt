@@ -8,6 +8,7 @@ SET(MFMG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/cuda_matrix_free_operator.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/cuda_mesh_evaluator.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/cuda_matrix_free_mesh_evaluator.cu
+  ${CMAKE_CURRENT_SOURCE_DIR}/cuda_matrix_free_smoother.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/cuda_smoother.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/cuda_solver.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/dealii_operator_device_helpers.cu

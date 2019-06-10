@@ -35,13 +35,15 @@ std::shared_ptr<Operator<VectorType>>
 CudaMatrixFreeHierarchyHelpers<dim, VectorType>::get_global_operator(
     std::shared_ptr<MeshEvaluator> mesh_evaluator)
 {
-  if (this->_operator == nullptr)
-  {
-    this->_operator.reset(
-        new CudaMatrixFreeOperator<VectorType>(mesh_evaluator));
-  }
+  auto matrix_free_mesh_evaluator =
+      std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<dim>>(
+          mesh_evaluator);
+  ASSERT(matrix_free_mesh_evaluator != nullptr, "downcasting failed");
+  std::shared_ptr<Operator<VectorType>> global_operator =
+      std::make_shared<CudaMatrixFreeOperator<dim, VectorType>>(
+          matrix_free_mesh_evaluator);
 
-  return this->_operator;
+  return global_operator;
 }
 
 template <int dim, typename VectorType>
@@ -82,9 +84,3 @@ template class mfmg::CudaMatrixFreeHierarchyHelpers<
 template class mfmg::CudaMatrixFreeHierarchyHelpers<
     3, dealii::LinearAlgebra::distributed::Vector<double,
                                                   dealii::MemorySpace::CUDA>>;
-template class mfmg::CudaMatrixFreeHierarchyHelpers<
-    2, dealii::LinearAlgebra::distributed::Vector<double,
-                                                  dealii::MemorySpace::Host>>;
-template class mfmg::CudaMatrixFreeHierarchyHelpers<
-    3, dealii::LinearAlgebra::distributed::Vector<double,
-                                                  dealii::MemorySpace::Host>>;

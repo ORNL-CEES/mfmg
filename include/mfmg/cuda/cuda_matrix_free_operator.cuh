@@ -14,13 +14,13 @@
 
 #ifdef MFMG_WITH_CUDA
 
-#include <mfmg/common/mesh_evaluator.hpp>
 #include <mfmg/common/operator.hpp>
 #include <mfmg/cuda/cuda_handle.cuh>
+#include <mfmg/cuda/cuda_matrix_free_mesh_evaluator.cuh>
 
 namespace mfmg
 {
-template <typename VectorType>
+template <int dim, typename VectorType>
 class CudaMatrixFreeOperator : public Operator<VectorType>
 {
 public:
@@ -28,8 +28,17 @@ public:
   using value_type = typename VectorType::value_type;
   using vector_type = VectorType;
 
-  CudaMatrixFreeOperator(
-      std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator);
+  CudaMatrixFreeOperator(std::shared_ptr<CudaMatrixFreeMeshEvaluator<dim>>
+                             matrix_free_mesh_evaluator);
+
+  void vmult(vector_type &dst, vector_type const &src) const;
+
+  // Needed because the extract_row works only on the host
+  void apply(dealii::LinearAlgebra::distributed::Vector<
+                 value_type, dealii::MemorySpace::Host> const &x,
+             dealii::LinearAlgebra::distributed::Vector<
+                 value_type, dealii::MemorySpace::Host> &y,
+             OperatorMode mode = OperatorMode::NO_TRANS) const;
 
   void apply(vector_type const &x, vector_type &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const override final;
@@ -50,13 +59,14 @@ public:
 
   size_t operator_complexity() const override final;
 
-  VectorType get_diagonal_inverse() const;
+  std::shared_ptr<dealii::DiagonalMatrix<VectorType>>
+  get_diagonal_inverse() const;
 
   CudaHandle const &get_cuda_handle() const;
 
 private:
   CudaHandle const &_cuda_handle;
-  std::shared_ptr<MeshEvaluator> _mesh_evaluator;
+  std::shared_ptr<CudaMatrixFreeMeshEvaluator<dim>> _mesh_evaluator;
 };
 } // namespace mfmg
 

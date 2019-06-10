@@ -10,8 +10,8 @@
  *************************************************************************/
 
 #include <mfmg/cuda/cuda_matrix_free_operator.cuh>
+#include <mfmg/cuda/cuda_matrix_free_smoother.cuh>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
-#include <mfmg/cuda/cuda_smoother.cuh>
 #include <mfmg/cuda/dealii_operator_device_helpers.cuh>
 #include <mfmg/cuda/utils.cuh>
 
@@ -97,8 +97,8 @@ __global__ void extract_inv_diag(ScalarType const *const matrix_value,
 }
 } // namespace
 
-template <typename VectorType>
-CudaSmoother<VectorType>::CudaSmoother(
+template <int dim, typename VectorType>
+CudaMatrixFreeSmoother<dim, VectorType>::CudaMatrixFreeSmoother(
     std::shared_ptr<Operator<VectorType> const> op,
     std::shared_ptr<boost::property_tree::ptree const> params)
     : Smoother<VectorType>(op, params)
@@ -110,58 +110,53 @@ CudaSmoother<VectorType>::CudaSmoother(
 
   ASSERT_THROW(prec_type == "jacobi", "Only Jacobi smoother is implemented.");
 
-  // Downcast the operator. We need to extract the diagonal and inverse it.
-  auto cuda_matrix_operator =
-      std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(
+  // Downcast the operator and ask the user for the inverse of the diagonal
+  auto cuda_matrix_free_operator =
+      std::dynamic_pointer_cast<CudaMatrixFreeOperator<dim, VectorType> const>(
           this->_operator);
-  auto sparse_matrix = cuda_matrix_operator->get_matrix();
-
-  ASSERT(sparse_matrix->m() == sparse_matrix->n(),
-         "The matrix is not square. The matrix is a " +
-             std::to_string(sparse_matrix->m()) + " by " +
-             std::to_string(sparse_matrix->n()) + " .");
-
-  // Extract diagonal elements
-  unsigned int const size = sparse_matrix->n_local_rows();
+  VectorType inv_diagonal =
+      cuda_matrix_free_operator->get_diagonal_inverse()->get_vector();
+  auto partitioner = inv_diagonal.get_partitioner();
+  unsigned int const size = partitioner->local_size();
   value_type *val_dev = nullptr;
   cuda_malloc(val_dev, size);
+  if (std::is_same<VectorType, dealii::LinearAlgebra::distributed::Vector<
+                                   double, dealii::MemorySpace::CUDA>>::value)
+  {
+    cudaError_t cuda_error_code =
+        cudaMemcpy(val_dev, inv_diagonal.get_values(), size * sizeof(double),
+                   cudaMemcpyDeviceToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+  else
+  {
+    cudaError_t cuda_error_code =
+        cudaMemcpy(val_dev, inv_diagonal.get_values(), size * sizeof(double),
+                   cudaMemcpyHostToDevice);
+    ASSERT_CUDA(cuda_error_code);
+  }
+
   int *column_index_dev = nullptr;
   cuda_malloc(column_index_dev, size);
   int *row_ptr_dev = nullptr;
   cuda_malloc(row_ptr_dev, size + 1);
-  unsigned int const local_nnz = sparse_matrix->local_nnz();
-  int *row_index_coo_dev = nullptr;
-  cuda_malloc(row_index_coo_dev, local_nnz);
 
-  // Change to COO format. The only thing that needs to be change to go from
-  // CSR to COO is to change row_ptr_dev with row_index_coo_dev.
-  cusparseStatus_t cusparse_error_code = cusparseXcsr2coo(
-      sparse_matrix->cusparse_handle, sparse_matrix->row_ptr_dev, local_nnz,
-      size, row_index_coo_dev, CUSPARSE_INDEX_BASE_ZERO);
-  ASSERT_CUSPARSE(cusparse_error_code);
-
-  int n_blocks = 1 + (local_nnz - 1) / block_size;
-  extract_inv_diag<<<n_blocks, block_size>>>(
-      sparse_matrix->val_dev, sparse_matrix->column_index_dev,
-      row_index_coo_dev, local_nnz, val_dev);
-
-  n_blocks = 1 + (size - 1) / block_size;
+  int n_blocks = 1 + (size - 1) / block_size;
   iota<<<n_blocks, block_size>>>(size, column_index_dev);
 
   n_blocks = 1 + size / block_size;
   iota<<<n_blocks, block_size>>>(size + 1, row_ptr_dev);
 
-  _smoother.reinit(sparse_matrix->get_mpi_communicator(), val_dev,
-                   column_index_dev, row_ptr_dev, size,
-                   sparse_matrix->locally_owned_range_indices(),
-                   sparse_matrix->locally_owned_range_indices(),
-                   sparse_matrix->cusparse_handle);
-
-  cuda_free(row_index_coo_dev);
+  _smoother.reinit(
+      partitioner->get_mpi_communicator(), val_dev, column_index_dev,
+      row_ptr_dev, size, partitioner->locally_owned_range(),
+      partitioner->locally_owned_range(),
+      cuda_matrix_free_operator->get_cuda_handle().cusparse_handle);
 }
 
-template <typename VectorType>
-void CudaSmoother<VectorType>::apply(VectorType const &b, VectorType &x) const
+template <int dim, typename VectorType>
+void CudaMatrixFreeSmoother<dim, VectorType>::apply(VectorType const &b,
+                                                    VectorType &x) const
 {
   auto cuda_operator =
       std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(
@@ -171,7 +166,15 @@ void CudaSmoother<VectorType>::apply(VectorType const &b, VectorType &x) const
 }
 } // namespace mfmg
 
-template class mfmg::CudaSmoother<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::Host>>;
-template class mfmg::CudaSmoother<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::CUDA>>;
+// template class mfmg::CudaMatrixFreeSmoother<
+//    2, dealii::LinearAlgebra::distributed::Vector<double,
+//                                                  dealii::MemorySpace::Host>>;
+// template class mfmg::CudaMatrixFreeSmoother<
+//    3, dealii::LinearAlgebra::distributed::Vector<double,
+//                                                  dealii::MemorySpace::Host>>;
+template class mfmg::CudaMatrixFreeSmoother<
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;
+template class mfmg::CudaMatrixFreeSmoother<
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;

@@ -16,130 +16,71 @@
 #include <mfmg/cuda/utils.cuh>
 #include <mfmg/dealii/dealii_utils.hpp>
 
+#include <memory>
+
 namespace mfmg
 {
-namespace
-{
-template <typename VectorType>
-struct RangeVector
-{
-  static std::shared_ptr<VectorType>
-  build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator);
-};
-
-template <typename VectorType>
-std::shared_ptr<VectorType>
-RangeVector<VectorType>::build_vector(std::shared_ptr<MeshEvaluator> const &)
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
-
-template <>
-std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::Host>>
-RangeVector<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::Host>>::
-    build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
-{
-  auto dealii_range_vector =
-      mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-                mesh_evaluator)
-                ->build_range_vector()
-          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-                mesh_evaluator)
-                ->build_range_vector();
-  return dealii_range_vector;
-}
-
-template <>
-std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::CUDA>>
-RangeVector<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::CUDA>>::
-    build_vector(std::shared_ptr<MeshEvaluator> const &mesh_evaluator)
-{
-  auto dealii_range_vector =
-      mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-                mesh_evaluator)
-                ->build_range_vector()
-          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-                mesh_evaluator)
-                ->build_range_vector();
-  auto range_vector =
-      std::make_shared<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>(
-          copy_from_host(*dealii_range_vector));
-
-  return range_vector;
-}
-} // namespace
-
-template <typename VectorType>
-CudaMatrixFreeOperator<VectorType>::CudaMatrixFreeOperator(
-    std::shared_ptr<MeshEvaluator> matrix_free_mesh_evaluator)
-    : _cuda_handle(std::dynamic_pointer_cast<CudaMeshEvaluator<2>>(
-                       matrix_free_mesh_evaluator) != nullptr
-                       ? std::dynamic_pointer_cast<CudaMeshEvaluator<2>>(
-                             matrix_free_mesh_evaluator)
-                             ->get_cuda_handle()
-                       : std::dynamic_pointer_cast<CudaMeshEvaluator<3>>(
-                             matrix_free_mesh_evaluator)
-                             ->get_cuda_handle()),
+template <int dim, typename VectorType>
+CudaMatrixFreeOperator<dim, VectorType>::CudaMatrixFreeOperator(
+    std::shared_ptr<CudaMatrixFreeMeshEvaluator<dim>>
+        matrix_free_mesh_evaluator)
+    : _cuda_handle(matrix_free_mesh_evaluator->get_cuda_handle()),
       _mesh_evaluator(std::move(matrix_free_mesh_evaluator))
 {
-  int const dim = _mesh_evaluator->get_dim();
-  std::string const downcasting_failure_error_message =
-      "Must pass a matrix free mesh evaluator to create an operator";
-  if (dim == 2)
-  {
-    ASSERT(std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-               _mesh_evaluator) != nullptr,
-           downcasting_failure_error_message);
-  }
-  else if (dim == 3)
-  {
-    ASSERT(std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-               _mesh_evaluator) != nullptr,
-           downcasting_failure_error_message);
-  }
-  else
-  {
-    ASSERT_THROW_NOT_IMPLEMENTED();
-  }
 }
 
-template <typename VectorType>
-void CudaMatrixFreeOperator<VectorType>::apply(VectorType const &x,
-                                               VectorType &y,
-                                               OperatorMode mode) const
+template <int dim, typename VectorType>
+void CudaMatrixFreeOperator<dim, VectorType>::vmult(VectorType &dst,
+                                                    VectorType const &src) const
+{
+  _mesh_evaluator->matrix_free_evaluate_global(src, dst);
+}
+
+template <int dim, typename VectorType>
+void CudaMatrixFreeOperator<dim, VectorType>::apply(
+    dealii::LinearAlgebra::distributed::Vector<
+        value_type, dealii::MemorySpace::Host> const &x,
+    dealii::LinearAlgebra::distributed::Vector<value_type,
+                                               dealii::MemorySpace::Host> &y,
+    OperatorMode mode) const
 {
   if (mode != OperatorMode::NO_TRANS)
+  {
     ASSERT_THROW_NOT_IMPLEMENTED();
-  _mesh_evaluator->get_dim() == 2
-      ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-            _mesh_evaluator)
-            ->apply(x, y)
-      : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-            _mesh_evaluator)
-            ->apply(x, y);
+  }
+
+  auto x_dev = copy_from_host(x);
+  auto y_dev = copy_from_host(y);
+
+  _mesh_evaluator->matrix_free_evaluate_global(x_dev, y_dev);
+
+  y = copy_from_dev(y_dev);
 }
 
-template <typename VectorType>
+template <int dim, typename VectorType>
+void CudaMatrixFreeOperator<dim, VectorType>::apply(VectorType const &x,
+                                                    VectorType &y,
+                                                    OperatorMode mode) const
+{
+  if (mode != OperatorMode::NO_TRANS)
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+  this->vmult(y, x);
+}
+
+template <int dim, typename VectorType>
 std::shared_ptr<Operator<VectorType>>
-CudaMatrixFreeOperator<VectorType>::transpose() const
+CudaMatrixFreeOperator<dim, VectorType>::transpose() const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 
   return nullptr;
 }
 
-template <typename VectorType>
+template <int dim, typename VectorType>
 std::shared_ptr<Operator<VectorType>>
-CudaMatrixFreeOperator<VectorType>::multiply(
+CudaMatrixFreeOperator<dim, VectorType>::multiply(
     std::shared_ptr<Operator<VectorType> const> /*b*/) const
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
@@ -147,58 +88,39 @@ CudaMatrixFreeOperator<VectorType>::multiply(
   return nullptr;
 }
 
-template <>
-std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<double>>>
-CudaMatrixFreeOperator<dealii::LinearAlgebra::distributed::Vector<double>>::
-    multiply_transpose(
-        std::shared_ptr<
-            Operator<dealii::LinearAlgebra::distributed::Vector<double>> const>
-            b) const
+template <int dim, typename VectorType>
+std::shared_ptr<Operator<VectorType>>
+CudaMatrixFreeOperator<dim, VectorType>::multiply_transpose(
+    std::shared_ptr<Operator<VectorType> const> b) const
 {
   // TODO for now we perform this operation on the host
   // Downcast operator
-  auto downcast_b = std::dynamic_pointer_cast<CudaMatrixOperator<
-      dealii::LinearAlgebra::distributed::Vector<double>> const>(b);
+  auto downcast_b =
+      std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(b);
 
   auto tmp = this->build_range_vector();
   auto b_sparse_matrix_dev = downcast_b->get_matrix();
   auto b_sparse_matrix = convert_to_trilinos_matrix(*b_sparse_matrix_dev);
 
-  // FIXME The function below needs to perform many vmult where the operator is
-  // on the device but the source and the destination vectors are on the host.
-  // The move from the host to the device and reverse is handled by the apply
-  // function in
+  // FIXME The function below needs to perform many vmult where the operator
+  // is on the device but the source and the destination vectors are on the
+  // host. The move from the host to the device and reverse is handled by
+  // the apply function in
   auto c_sparse_matrix = matrix_transpose_matrix_multiply(
       tmp->locally_owned_elements(),
       b_sparse_matrix.locally_owned_range_indices(),
       tmp->get_mpi_communicator(), b_sparse_matrix, *this);
 
-  std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<double>>>
-  op(new CudaMatrixOperator<dealii::LinearAlgebra::distributed::Vector<double>>(
-      std::make_shared<SparseMatrixDevice<value_type>>(
+  std::shared_ptr<Operator<VectorType>> op(new CudaMatrixOperator<VectorType>(
+      std::make_shared<SparseMatrixDevice<double>>(
           convert_matrix(*c_sparse_matrix))));
 
   return op;
 }
 
-template <>
-std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::CUDA>>>
-CudaMatrixFreeOperator<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::CUDA>>::
-    multiply_transpose(
-        std::shared_ptr<Operator<dealii::LinearAlgebra::distributed::Vector<
-            double, dealii::MemorySpace::CUDA>> const>
-            b) const
-{
-  ASSERT_THROW_NOT_IMPLEMENTED();
-
-  return nullptr;
-}
-
-template <typename VectorType>
+template <int dim, typename VectorType>
 std::shared_ptr<VectorType>
-CudaMatrixFreeOperator<VectorType>::build_domain_vector() const
+CudaMatrixFreeOperator<dim, VectorType>::build_domain_vector() const
 {
   // We know the operator is squared
   auto domain_vector = this->build_range_vector();
@@ -206,46 +128,39 @@ CudaMatrixFreeOperator<VectorType>::build_domain_vector() const
   return domain_vector;
 }
 
-template <typename VectorType>
+template <int dim, typename VectorType>
 std::shared_ptr<VectorType>
-CudaMatrixFreeOperator<VectorType>::build_range_vector() const
+CudaMatrixFreeOperator<dim, VectorType>::build_range_vector() const
 {
-  return RangeVector<VectorType>::build_vector(_mesh_evaluator);
+  return _mesh_evaluator->build_range_vector();
 }
 
-template <typename VectorType>
-size_t CudaMatrixFreeOperator<VectorType>::grid_complexity() const
+template <int dim, typename VectorType>
+size_t CudaMatrixFreeOperator<dim, VectorType>::grid_complexity() const
 {
   // FIXME Return garbage since throwing not implemented will make important
   // tests to fail
   return 0;
 }
 
-template <typename VectorType>
-size_t CudaMatrixFreeOperator<VectorType>::operator_complexity() const
+template <int dim, typename VectorType>
+size_t CudaMatrixFreeOperator<dim, VectorType>::operator_complexity() const
 {
-  // FIXME Return garbage sinze throwing not implemented will make important
+  // FIXME Return garbage since throwing not implemented will make important
   // tests to fail
   return 0;
 }
 
-template <typename VectorType>
-VectorType CudaMatrixFreeOperator<VectorType>::get_diagonal_inverse() const
+template <int dim, typename VectorType>
+std::shared_ptr<dealii::DiagonalMatrix<VectorType>>
+CudaMatrixFreeOperator<dim, VectorType>::get_diagonal_inverse() const
 {
-  auto diagonal_inverse =
-      _mesh_evaluator->get_dim() == 2
-          ? std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<2>>(
-                _mesh_evaluator)
-                ->get_diagonal_inverse<VectorType>()
-          : std::dynamic_pointer_cast<CudaMatrixFreeMeshEvaluator<3>>(
-                _mesh_evaluator)
-                ->get_diagonal_inverse<VectorType>();
-
-  return diagonal_inverse;
+  return _mesh_evaluator->matrix_free_get_diagonal_inverse();
 }
 
-template <typename VectorType>
-CudaHandle const &CudaMatrixFreeOperator<VectorType>::get_cuda_handle() const
+template <int dim, typename VectorType>
+CudaHandle const &
+CudaMatrixFreeOperator<dim, VectorType>::get_cuda_handle() const
 {
   return _cuda_handle;
 }
@@ -253,8 +168,8 @@ CudaHandle const &CudaMatrixFreeOperator<VectorType>::get_cuda_handle() const
 
 // Explicit Instantiation
 template class mfmg::CudaMatrixFreeOperator<
-    dealii::LinearAlgebra::distributed::Vector<double,
-                                               dealii::MemorySpace::CUDA>>;
+    2, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;
 template class mfmg::CudaMatrixFreeOperator<
-    dealii::LinearAlgebra::distributed::Vector<double,
-                                               dealii::MemorySpace::Host>>;
+    3, dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>;

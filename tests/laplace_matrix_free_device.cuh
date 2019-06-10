@@ -100,6 +100,26 @@ public:
              const dealii::LinearAlgebra::distributed::Vector<
                  ScalarType, dealii::MemorySpace::CUDA> &src) const;
 
+  std::shared_ptr<
+      dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>>
+  get_matrix_diagonal_inverse() const
+  {
+    // TODO
+
+    return nullptr;
+  }
+
+  std::shared_ptr<
+      dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>>
+  get_matrix_diagonal() const
+  {
+    // TODO
+
+    return nullptr;
+  }
+
 private:
   dealii::CUDAWrappers::MatrixFree<dim, ScalarType> _mf_data;
 };
@@ -127,12 +147,9 @@ void LaplaceOperator<dim, fe_degree, ScalarType>::vmult(
         ScalarType, dealii::MemorySpace::CUDA> &src) const
 {
   dst = 0.;
-  std::cout << "------" << std::endl;
-  std::cout << src.l2_norm() << " " << dst.l2_norm() << std::endl;
   LocalLaplaceOperator<dim, fe_degree, ScalarType> laplace_operator;
   _mf_data.cell_loop(laplace_operator, src, dst);
   _mf_data.copy_constrained_values(src, dst);
-  std::cout << src.l2_norm() << " " << dst.l2_norm() << std::endl;
 }
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -141,7 +158,9 @@ class LaplaceMatrixFreeDevice
 public:
   LaplaceMatrixFreeDevice(MPI_Comm const &comm);
 
-  void setup_system(boost::property_tree::ptree const &ptree);
+  template <typename MaterialPropertyType>
+  void setup_system(boost::property_tree::ptree const &ptree,
+                    MaterialPropertyType const &material_property);
 
   template <typename SourceType>
   void assemble_rhs(SourceType const &source);
@@ -179,8 +198,10 @@ LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::LaplaceMatrixFreeDevice(
 }
 
 template <int dim, int fe_degree, typename ScalarType>
+template <typename MaterialPropertyType>
 void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
-    boost::property_tree::ptree const &ptree)
+    boost::property_tree::ptree const &ptree,
+    MaterialPropertyType const &material_property)
 {
   std::string const mesh = ptree.get("mesh", "hyper_cube");
   if (mesh == "hyper_ball")
@@ -237,6 +258,8 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
   // Resize the vectors
   _solution.reinit(_locally_owned_dofs, _comm);
   _system_rhs.reinit(_locally_owned_dofs, _comm);
+
+  // TODO use material_property
 }
 
 template <int dim, int fe_degree, typename ScalarType>

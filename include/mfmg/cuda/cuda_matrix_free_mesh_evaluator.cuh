@@ -13,8 +13,9 @@
 #define MFMG_CUDA_MATRIX_FREE_MESH_EVALUATOR_CUH
 
 #ifdef MFMG_WITH_CUDA
-
 #include <mfmg/cuda/cuda_mesh_evaluator.cuh>
+
+#include <deal.II/lac/diagonal_matrix.h>
 
 namespace mfmg
 {
@@ -45,15 +46,13 @@ public:
              dealii::LinearAlgebra::distributed::Vector<
                  double, dealii::MemorySpace::Host> &dst) const;
 
-  std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<double>>
+  std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
+      double, dealii::MemorySpace::CUDA>>
   build_range_vector() const;
 
-  void set_initial_guess(dealii::AffineConstraints<double> & /*constraints*/,
+  void set_initial_guess(dealii::AffineConstraints<double> &constraints,
                          dealii::LinearAlgebra::distributed::Vector<
-                             double, dealii::MemorySpace::CUDA> & /*x*/) const
-  {
-    ASSERT_THROW_NOT_IMPLEMENTED();
-  }
+                             double, dealii::MemorySpace::CUDA> &x) const;
 
   virtual void matrix_free_initialize_agglomerate(dealii::DoFHandler<dim> &
                                                   /*dof_handler*/) const
@@ -70,6 +69,15 @@ public:
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
+  virtual void matrix_free_evaluate_global(
+      dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA> const & /*src*/,
+      dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA> & /*dst*/) const
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+  }
+
   virtual std::vector<double> matrix_free_get_agglomerate_diagonal(
       dealii::AffineConstraints<double> & /*constraints*/) const
   {
@@ -78,11 +86,24 @@ public:
     return std::vector<double>();
   }
 
-  // TODO
-  template <typename VectorType>
-  VectorType get_diagonal_inverse() const
+  virtual std::shared_ptr<
+      dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+          double, dealii::MemorySpace::CUDA>>>
+  matrix_free_get_diagonal_inverse() const
   {
-    return VectorType();
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return nullptr;
+  }
+
+  virtual dealii::LinearAlgebra::distributed::Vector<double,
+                                                     dealii::MemorySpace::CUDA>
+  get_diagonal()
+  {
+    ASSERT_THROW_NOT_IMPLEMENTED();
+
+    return dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA>();
   }
 };
 
