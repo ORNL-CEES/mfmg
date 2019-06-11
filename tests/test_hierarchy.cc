@@ -259,6 +259,25 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(ml, MeshEvaluator, mesh_evaluator_types)
   BOOST_TEST(ml_rate > gold_rate);
 }
 
+BOOST_AUTO_TEST_CASE(raw_ml)
+{
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  params->put("coarse.type", "ml");
+  params->put("max levels", 1); // use a single MFMG level
+  // params->put("coarse.params.ML output", 43); // exhaustive output
+  // params->put("coarse.params.max levels", 3); // control number of ML levels
+  // if wanted
+  params->put(
+      "coarse.params.coarse: type",
+      "Amesos-KLU"); // for some reason, without specifying this I'm getting
+                     // MLS/Chebyshev on coarse ML, which is not what we want
+  params->put("coarse.params.smoother: type",
+              "symmetric Gauss-Seidel"); // works a lot better than default
+                                         // Chebyshev/MLS
+  BOOST_TEST(test<mfmg::DealIIMeshEvaluator<2>>(params) < 0.1);
+}
+
 BOOST_DATA_TEST_CASE(
     hierarchy_3d,
     bdata::make({"hyper_cube", "hyper_ball"}) * bdata::make({false, true}) *
