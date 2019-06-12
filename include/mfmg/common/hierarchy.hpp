@@ -170,6 +170,8 @@ public:
 
     // TODO: add stopping criteria for levels (number of levels / coarse size)
     int const num_levels = params->get("max levels", 2);
+    ASSERT(num_levels > 0, "number of levels specified by \"max levels\" "
+                           "parameter must be positive");
     _levels.resize(num_levels);
 
     _levels[0].set_operator(hierarchy_helpers->get_global_operator(evaluator));
