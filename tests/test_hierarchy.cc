@@ -275,7 +275,7 @@ BOOST_AUTO_TEST_CASE(raw_ml)
   params->put("coarse.params.smoother: type",
               "symmetric Gauss-Seidel"); // works a lot better than default
                                          // Chebyshev/MLS
-  BOOST_TEST(test<mfmg::DealIIMeshEvaluator<2>>(params) < 0.1);
+  BOOST_TEST(test<mfmg::DealIIMeshEvaluator<2>>(params) < 0.2);
 }
 
 BOOST_DATA_TEST_CASE(
