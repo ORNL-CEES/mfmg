@@ -30,3 +30,17 @@ laplace
   reordering None
   n_refinements 5
 }
+
+;; Uncomment below for running ML
+;"max levels" 1
+;coarse
+;{
+;  type ML
+;  params
+;  {
+;    "ML output" 43
+;    "max levels" 3
+;    "coarse: type" Amesos-KLU
+;    "smoother: type" "symmetric Gauss-Seidel"
+;  }
+;}
