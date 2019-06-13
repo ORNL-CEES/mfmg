@@ -140,7 +140,7 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   Source<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
-  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
+  auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 4);
   Laplace<dim, DVector> laplace(comm, fe_degree);
   laplace.setup_system(laplace_ptree);
   laplace.assemble_system(source, *material_property);
@@ -256,9 +256,9 @@ int main(int argc, char *argv[])
   auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
-  int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 1);
+  int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 4);
   params->put("fast_ap", true);
-  params->put("eigensolver.type", "lanczos");
+  params->put("eigensolver.type", "anasazi");
 
   double solver_tolerance = 1.e-6;
   if (vm.count("tolerance"))
