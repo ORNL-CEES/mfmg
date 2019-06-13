@@ -598,15 +598,6 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
                    tt::tolerance(1e-9));
 }
 
-template <int dim>
-class ConstantMaterialProperty;
-template <int dim>
-class LinearMaterialProperty;
-template <int dim>
-class LinearXMaterialProperty;
-template <int dim>
-class DiscontinuousMaterialProperty;
-
 using material_properties =
     std::tuple<ConstantMaterialProperty<2>, LinearMaterialProperty<2>,
                LinearXMaterialProperty<2>, DiscontinuousMaterialProperty<2>>;
