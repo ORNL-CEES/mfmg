@@ -39,7 +39,6 @@ laplace
 ;  params
 ;  {
 ;    "ML output" 43
-;    "max levels" 3
 ;    "coarse: type" Amesos-KLU
 ;    "smoother: type" "symmetric Gauss-Seidel"
 ;  }
