@@ -154,7 +154,6 @@ public:
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
         unsigned int const = 0) const override
   {
-    auto const one = dealii::make_vectorized_array<double>(1.);
     auto dim_scale = dealii::make_vectorized_array<double>(0);
     for (unsigned int i = 0;
          i < dealii::VectorizedArray<double>::n_array_elements; ++i)
