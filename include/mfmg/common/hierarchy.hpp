@@ -170,6 +170,8 @@ public:
 
     // TODO: add stopping criteria for levels (number of levels / coarse size)
     int const num_levels = params->get("max levels", 2);
+    ASSERT(num_levels > 0, "number of levels specified by \"max levels\" "
+                           "parameter must be positive");
     _levels.resize(num_levels);
 
     _levels[0].set_operator(hierarchy_helpers->get_global_operator(evaluator));
@@ -181,6 +183,13 @@ public:
 
       if (level_index == num_levels - 1)
       {
+        if (level_index == 0)
+        {
+          // When using ML for the full hierarchy, do not zero out initial guess
+          params->put("coarse.params.zero starting solution",
+                      _is_preconditioner);
+        }
+
         timer_enter_subsection(_timer, "Setup: build coarse solver");
         auto coarse_solver = hierarchy_helpers->build_coarse_solver(a, params);
         level_fine.set_solver(coarse_solver);

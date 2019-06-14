@@ -256,6 +256,16 @@ int main(int argc, char *argv[])
   auto const params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info(filename, *params);
 
+  // "Uncover" params for running ML if instructed to do so
+  if (!matrix_free && params->get("use_raw_ml", false))
+  {
+    auto const &ml_options = params->get_child("hidden");
+    for (auto const &opt : ml_options)
+    {
+      params->put_child(opt.first, opt.second);
+    }
+  }
+
   int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 4);
   params->put("fast_ap", true);
   params->put("eigensolver.type", "anasazi");
