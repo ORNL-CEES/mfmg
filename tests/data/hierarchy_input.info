@@ -34,15 +34,16 @@ laplace
 ; Params for running ML
 use_raw_ml false
 hidden {
-  "max levels" 1
+  "max levels" 1 ; use a single MFMG level
   coarse
   {
     type ML
     params
     {
-      "ML output" 43
-      "coarse: type" Amesos-KLU
-      "smoother: type" "symmetric Gauss-Seidel"
+      ; "ML output" 43 ; exhaustive output
+      ; "max levels" 3 ; control number of ML levels if wanted
+      "coarse: type" Amesos-KLU ; for some reason, without specifying this I'm getting MLS/Chebyshev on coarse ML, which is not what we want
+      "smoother: type" "symmetric Gauss-Seidel" ; works a lot better than default Chebyshev/MLS
     }
   }
 }
