@@ -1,0 +1,546 @@
+diff --git a/include/deal.II/matrix_free/matrix_free.h b/include/deal.II/matrix_free/matrix_free.h
+index 1216bcf231..a4f5674ef4 100644
+--- a/include/deal.II/matrix_free/matrix_free.h
++++ b/include/deal.II/matrix_free/matrix_free.h
+@@ -494,7 +494,10 @@ public:
+          const DoFHandlerType &            dof_handler,
+          const AffineConstraints<number2> &constraint,
+          const QuadratureType &            quad,
+-         const AdditionalData              additional_data = AdditionalData());
++         const AdditionalData              additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Initializes the data structures. Same as above, but using a $Q_1$
+@@ -505,7 +508,10 @@ public:
+   reinit(const DoFHandlerType &            dof_handler,
+          const AffineConstraints<number2> &constraint,
+          const QuadratureType &            quad,
+-         const AdditionalData              additional_data = AdditionalData());
++         const AdditionalData              additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Same as above.
+@@ -521,7 +527,10 @@ public:
+          const AffineConstraints<number2> &constraint,
+          const IndexSet &                  locally_owned_dofs,
+          const QuadratureType &            quad,
+-         const AdditionalData              additional_data = AdditionalData());
++         const AdditionalData              additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Extracts the information needed to perform loops over cells. The
+@@ -550,7 +559,10 @@ public:
+          const std::vector<const DoFHandlerType *> &            dof_handler,
+          const std::vector<const AffineConstraints<number2> *> &constraint,
+          const std::vector<QuadratureType> &                    quad,
+-         const AdditionalData additional_data = AdditionalData());
++         const AdditionalData additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Initializes the data structures. Same as above, but  using a $Q_1$
+@@ -561,7 +573,10 @@ public:
+   reinit(const std::vector<const DoFHandlerType *> &            dof_handler,
+          const std::vector<const AffineConstraints<number2> *> &constraint,
+          const std::vector<QuadratureType> &                    quad,
+-         const AdditionalData additional_data = AdditionalData());
++         const AdditionalData additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Same as above.
+@@ -577,7 +592,10 @@ public:
+          const std::vector<const AffineConstraints<number2> *> &constraint,
+          const std::vector<IndexSet> &      locally_owned_set,
+          const std::vector<QuadratureType> &quad,
+-         const AdditionalData               additional_data = AdditionalData());
++         const AdditionalData               additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Initializes the data structures. Same as before, but now the index set
+@@ -592,7 +610,10 @@ public:
+          const std::vector<const DoFHandlerType *> &            dof_handler,
+          const std::vector<const AffineConstraints<number2> *> &constraint,
+          const QuadratureType &                                 quad,
+-         const AdditionalData additional_data = AdditionalData());
++         const AdditionalData additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Initializes the data structures. Same as above, but  using a $Q_1$
+@@ -603,7 +624,10 @@ public:
+   reinit(const std::vector<const DoFHandlerType *> &            dof_handler,
+          const std::vector<const AffineConstraints<number2> *> &constraint,
+          const QuadratureType &                                 quad,
+-         const AdditionalData additional_data = AdditionalData());
++         const AdditionalData additional_data = AdditionalData(),
++         const Table<4,
++                     internal::MatrixFreeFunctions::ShapeInfo<
++                       VectorizedArray<Number>>> *shape_info_ptr = nullptr);
+ 
+   /**
+    * Copy function. Creates a deep copy of all data structures. It is usually
+@@ -1525,6 +1549,14 @@ public:
+                  const unsigned int hp_active_fe_index          = 0,
+                  const unsigned int hp_active_quad_index        = 0) const;
+ 
++  /**
++   * Return the unit cell information for given hp index.
++   */
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    &
++    get_raw_shape_info() const;
++
+   /**
+    * Return the connectivity information of a face.
+    */
+@@ -1589,7 +1621,11 @@ private:
+     const std::vector<const AffineConstraints<number2> *> &constraint,
+     const std::vector<IndexSet> &                          locally_owned_set,
+     const std::vector<hp::QCollection<1>> &                quad,
+-    const AdditionalData &                                 additional_data);
++    const AdditionalData &                                 additional_data,
++    const Table<
++      4,
++      internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++      *shape_info_ptr);
+ 
+   /**
+    * Same as before but for hp::DoFHandler instead of generic DoFHandler type.
+@@ -1602,7 +1638,11 @@ private:
+     const std::vector<const AffineConstraints<number2> *> &constraint,
+     const std::vector<IndexSet> &                          locally_owned_set,
+     const std::vector<hp::QCollection<1>> &                quad,
+-    const AdditionalData &                                 additional_data);
++    const AdditionalData &                                 additional_data,
++    const Table<
++      4,
++      internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++      *shape_info_ptr);
+ 
+   /**
+    * Initializes the fields in DoFInfo together with the constraint pool that
+@@ -2202,6 +2242,16 @@ MatrixFree<dim, Number>::get_shape_info(
+ }
+ 
+ 
++template <int dim, typename Number>
++inline const Table<
++  4,
++  internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>> &
++MatrixFree<dim, Number>::get_raw_shape_info() const
++{
++  return shape_info;
++}
++
++
+ 
+ template <int dim, typename Number>
+ inline const internal::MatrixFreeFunctions::FaceToCellTopology<
+@@ -2437,7 +2487,10 @@ MatrixFree<dim, Number>::reinit(
+   const DoFHandlerType &                                 dof_handler,
+   const AffineConstraints<number2> &                     constraints_in,
+   const QuadratureType &                                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<const DoFHandlerType *>             dof_handlers;
+   std::vector<const AffineConstraints<number2> *> constraints;
+@@ -2459,7 +2512,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraints,
+                   locally_owned_sets,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2472,7 +2526,10 @@ MatrixFree<dim, Number>::reinit(
+   const DoFHandlerType &                                 dof_handler,
+   const AffineConstraints<number2> &                     constraints_in,
+   const QuadratureType &                                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<const DoFHandlerType *>             dof_handlers;
+   std::vector<const AffineConstraints<number2> *> constraints;
+@@ -2492,7 +2549,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraints,
+                   locally_owned_sets,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2504,7 +2562,10 @@ MatrixFree<dim, Number>::reinit(
+   const std::vector<const DoFHandlerType *> &            dof_handler,
+   const std::vector<const AffineConstraints<number2> *> &constraint,
+   const std::vector<QuadratureType> &                    quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<IndexSet> locally_owned_set =
+     internal::MatrixFreeImplementation::extract_locally_owned_index_sets(
+@@ -2517,7 +2578,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraint,
+                   locally_owned_set,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2529,7 +2591,10 @@ MatrixFree<dim, Number>::reinit(
+   const std::vector<const DoFHandlerType *> &            dof_handler,
+   const std::vector<const AffineConstraints<number2> *> &constraint,
+   const QuadratureType &                                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<IndexSet> locally_owned_set =
+     internal::MatrixFreeImplementation::extract_locally_owned_index_sets(
+@@ -2541,7 +2606,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraint,
+                   locally_owned_set,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2554,7 +2620,10 @@ MatrixFree<dim, Number>::reinit(
+   const std::vector<const DoFHandlerType *> &            dof_handler,
+   const std::vector<const AffineConstraints<number2> *> &constraint,
+   const QuadratureType &                                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<IndexSet> locally_owned_set =
+     internal::MatrixFreeImplementation::extract_locally_owned_index_sets(
+@@ -2566,7 +2635,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraint,
+                   locally_owned_set,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2579,7 +2649,10 @@ MatrixFree<dim, Number>::reinit(
+   const std::vector<const DoFHandlerType *> &            dof_handler,
+   const std::vector<const AffineConstraints<number2> *> &constraint,
+   const std::vector<QuadratureType> &                    quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   std::vector<IndexSet> locally_owned_set =
+     internal::MatrixFreeImplementation::extract_locally_owned_index_sets(
+@@ -2592,7 +2665,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraint,
+                   locally_owned_set,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+@@ -2606,7 +2680,10 @@ MatrixFree<dim, Number>::reinit(
+   const std::vector<const AffineConstraints<number2> *> &constraint,
+   const std::vector<IndexSet> &                          locally_owned_set,
+   const std::vector<QuadratureType> &                    quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+   // find out whether we use a hp Quadrature or a standard quadrature
+   std::vector<hp::QCollection<1>> quad_hp;
+@@ -2617,7 +2694,8 @@ MatrixFree<dim, Number>::reinit(
+                   constraint,
+                   locally_owned_set,
+                   quad_hp,
+-                  additional_data);
++                  additional_data,
++                  shape_info_ptr);
+ }
+ 
+ 
+diff --git a/include/deal.II/matrix_free/matrix_free.templates.h b/include/deal.II/matrix_free/matrix_free.templates.h
+index 764a26d11c..5e1868b707 100644
+--- a/include/deal.II/matrix_free/matrix_free.templates.h
++++ b/include/deal.II/matrix_free/matrix_free.templates.h
+@@ -239,26 +239,37 @@ MatrixFree<dim, Number>::internal_reinit(
+   const std::vector<const AffineConstraints<number2> *> & constraint,
+   const std::vector<IndexSet> &                           locally_owned_set,
+   const std::vector<hp::QCollection<1>> &                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData &additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData &additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+-  // Reads out the FE information and stores the shape function values,
+-  // gradients and Hessians for quadrature points.
+-  {
+-    unsigned int n_fe = 0;
+-    for (unsigned int no = 0; no < dof_handler.size(); ++no)
+-      n_fe += dof_handler[no]->get_fe().n_base_elements();
+-    const unsigned int n_quad = quad.size();
+-    shape_info.reinit(TableIndices<4>(n_fe, n_quad, 1, 1));
+-    for (unsigned int no = 0, c = 0; no < dof_handler.size(); no++)
+-      for (unsigned int b = 0; b < dof_handler[no]->get_fe().n_base_elements();
+-           ++b, ++c)
+-        for (unsigned int nq = 0; nq < n_quad; nq++)
+-          {
+-            AssertDimension(quad[nq].size(), 1);
+-            shape_info(c, nq, 0, 0)
+-              .reinit(quad[nq][0], dof_handler[no]->get_fe(), b);
+-          }
+-  }
++  if (shape_info_ptr)
++    {
++      shape_info = *shape_info_ptr;
++    }
++  else
++    {
++      // Reads out the FE information and stores the shape function values,
++      // gradients and Hessians for quadrature points.
++      {
++        unsigned int n_fe = 0;
++        for (unsigned int no = 0; no < dof_handler.size(); ++no)
++          n_fe += dof_handler[no]->get_fe().n_base_elements();
++        const unsigned int n_quad = quad.size();
++        shape_info.reinit(TableIndices<4>(n_fe, n_quad, 1, 1));
++        for (unsigned int no = 0, c = 0; no < dof_handler.size(); no++)
++          for (unsigned int b = 0;
++               b < dof_handler[no]->get_fe().n_base_elements();
++               ++b, ++c)
++            for (unsigned int nq = 0; nq < n_quad; nq++)
++              {
++                AssertDimension(quad[nq].size(), 1);
++                shape_info(c, nq, 0, 0)
++                  .reinit(quad[nq][0], dof_handler[no]->get_fe(), b);
++              }
++      }
++    }
+ 
+   if (additional_data.initialize_indices == true)
+     {
+@@ -399,35 +410,47 @@ MatrixFree<dim, Number>::internal_reinit(
+   const std::vector<const AffineConstraints<number2> *> & constraint,
+   const std::vector<IndexSet> &                           locally_owned_set,
+   const std::vector<hp::QCollection<1>> &                 quad,
+-  const typename MatrixFree<dim, Number>::AdditionalData &additional_data)
++  const typename MatrixFree<dim, Number>::AdditionalData &additional_data,
++  const Table<4,
++              internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<Number>>>
++    *shape_info_ptr)
+ {
+-  // Reads out the FE information and stores the shape function values,
+-  // gradients and Hessians for quadrature points.
+-  {
+-    unsigned int n_components = 0;
+-    for (unsigned int no = 0; no < dof_handler.size(); ++no)
+-      n_components += dof_handler[no]->get_fe()[0].n_base_elements();
+-    const unsigned int n_quad             = quad.size();
+-    unsigned int       n_fe_in_collection = 0;
+-    for (unsigned int i = 0; i < n_components; ++i)
+-      n_fe_in_collection = std::max(n_fe_in_collection,
+-                                    dof_handler[i]->get_fe_collection().size());
+-    unsigned int n_quad_in_collection = 0;
+-    for (unsigned int q = 0; q < n_quad; ++q)
+-      n_quad_in_collection = std::max(n_quad_in_collection, quad[q].size());
+-    shape_info.reinit(TableIndices<4>(
+-      n_components, n_quad, n_fe_in_collection, n_quad_in_collection));
+-    for (unsigned int no = 0, c = 0; no < dof_handler.size(); no++)
+-      for (unsigned int b = 0; b < dof_handler[no]->get_fe(0).n_base_elements();
+-           ++b, ++c)
+-        for (unsigned int fe_no = 0;
+-             fe_no < dof_handler[no]->get_fe_collection().size();
+-             ++fe_no)
+-          for (unsigned int nq = 0; nq < n_quad; nq++)
+-            for (unsigned int q_no = 0; q_no < quad[nq].size(); ++q_no)
+-              shape_info(c, nq, fe_no, q_no)
+-                .reinit(quad[nq][q_no], dof_handler[no]->get_fe(fe_no), b);
+-  }
++  if (shape_info_ptr)
++    {
++      shape_info = *shape_info_ptr;
++    }
++  else
++    {
++      // Reads out the FE information and stores the shape function values,
++      // gradients and Hessians for quadrature points.
++      {
++        unsigned int n_components = 0;
++        for (unsigned int no = 0; no < dof_handler.size(); ++no)
++          n_components += dof_handler[no]->get_fe()[0].n_base_elements();
++        const unsigned int n_quad             = quad.size();
++        unsigned int       n_fe_in_collection = 0;
++        for (unsigned int i = 0; i < n_components; ++i)
++          n_fe_in_collection =
++            std::max(n_fe_in_collection,
++                     dof_handler[i]->get_fe_collection().size());
++        unsigned int n_quad_in_collection = 0;
++        for (unsigned int q = 0; q < n_quad; ++q)
++          n_quad_in_collection = std::max(n_quad_in_collection, quad[q].size());
++        shape_info.reinit(TableIndices<4>(
++          n_components, n_quad, n_fe_in_collection, n_quad_in_collection));
++        for (unsigned int no = 0, c = 0; no < dof_handler.size(); no++)
++          for (unsigned int b = 0;
++               b < dof_handler[no]->get_fe(0).n_base_elements();
++               ++b, ++c)
++            for (unsigned int fe_no = 0;
++                 fe_no < dof_handler[no]->get_fe_collection().size();
++                 ++fe_no)
++              for (unsigned int nq = 0; nq < n_quad; nq++)
++                for (unsigned int q_no = 0; q_no < quad[nq].size(); ++q_no)
++                  shape_info(c, nq, fe_no, q_no)
++                    .reinit(quad[nq][q_no], dof_handler[no]->get_fe(fe_no), b);
++      }
++    }
+ 
+   if (additional_data.initialize_indices == true)
+     {
+diff --git a/source/matrix_free/matrix_free.inst.in b/source/matrix_free/matrix_free.inst.in
+index ed0485d287..a791580d7a 100644
+--- a/source/matrix_free/matrix_free.inst.in
++++ b/source/matrix_free/matrix_free.inst.in
+@@ -34,21 +34,29 @@ for (deal_II_dimension : DIMENSIONS)
+     template void MatrixFree<deal_II_dimension, float>::
+       print_memory_consumption<ConditionalOStream>(ConditionalOStream &) const;
+ 
+-    template void MatrixFree<deal_II_dimension, double>::internal_reinit<
+-      double>(const Mapping<deal_II_dimension> &,
+-              const std::vector<const DoFHandler<deal_II_dimension> *> &,
+-              const std::vector<const AffineConstraints<double> *> &,
+-              const std::vector<IndexSet> &,
+-              const std::vector<hp::QCollection<1>> &,
+-              const AdditionalData &);
+-
+-    template void MatrixFree<deal_II_dimension, double>::internal_reinit<
+-      double>(const Mapping<deal_II_dimension> &,
+-              const std::vector<const hp::DoFHandler<deal_II_dimension> *> &,
+-              const std::vector<const AffineConstraints<double> *> &,
+-              const std::vector<IndexSet> &,
+-              const std::vector<hp::QCollection<1>> &,
+-              const AdditionalData &);
++    template void
++    MatrixFree<deal_II_dimension, double>::internal_reinit<double>(
++      const Mapping<deal_II_dimension> &,
++      const std::vector<const DoFHandler<deal_II_dimension> *> &,
++      const std::vector<const AffineConstraints<double> *> &,
++      const std::vector<IndexSet> &,
++      const std::vector<hp::QCollection<1>> &,
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<double>>> *);
++
++    template void
++    MatrixFree<deal_II_dimension, double>::internal_reinit<double>(
++      const Mapping<deal_II_dimension> &,
++      const std::vector<const hp::DoFHandler<deal_II_dimension> *> &,
++      const std::vector<const AffineConstraints<double> *> &,
++      const std::vector<IndexSet> &,
++      const std::vector<hp::QCollection<1>> &,
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<double>>> *);
+ 
+     template void MatrixFree<deal_II_dimension, float>::internal_reinit<double>(
+       const Mapping<deal_II_dimension> &,
+@@ -56,7 +64,10 @@ for (deal_II_dimension : DIMENSIONS)
+       const std::vector<const AffineConstraints<double> *> &,
+       const std::vector<IndexSet> &,
+       const std::vector<hp::QCollection<1>> &,
+-      const AdditionalData &);
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<float>>> *);
+ 
+     template void MatrixFree<deal_II_dimension, float>::internal_reinit<double>(
+       const Mapping<deal_II_dimension> &,
+@@ -64,7 +75,10 @@ for (deal_II_dimension : DIMENSIONS)
+       const std::vector<const AffineConstraints<double> *> &,
+       const std::vector<IndexSet> &,
+       const std::vector<hp::QCollection<1>> &,
+-      const AdditionalData &);
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<float>>> *);
+ 
+     template void MatrixFree<deal_II_dimension, float>::internal_reinit<float>(
+       const Mapping<deal_II_dimension> &,
+@@ -72,7 +86,10 @@ for (deal_II_dimension : DIMENSIONS)
+       const std::vector<const AffineConstraints<float> *> &,
+       const std::vector<IndexSet> &,
+       const std::vector<hp::QCollection<1>> &,
+-      const AdditionalData &);
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<float>>> *);
+ 
+     template void MatrixFree<deal_II_dimension, float>::internal_reinit<float>(
+       const Mapping<deal_II_dimension> &,
+@@ -80,7 +97,10 @@ for (deal_II_dimension : DIMENSIONS)
+       const std::vector<const AffineConstraints<float> *> &,
+       const std::vector<IndexSet> &,
+       const std::vector<hp::QCollection<1>> &,
+-      const AdditionalData &);
++      const AdditionalData &,
++      const Table<
++        4,
++        internal::MatrixFreeFunctions::ShapeInfo<VectorizedArray<float>>> *);
+ 
+     template void
+     internal::MatrixFreeFunctions::ShapeInfo<double>::reinit<deal_II_dimension>(
