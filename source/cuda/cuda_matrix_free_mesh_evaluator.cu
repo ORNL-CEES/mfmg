@@ -46,28 +46,6 @@ CudaMatrixFreeMeshEvaluator<dim>::build_range_vector() const
 }
 
 template <int dim>
-void CudaMatrixFreeMeshEvaluator<dim>::apply(
-    dealii::LinearAlgebra::distributed::Vector<
-        double, dealii::MemorySpace::CUDA> const &src,
-    dealii::LinearAlgebra::distributed::Vector<
-        double, dealii::MemorySpace::CUDA> &dst) const
-{
-  // TODO
-  ASSERT_THROW_NOT_IMPLEMENTED();
-}
-
-template <int dim>
-void CudaMatrixFreeMeshEvaluator<dim>::apply(
-    dealii::LinearAlgebra::distributed::Vector<
-        double, dealii::MemorySpace::Host> const &src,
-    dealii::LinearAlgebra::distributed::Vector<
-        double, dealii::MemorySpace::Host> &dst) const
-{
-  // TODO
-  ASSERT_THROW_NOT_IMPLEMENTED();
-}
-
-template <int dim>
 void CudaMatrixFreeMeshEvaluator<dim>::set_initial_guess(
     dealii::AffineConstraints<double> &constraints,
     dealii::LinearAlgebra::distributed::Vector<

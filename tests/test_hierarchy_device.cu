@@ -18,6 +18,8 @@
 #include <deal.II/lac/read_write_vector.h>
 
 #include <boost/property_tree/info_parser.hpp>
+#include <boost/test/data/monomorphic.hpp>
+#include <boost/test/data/test_case.hpp>
 
 #include <random>
 
@@ -25,6 +27,8 @@
 #include "laplace_matrix_free_device.cuh"
 #include "main.cc"
 #include "test_hierarchy_helpers_device.cuh"
+
+namespace bdata = boost::unit_test::data;
 
 template <int dim>
 double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
@@ -73,7 +77,7 @@ double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
 
   auto evaluator =
       std::make_shared<TestMFMeshEvaluator<dim, fe_degree, value_type>>(
-          mf_laplace._dof_handler, mf_laplace._constraints,
+          comm, mf_laplace._dof_handler, mf_laplace._constraints,
           *mf_laplace._laplace_operator, material_property, cuda_handle);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
@@ -186,7 +190,9 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-BOOST_AUTO_TEST_CASE(hierarchy_2d)
+BOOST_DATA_TEST_CASE(hierarchy_2d,
+                     bdata::make<std::string>({"matrix_based", "matrix_free"}),
+                     mesh_evaluator_type)
 {
   unsigned int constexpr dim = 2;
 
@@ -195,7 +201,10 @@ BOOST_AUTO_TEST_CASE(hierarchy_2d)
   // We only supports Jacobi smoother on the device
   params->put("smoother.type", "Jacobi");
 
-  test<dim>(params);
+  if (mesh_evaluator_type == "matrix_based")
+    test<dim>(params);
+  else
+    test_mf<dim>(params);
 }
 
 BOOST_AUTO_TEST_CASE(hierarchy_3d)

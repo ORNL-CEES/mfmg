@@ -89,6 +89,8 @@ public:
 
   MPI_Comm get_mpi_communicator() const { return _comm; }
 
+  void print() const;
+
   ScalarType *val_dev;
   int *column_index_dev;
   int *row_ptr_dev;

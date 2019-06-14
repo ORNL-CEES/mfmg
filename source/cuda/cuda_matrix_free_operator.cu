@@ -111,9 +111,22 @@ CudaMatrixFreeOperator<dim, VectorType>::multiply_transpose(
       b_sparse_matrix.locally_owned_range_indices(),
       tmp->get_mpi_communicator(), b_sparse_matrix, *this);
 
-  std::shared_ptr<Operator<VectorType>> op(new CudaMatrixOperator<VectorType>(
-      std::make_shared<SparseMatrixDevice<double>>(
-          convert_matrix(*c_sparse_matrix))));
+  // Convert matrix does not set cuda_handle and description
+  auto c_dev = std::make_shared<SparseMatrixDevice<double>>(
+      convert_matrix(*c_sparse_matrix));
+  c_dev->cusparse_handle = b_sparse_matrix_dev->cusparse_handle;
+  cusparseStatus_t cusparse_error_code;
+  cusparse_error_code = cusparseCreateMatDescr(&c_dev->descr);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code =
+      cusparseSetMatType(c_dev->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
+  ASSERT_CUSPARSE(cusparse_error_code);
+  cusparse_error_code =
+      cusparseSetMatIndexBase(c_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
+  ASSERT_CUSPARSE(cusparse_error_code);
+
+  std::shared_ptr<Operator<VectorType>> op(
+      new CudaMatrixOperator<VectorType>(c_dev));
 
   return op;
 }

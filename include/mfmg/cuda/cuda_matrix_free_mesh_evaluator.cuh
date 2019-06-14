@@ -36,16 +36,6 @@ public:
 
   virtual std::string get_mesh_evaluator_type() const override final;
 
-  void apply(dealii::LinearAlgebra::distributed::Vector<
-                 double, dealii::MemorySpace::CUDA> const &src,
-             dealii::LinearAlgebra::distributed::Vector<
-                 double, dealii::MemorySpace::CUDA> &dst) const;
-
-  void apply(dealii::LinearAlgebra::distributed::Vector<
-                 double, dealii::MemorySpace::Host> const &src,
-             dealii::LinearAlgebra::distributed::Vector<
-                 double, dealii::MemorySpace::Host> &dst) const;
-
   std::shared_ptr<dealii::LinearAlgebra::distributed::Vector<
       double, dealii::MemorySpace::CUDA>>
   build_range_vector() const;
@@ -98,7 +88,7 @@ public:
 
   virtual dealii::LinearAlgebra::distributed::Vector<double,
                                                      dealii::MemorySpace::CUDA>
-  get_diagonal()
+  get_diagonal() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();
 

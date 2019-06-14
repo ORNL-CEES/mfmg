@@ -50,7 +50,8 @@ public:
     ASSERT_THROW_NOT_IMPLEMENTED();
   }
 
-  virtual dealii::LinearAlgebra::distributed::Vector<double>
+  virtual dealii::LinearAlgebra::distributed::Vector<double,
+                                                     dealii::MemorySpace::Host>
   get_locally_relevant_diag() const
   {
     ASSERT_THROW_NOT_IMPLEMENTED();

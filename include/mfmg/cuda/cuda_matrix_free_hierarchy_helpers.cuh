@@ -19,7 +19,7 @@
 namespace mfmg
 {
 template <int dim, typename VectorType>
-class CudaMatrixFreeHierarchyHelpers
+class CudaMatrixFreeHierarchyHelpers final
     : public CudaHierarchyHelpers<dim, VectorType>
 {
 public:
@@ -27,12 +27,16 @@ public:
 
   CudaMatrixFreeHierarchyHelpers(CudaHandle const &cuda_handle);
 
-  std::shared_ptr<Operator<VectorType>> get_global_operator(
-      std::shared_ptr<MeshEvaluator> mesh_evaluator) override final;
+  virtual std::shared_ptr<Operator<VectorType>>
+  get_global_operator(std::shared_ptr<MeshEvaluator> mesh_evaluator) override;
 
-  std::shared_ptr<Operator<VectorType>> build_restrictor(
+  virtual std::shared_ptr<Operator<VectorType>> build_restrictor(
       MPI_Comm comm, std::shared_ptr<MeshEvaluator> mesh_evaluator,
-      std::shared_ptr<boost::property_tree::ptree const> params) override final;
+      std::shared_ptr<boost::property_tree::ptree const> params) override;
+
+  virtual std::shared_ptr<Smoother<VectorType>> build_smoother(
+      std::shared_ptr<Operator<VectorType> const> op,
+      std::shared_ptr<boost::property_tree::ptree const> params) override;
 };
 } // namespace mfmg
 

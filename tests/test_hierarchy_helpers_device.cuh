@@ -14,118 +14,8 @@
 
 #include <mfmg/cuda/utils.cuh>
 
-#include <deal.II/base/function.h>
-
 #include "laplace_matrix_free_device.cuh"
-
-template <int dim>
-class Source final : public dealii::Function<dim>
-{
-public:
-  Source() = default;
-
-  virtual ~Source() override = default;
-
-  virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override
-  {
-    return 0.;
-  }
-};
-
-template <int dim>
-class ConstantMaterialProperty final : public dealii::Function<dim>
-{
-public:
-  ConstantMaterialProperty() = default;
-
-  virtual ~ConstantMaterialProperty() override = default;
-
-  virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override
-  {
-    return 1.;
-  }
-};
-
-template <int dim>
-class LinearXMaterialProperty final : public dealii::Function<dim>
-{
-public:
-  LinearXMaterialProperty() = default;
-
-  virtual ~LinearXMaterialProperty() override = default;
-
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override
-  {
-    return 1. + p[0];
-  }
-};
-
-template <int dim>
-class LinearMaterialProperty final : public dealii::Function<dim>
-{
-public:
-  LinearMaterialProperty() = default;
-
-  virtual ~LinearMaterialProperty() override = default;
-
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override
-  {
-    double value = 1.;
-    for (unsigned int d = 0; d < dim; ++d)
-      value += (1. + d) * p[d];
-
-    return value;
-  }
-};
-
-template <int dim>
-class DiscontinuousMaterialProperty : public dealii::Function<dim>
-{
-public:
-  DiscontinuousMaterialProperty() = default;
-
-  virtual ~DiscontinuousMaterialProperty() override = default;
-
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override final
-
-  {
-    double value = 10.;
-    for (unsigned int d = 0; d < dim; ++d)
-      if (p[d] > 0.5)
-        value *= value;
-
-    return value;
-  }
-};
-
-template <int dim>
-class MaterialPropertyFactory
-{
-public:
-  static std::shared_ptr<dealii::Function<dim>>
-  create_material_property(std::string const &material_type)
-  {
-    if (material_type == "constant")
-      return std::make_shared<ConstantMaterialProperty<dim>>();
-    else if (material_type == "linear_x")
-      return std::make_shared<LinearXMaterialProperty<dim>>();
-    else if (material_type == "linear")
-      return std::make_shared<LinearMaterialProperty<dim>>();
-    else if (material_type == "discontinuous")
-      return std::make_shared<DiscontinuousMaterialProperty<dim>>();
-    else
-    {
-      mfmg::ASSERT_THROW_NOT_IMPLEMENTED();
-
-      return nullptr;
-    }
-  }
-};
+#include "material_property.hpp"
 
 template <int dim>
 class TestMeshEvaluator final : public mfmg::CudaMeshEvaluator<dim>
@@ -135,7 +25,7 @@ public:
                     dealii::AffineConstraints<double> &constraints,
                     unsigned int fe_degree,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property,
+                    std::shared_ptr<Coefficient<dim>> material_property,
                     mfmg::CudaHandle &cuda_handle)
       : mfmg::CudaMeshEvaluator<dim>(cuda_handle, dof_handler, constraints),
         _comm(comm), _fe_degree(fe_degree), _matrix(matrix),
@@ -260,7 +150,7 @@ private:
   MPI_Comm _comm;
   unsigned const _fe_degree;
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
-  std::shared_ptr<dealii::Function<dim>> _material_property;
+  std::shared_ptr<Coefficient<dim>> _material_property;
 };
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -268,13 +158,13 @@ class TestMFMeshEvaluator final : public mfmg::CudaMatrixFreeMeshEvaluator<dim>
 {
 public:
   TestMFMeshEvaluator(
-      dealii::DoFHandler<dim> &dof_handler,
+      MPI_Comm comm, dealii::DoFHandler<dim> &dof_handler,
       dealii::AffineConstraints<double> &constraints,
-      LaplaceOperator<dim, fe_degree, ScalarType> &laplace_operator,
-      std::shared_ptr<dealii::Function<dim>> material_property,
+      LaplaceOperatorDevice<dim, fe_degree, ScalarType> &laplace_operator,
+      std::shared_ptr<Coefficient<dim>> material_property,
       mfmg::CudaHandle &cuda_handle)
-      : mfmg::CudaMatrixFreeMeshEvaluator<dim>(cuda_handle, dof_handler,
-                                               constraints),
+      : _comm(comm), mfmg::CudaMatrixFreeMeshEvaluator<dim>(
+                         cuda_handle, dof_handler, constraints),
         _material_property(material_property), _fe(fe_degree),
         _laplace_operator(laplace_operator)
   {
@@ -313,12 +203,46 @@ public:
                        dealii::QGauss<1>(fe_degree + 1), additional_data);
 
     _agg_laplace_operator =
-        std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>(
-            dof_handler, _agg_constraints);
+        std::make_unique<LaplaceOperatorDevice<dim, fe_degree, ScalarType>>(
+            _comm, dof_handler, _agg_constraints);
     // TODO
     // _agg_laplace_operator->initialize(mf_storage);
     // _agg_laplace_operator->evaluate_coefficient(*_material_property);
     // _agg_laplace_operator->compute_diagonal();
+    // At the current time there is no easy way to extract the diagonal using
+    // CUDA and Matrix-Free. So we have to do it on the host.
+    typename dealii::MatrixFree<dim, ScalarType>::AdditionalData
+        additional_data_host;
+    additional_data_host.tasks_parallel_scheme =
+        dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
+    additional_data_host.mapping_update_flags =
+        dealii::update_gradients | dealii::update_JxW_values |
+        dealii::update_quadrature_points;
+    std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage_host(
+        new dealii::MatrixFree<dim, ScalarType>());
+    mf_storage_host->reinit(dof_handler, _agg_constraints,
+                            dealii::QGauss<1>(fe_degree + 1),
+                            additional_data_host);
+    LaplaceOperator<dim, fe_degree, ScalarType> laplace_operator_host;
+    laplace_operator_host.initialize(mf_storage_host);
+
+    laplace_operator_host.evaluate_coefficient(*_material_property);
+    laplace_operator_host.compute_diagonal();
+
+    // Set the DiagonalMatrix on the device
+    auto diag_dev = mfmg::copy_from_host(
+        laplace_operator_host.get_matrix_diagonal()->get_vector());
+    _agg_laplace_operator->_diagonal = std::make_shared<
+        dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+            double, dealii::MemorySpace::CUDA>>>();
+    _agg_laplace_operator->_diagonal->reinit(diag_dev);
+
+    auto diag_inv_dev = mfmg::copy_from_host(
+        laplace_operator_host.get_matrix_diagonal_inverse()->get_vector());
+    _agg_laplace_operator->_diagonal_inverse = std::make_shared<
+        dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+            double, dealii::MemorySpace::CUDA>>>();
+    _agg_laplace_operator->_diagonal_inverse->reinit(diag_inv_dev);
 
     _distributed_dst.reinit(dof_handler.n_dofs());
     _distributed_src.reinit(dof_handler.n_dofs());
@@ -365,7 +289,7 @@ public:
 
   virtual dealii::LinearAlgebra::distributed::Vector<double,
                                                      dealii::MemorySpace::CUDA>
-  get_diagonal() override
+  get_diagonal() const override
   {
     auto vector = _laplace_operator.get_matrix_diagonal()->get_vector();
     vector.update_ghost_values();
@@ -374,11 +298,12 @@ public:
   }
 
 private:
-  std::shared_ptr<dealii::Function<dim>> _material_property;
+  MPI_Comm _comm;
+  std::shared_ptr<Coefficient<dim>> _material_property;
   dealii::FE_Q<dim> _fe;
   mutable dealii::AffineConstraints<double> _agg_constraints;
-  LaplaceOperator<dim, fe_degree, ScalarType> &_laplace_operator;
-  mutable std::unique_ptr<LaplaceOperator<dim, fe_degree, ScalarType>>
+  LaplaceOperatorDevice<dim, fe_degree, ScalarType> &_laplace_operator;
+  mutable std::unique_ptr<LaplaceOperatorDevice<dim, fe_degree, ScalarType>>
       _agg_laplace_operator;
   mutable dealii::LinearAlgebra::distributed::Vector<ScalarType,
                                                      dealii::MemorySpace::CUDA>

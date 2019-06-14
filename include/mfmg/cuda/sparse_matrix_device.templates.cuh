@@ -422,8 +422,44 @@ void SparseMatrixDevice<ScalarType>::mmult(
 
     A_host.mmult(C_host, B_host);
 
+    // Convert matrix does not create a fill up all the members of a
+    // SparseMatrix: cusparse_handle and descr are missing. So we need to save
+    // them and reset them later
+    auto tmp_cusparse_handle = C.cusparse_handle;
+    auto tmp_descr = C.descr;
     C = convert_matrix(C_host);
+    C.cusparse_handle = tmp_cusparse_handle;
+    C.descr = tmp_descr;
   }
+}
+
+template <typename ScalarType>
+void SparseMatrixDevice<ScalarType>::print() const
+{
+  // Move the matrix to the host
+  std::vector<ScalarType> val_host(_local_nnz);
+  std::vector<int> column_index_host(_local_nnz);
+  std::vector<int> row_ptr_host(_range_indexset.n_elements());
+
+  cuda_mem_copy_to_host(val_dev, val_host);
+  cuda_mem_copy_to_host(column_index_dev, column_index_host);
+  cuda_mem_copy_to_host(row_ptr_dev, row_ptr_host);
+
+  for (auto val : val_host)
+    std::cout << val << " ";
+  std::cout << std::endl;
+
+  for (auto val : column_index_host)
+    std::cout << val << " ";
+  std::cout << std::endl;
+
+  for (auto val : row_ptr_host)
+    std::cout << val << " ";
+  std::cout << std::endl;
+  std::cout << _local_nnz << " " << _nnz << std::endl;
+  _range_indexset.print(std::cout);
+  _domain_indexset.print(std::cout);
+  std::cout << cusparse_handle << " " << descr << std::endl;
 }
 } // namespace mfmg
 

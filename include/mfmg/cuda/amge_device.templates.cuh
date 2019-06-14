@@ -204,6 +204,29 @@ __global__ void restrict_array(int full_array_size, ScalarType *full_array,
   if (i < restrict_array_size)
     restricted_array[i] = full_array[i];
 }
+
+struct LocallyRelevantDiagonal
+{
+  template <
+      typename MeshEvaluator,
+      std::enable_if_t<mfmg::is_matrix_free<MeshEvaluator>::value, int> = 0>
+  static dealii::LinearAlgebra::distributed::Vector<double,
+                                                    dealii::MemorySpace::Host>
+  get(MeshEvaluator const &evaluator)
+  {
+    return mfmg::copy_from_dev(evaluator.get_diagonal());
+  }
+
+  template <
+      typename MeshEvaluator,
+      std::enable_if_t<!mfmg::is_matrix_free<MeshEvaluator>::value, int> = 0>
+  static dealii::LinearAlgebra::distributed::Vector<double,
+                                                    dealii::MemorySpace::Host>
+  get(MeshEvaluator const &evaluator)
+  {
+    return evaluator.get_locally_relevant_diag();
+  }
+};
 } // namespace internal
 
 /**
@@ -391,7 +414,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   for (unsigned int i = 0; i < n_eigenvectors; ++i)
   {
     cuda_error_code = cudaMemcpy(
-        eigenvalues_dev + i * n_dofs_agglomerate, eigenvectors[i].get_values(),
+        eigenvectors_dev + i * n_dofs_agglomerate, eigenvectors[i].get_values(),
         n_dofs_agglomerate * sizeof(double), cudaMemcpyDeviceToDevice);
     ASSERT_CUDA(cuda_error_code);
   }
@@ -534,9 +557,16 @@ AMGe_device<dim, MeshEvaluator, VectorType>::compute_restriction_sparse_matrix(
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
       locally_relevant_global_diag, restriction_sparse_matrix);
-  check_restriction_matrix(this->_comm, eigenvectors, dof_indices_maps,
-                           locally_relevant_global_diag, diag_elements,
-                           n_local_eigenvectors);
+
+  // When checking the restriction matrix, we check that the sum of the local
+  // diagonals is the global diagonals. This is not true for matrix-free because
+  // the constraints values are set arbitrarily.
+  if (is_matrix_free<MeshEvaluator>::value == false)
+  {
+    check_restriction_matrix(this->_comm, eigenvectors, dof_indices_maps,
+                             locally_relevant_global_diag, diag_elements,
+                             n_local_eigenvectors);
+  }
 
   SparseMatrixDevice<ScalarType> restriction_sparse_matrix_dev(
       convert_matrix(restriction_sparse_matrix));
@@ -618,7 +648,8 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
   }
 
   // Get the locally relevant global diagonal
-  auto locally_relevant_global_diag = evaluator.get_locally_relevant_diag();
+  auto locally_relevant_global_diag =
+      internal::LocallyRelevantDiagonal::get(evaluator);
 
   return compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, locally_relevant_global_diag,

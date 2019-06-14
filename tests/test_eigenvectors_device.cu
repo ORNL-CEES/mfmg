@@ -103,13 +103,14 @@ BOOST_AUTO_TEST_CASE(diagonal)
   dealii::AffineConstraints<double> constraints;
   DiagonalTestMeshEvaluator<dim> evaluator(cuda_handle, dof_handler,
                                            constraints);
+  double const 1e-6;
   double *eigenvalues_dev;
   double *eigenvectors_dev;
   double *diag_elements_dev;
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues_dev, eigenvectors_dev, diag_elements_dev,
            dof_indices_map) =
-      amge.compute_local_eigenvectors(n_eigenvectors, triangulation,
+      amge.compute_local_eigenvectors(n_eigenvectors, tolerance, triangulation,
                                       patch_to_global_map, evaluator);
 
   unsigned int const n_dofs = dof_handler.n_dofs();

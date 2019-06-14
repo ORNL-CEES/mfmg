@@ -33,6 +33,7 @@
 
 #include "laplace.hpp"
 #include "laplace_matrix_free.hpp"
+#include "material_property.hpp"
 
 // If activated the global operator's ShapeInfo object is copied instead of
 // recalculated when initializing the agglomerate operators. Requires that

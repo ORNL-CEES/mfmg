@@ -23,14 +23,14 @@ template <typename VectorType>
 struct SmootherOperator
 {
   static void
-  apply(SparseMatrixDevice<typename VectorType::value_type> const &matrix,
+  apply(Operator<VectorType> const &op,
         SparseMatrixDevice<typename VectorType::value_type> const &smoother,
         VectorType const &b, VectorType &x);
 };
 
 template <typename VectorType>
 void SmootherOperator<VectorType>::apply(
-    SparseMatrixDevice<typename VectorType::value_type> const &matrix,
+    Operator<VectorType> const &op,
     SparseMatrixDevice<typename VectorType::value_type> const &smoother,
     VectorType const &b, VectorType &x)
 {
@@ -40,7 +40,8 @@ void SmootherOperator<VectorType>::apply(
 template <>
 void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
     double, dealii::MemorySpace::CUDA>>::
-    apply(SparseMatrixDevice<double> const &matrix,
+    apply(Operator<dealii::LinearAlgebra::distributed::Vector<
+              double, dealii::MemorySpace::CUDA>> const &op,
           SparseMatrixDevice<double> const &smoother,
           dealii::LinearAlgebra::distributed::Vector<
               double, dealii::MemorySpace::CUDA> const &b,
@@ -50,7 +51,7 @@ void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
   // r = -(b - Ax)
   dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
       r(b);
-  matrix.vmult(r, x);
+  op.apply(x, r);
   r.add(-1., b);
 
   // x = x + B^{-1} (-r)
@@ -58,30 +59,6 @@ void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
       tmp(x);
   smoother.vmult(tmp, r);
   x.add(-1., tmp);
-}
-
-template <>
-void SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
-    double, dealii::MemorySpace::Host>>::
-    apply(SparseMatrixDevice<double> const &matrix,
-          SparseMatrixDevice<double> const &smoother,
-          dealii::LinearAlgebra::distributed::Vector<
-              double, dealii::MemorySpace::Host> const &b,
-          dealii::LinearAlgebra::distributed::Vector<
-              double, dealii::MemorySpace::Host> &x)
-{
-  // Copy to the device
-  auto x_dev = copy_from_host(x);
-  auto b_dev = copy_from_host(b);
-
-  SmootherOperator<dealii::LinearAlgebra::distributed::Vector<
-      double, dealii::MemorySpace::CUDA>>::apply(matrix, smoother, b_dev,
-                                                 x_dev);
-
-  // Move the data to the host
-  std::vector<double> x_host(x.local_size());
-  cuda_mem_copy_to_host(x_dev.get_values(), x_host);
-  std::copy(x_host.begin(), x_host.end(), x.begin());
 }
 
 template <typename ScalarType>
@@ -158,11 +135,7 @@ template <int dim, typename VectorType>
 void CudaMatrixFreeSmoother<dim, VectorType>::apply(VectorType const &b,
                                                     VectorType &x) const
 {
-  auto cuda_operator =
-      std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(
-          this->_operator);
-  auto matrix = cuda_operator->get_matrix();
-  SmootherOperator<VectorType>::apply(*matrix, _smoother, b, x);
+  SmootherOperator<VectorType>::apply(*this->_operator, _smoother, b, x);
 }
 } // namespace mfmg
 

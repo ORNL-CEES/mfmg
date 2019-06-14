@@ -13,6 +13,7 @@
 #include <mfmg/cuda/cuda_matrix_free_hierarchy_helpers.cuh>
 #include <mfmg/cuda/cuda_matrix_free_mesh_evaluator.cuh>
 #include <mfmg/cuda/cuda_matrix_free_operator.cuh>
+#include <mfmg/cuda/cuda_matrix_free_smoother.cuh>
 #include <mfmg/cuda/cuda_matrix_operator.cuh>
 
 namespace mfmg
@@ -74,6 +75,15 @@ CudaMatrixFreeHierarchyHelpers<dim, VectorType>::build_restrictor(
       std::make_shared<CudaMatrixOperator<VectorType>>(restrictor_matrix);
 
   return restrictor;
+}
+
+template <int dim, typename VectorType>
+std::shared_ptr<Smoother<VectorType>>
+CudaMatrixFreeHierarchyHelpers<dim, VectorType>::build_smoother(
+    std::shared_ptr<Operator<VectorType> const> op,
+    std::shared_ptr<boost::property_tree::ptree const> params)
+{
+  return std::make_shared<CudaMatrixFreeSmoother<dim, VectorType>>(op, params);
 }
 } // namespace mfmg
 
