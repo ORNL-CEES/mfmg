@@ -34,6 +34,12 @@
 #include "laplace.hpp"
 #include "laplace_matrix_free.hpp"
 
+// If activated the global operator's ShapeInfo object is copied instead of
+// recalculated when initializing the agglomerate operators. Requires that
+// deal.II is patched with scripts/0002-Avoid-copying-shape-info.patch.
+//
+// #define USE_OPTIMIZED_AGGLOMERATE_INITIALIZATION
+
 namespace bdata = boost::unit_test::data;
 namespace tt = boost::test_tools;
 
@@ -408,8 +414,12 @@ public:
         new dealii::MatrixFree<dim, ScalarType>());
     mf_storage->reinit(
         dof_handler, _agg_constraints, dealii::QGauss<1>(fe_degree + 1),
-        additional_data,
-        &(_laplace_operator.get_matrix_free()->get_raw_shape_info()));
+        additional_data
+#ifdef USE_OPTIMIZED_AGGLOMERATE_INITIALIZATION
+        ,
+        &(_laplace_operator.get_matrix_free()->get_raw_shape_info())
+#endif
+    );
 
     _agg_laplace_operator =
         std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>();
