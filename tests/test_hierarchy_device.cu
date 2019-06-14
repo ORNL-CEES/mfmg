@@ -271,7 +271,9 @@ BOOST_AUTO_TEST_CASE(hierarchy_3d)
 }
 
 #if MFMG_WITH_AMGX
-BOOST_AUTO_TEST_CASE(amgx)
+BOOST_DATA_TEST_CASE(amgx,
+                     bdata::make<std::string>({"matrix_based", "matrix_free"}),
+                     mesh_evaluator_type)
 {
   if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
   {
@@ -294,9 +296,21 @@ BOOST_AUTO_TEST_CASE(amgx)
     double const tolerance_percent = 5.;
     // The convergence rate for the two grid algorithm is 0.345914564 which is
     // much better than the multigrid.
-    double const ref_solution = 0.86418797066393482;
-    double const conv_rate = test<dim>(params);
-    BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance_percent);
+    if (mesh_evaluator_type == "matrix_based")
+    {
+      double const ref_solution = 0.86418797066393482;
+      double const conv_rate = test<dim>(params);
+      BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance_percent);
+    }
+    else
+    {
+      // The convergence is much better in the matrix-free case. We need to
+      // compare the matrices produces but the main difference seems that AMGx
+      // is not coarsening the matrix as aggressively in this case.
+      double const ref_solution = 0.65059751966355139;
+      double const conv_rate = test_mf<dim>(params);
+      BOOST_CHECK_CLOSE(conv_rate, ref_solution, tolerance_percent);
+    }
   }
 }
 #endif
