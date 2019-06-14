@@ -31,15 +31,18 @@ laplace
   n_refinements 5
 }
 
-;; Uncomment below for running ML
-;"max levels" 1
-;coarse
-;{
-;  type ML
-;  params
-;  {
-;    "ML output" 43
-;    "coarse: type" Amesos-KLU
-;    "smoother: type" "symmetric Gauss-Seidel"
-;  }
-;}
+; Params for running ML
+use_raw_ml false
+hidden {
+  "max levels" 1
+  coarse
+  {
+    type ML
+    params
+    {
+      "ML output" 43
+      "coarse: type" Amesos-KLU
+      "smoother: type" "symmetric Gauss-Seidel"
+    }
+  }
+}
