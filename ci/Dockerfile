@@ -240,8 +240,11 @@ RUN export DEAL_II_HASH=89057dff516849b67f737355ff697f6407acc579 && \
     wget --quiet ${DEAL_II_URL} --output-document=${DEAL_II_ARCHIVE} && \
     mkdir -p ${DEAL_II_SOURCE_DIR} && \
     tar -xf ${DEAL_II_ARCHIVE} -C ${DEAL_II_SOURCE_DIR} --strip-components=1 && \
-    cd ${DEAL_II_SOURCE_DIR} && wget --quiet https://raw.githubusercontent.com/ORNL-CEES/mfmg/master/scripts/0001-Enable-ARPACK-in-regular-mode.patch && \
+    cd ${DEAL_II_SOURCE_DIR} && \
+    wget --quiet https://raw.githubusercontent.com/ORNL-CEES/mfmg/master/scripts/0001-Enable-ARPACK-in-regular-mode.patch && \
     git apply 0001-Enable-ARPACK-in-regular-mode.patch && \
+    wget --quiet https://raw.githubusercontent.com/ORNL-CEES/mfmg/master/scripts/0002-Avoid-copying-shape-info.patch && \
+    git apply 0002-Avoid-copying-shape-info.patch && \
     mkdir -p ${DEAL_II_BUILD_DIR} && cd ${DEAL_II_BUILD_DIR} && \
     cmake -DCMAKE_BUILD_TYPE=DebugRelease \
         -DDEAL_II_WITH_MPI=ON \
