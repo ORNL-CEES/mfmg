@@ -406,8 +406,10 @@ public:
                                            dealii::update_quadrature_points;
     std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage(
         new dealii::MatrixFree<dim, ScalarType>());
-    mf_storage->reinit(dof_handler, _agg_constraints,
-                       dealii::QGauss<1>(fe_degree + 1), additional_data);
+    mf_storage->reinit(
+        dof_handler, _agg_constraints, dealii::QGauss<1>(fe_degree + 1),
+        additional_data,
+        &(_laplace_operator.get_matrix_free()->get_raw_shape_info()));
 
     _agg_laplace_operator =
         std::make_unique<LaplaceOperator<dim, fe_degree, ScalarType>>();
