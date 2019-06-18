@@ -650,6 +650,7 @@ AMGe_device<dim, MeshEvaluator, VectorType>::setup_restrictor(
   // Get the locally relevant global diagonal
   auto locally_relevant_global_diag =
       internal::LocallyRelevantDiagonal::get(evaluator);
+  locally_relevant_global_diag.update_ghost_values();
 
   return compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, locally_relevant_global_diag,
