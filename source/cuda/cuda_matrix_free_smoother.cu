@@ -119,7 +119,8 @@ CudaMatrixFreeSmoother<dim, VectorType>::CudaMatrixFreeSmoother(
   cuda_malloc(row_ptr_dev, size + 1);
 
   int n_blocks = 1 + (size - 1) / block_size;
-  iota<<<n_blocks, block_size>>>(size, column_index_dev);
+  iota<<<n_blocks, block_size>>>(size, column_index_dev,
+                                 inv_diagonal.local_range().first);
 
   n_blocks = 1 + size / block_size;
   iota<<<n_blocks, block_size>>>(size + 1, row_ptr_dev);
