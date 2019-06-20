@@ -190,21 +190,25 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   return conv_rate;
 }
 
-BOOST_DATA_TEST_CASE(hierarchy_2d,
+BOOST_DATA_TEST_CASE(hierarchy_2d_serial,
                      bdata::make<std::string>({"matrix_based", "matrix_free"}),
                      mesh_evaluator_type)
 {
-  unsigned int constexpr dim = 2;
+  if (dealii::Utilities::MPI::n_mpi_processes(MPI_COMM_WORLD) == 1)
+  {
+    unsigned int constexpr dim = 2;
 
-  auto params = std::make_shared<boost::property_tree::ptree>();
-  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
-  // We only supports Jacobi smoother on the device
-  params->put("smoother.type", "Jacobi");
+    auto params = std::make_shared<boost::property_tree::ptree>();
+    boost::property_tree::info_parser::read_info("hierarchy_input.info",
+                                                 *params);
+    // We only supports Jacobi smoother on the device
+    params->put("smoother.type", "Jacobi");
 
-  if (mesh_evaluator_type == "matrix_based")
-    test<dim>(params);
-  else
-    test_mf<dim>(params);
+    if (mesh_evaluator_type == "matrix_based")
+      test<dim>(params);
+    else
+      test_mf<dim>(params);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(hierarchy_3d)
