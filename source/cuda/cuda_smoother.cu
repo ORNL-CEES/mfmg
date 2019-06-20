@@ -146,7 +146,9 @@ CudaSmoother<VectorType>::CudaSmoother(
       row_index_coo_dev, local_nnz, val_dev);
 
   n_blocks = 1 + (size - 1) / block_size;
-  iota<<<n_blocks, block_size>>>(size, column_index_dev);
+  iota<<<n_blocks, block_size>>>(
+      size, column_index_dev,
+      *sparse_matrix->locally_owned_range_indices().begin());
 
   n_blocks = 1 + size / block_size;
   iota<<<n_blocks, block_size>>>(size + 1, row_ptr_dev);
