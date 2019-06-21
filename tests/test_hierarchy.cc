@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  int constexpr dim = mfmg::DealIIMeshEvaluator<2>::_dim;
+  int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
@@ -537,7 +537,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  int constexpr dim = mfmg::DealIIMatrixFreeMeshEvaluator<2>::_dim;
+  int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
@@ -609,7 +609,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_material_properties, MaterialProperty,
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  int constexpr dim = mfmg::DealIIMatrixFreeMeshEvaluator<2>::_dim;
+  int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
