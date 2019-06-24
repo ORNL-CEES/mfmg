@@ -29,7 +29,7 @@
         "gmres_n_restart": 10,
         "convergence": "RELATIVE_INI_CORE",
         "scope": "main",
-        "tolerance": 1e-10,
+        "tolerance": 1e-12,
         "norm": "L2"
     }
 }

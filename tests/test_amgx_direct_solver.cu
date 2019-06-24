@@ -175,7 +175,8 @@ BOOST_AUTO_TEST_CASE(amgx_parallel)
       cusparseSetMatIndexBase(matrix_dev->descr, CUSPARSE_INDEX_BASE_ZERO);
   mfmg::ASSERT_CUSPARSE(cusparse_error_code);
   auto rhs_dev = mfmg::copy_from_host(rhs);
-  auto solution_dev = mfmg::copy_from_host(sol_ref);
+  dealii::LinearAlgebra::distributed::Vector<double, dealii::MemorySpace::CUDA>
+      solution_dev(sol_ref.get_partitioner());
   auto params = std::make_shared<boost::property_tree::ptree>();
 
   params->put("solver.type", "amgx");
@@ -189,6 +190,7 @@ BOOST_AUTO_TEST_CASE(amgx_parallel)
   mfmg::CudaSolver<dealii::LinearAlgebra::distributed::Vector<
       double, dealii::MemorySpace::CUDA>>
       direct_solver_dev(cuda_handle, cuda_op, params);
+  direct_solver_dev.apply(rhs_dev, solution_dev);
 
   // Move the result back to the host
   std::vector<double> solution_host(n_local_rows);
