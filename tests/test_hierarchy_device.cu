@@ -285,7 +285,7 @@ BOOST_DATA_TEST_CASE(amgx,
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   params->put("solver.type", "amgx");
-  params->put("solver.config_file", "amgx_config_amg.json");
+  params->put("solver.config_file", "amgx_config_fgmres.json");
 
   params->put("eigensolver.type", "lapack");
   params->put("agglomeration.nz", 2);
