@@ -481,7 +481,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  int constexpr dim = mfmg::DealIIMeshEvaluator<2>::_dim;
+  int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
@@ -549,7 +549,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
   MPI_Comm comm = MPI_COMM_WORLD;
 
   using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
-  int constexpr dim = mfmg::DealIIMatrixFreeMeshEvaluator<2>::_dim;
+  int constexpr dim = 2;
 
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
@@ -608,4 +608,57 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
       if (ref_matrix->el(i, j) > 1e-10)
         BOOST_TEST(fast_matrix->el(i, j) == ref_matrix->el(i, j),
                    tt::tolerance(1e-9));
+}
+
+using material_properties =
+    std::tuple<ConstantMaterialProperty<2>, LinearMaterialProperty<2>,
+               LinearXMaterialProperty<2>, DiscontinuousMaterialProperty<2>>;
+BOOST_AUTO_TEST_CASE_TEMPLATE(test_material_properties, MaterialProperty,
+                              material_properties)
+{
+  dealii::MultithreadInfo::set_thread_limit(1);
+
+  MPI_Comm comm = MPI_COMM_WORLD;
+
+  using DVector = dealii::LinearAlgebra::distributed::Vector<double>;
+  int constexpr dim = 2;
+
+  auto params = std::make_shared<boost::property_tree::ptree>();
+  boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
+  auto const material_property = std::make_shared<MaterialProperty>();
+  Source<dim> source;
+  auto laplace_ptree = params->get_child("laplace");
+
+  // Set up the reference (matrix-based) operator.
+  Laplace<dim, DVector> ref_laplace(comm, 1);
+  ref_laplace.setup_system(laplace_ptree);
+  ref_laplace.assemble_system(source, *material_property);
+
+  // Set up the matrix-free operator.
+  int constexpr fe_degree = 1;
+  LaplaceMatrixFree<dim, fe_degree, double> fast_laplace(comm);
+  fast_laplace.setup_system(laplace_ptree, *material_property);
+
+  auto const locally_owned_dofs = fast_laplace._locally_owned_dofs;
+  DVector solution(locally_owned_dofs, comm);
+  DVector rhs_ref(locally_owned_dofs, comm);
+  DVector rhs_fast(locally_owned_dofs, comm);
+  std::default_random_engine generator;
+  std::uniform_real_distribution<typename DVector::value_type> distribution(0.,
+                                                                            1.);
+  for (auto const index : locally_owned_dofs)
+  {
+    // Make the solution satisfy the Dirichlet conditions because these should
+    // be treated outside the preconditioner
+    if (fast_laplace._constraints.is_constrained(index))
+      solution[index] = 0.;
+    else
+      solution[index] = distribution(generator);
+  }
+  fast_laplace._laplace_operator.vmult(rhs_ref, solution);
+  ref_laplace._system_matrix.vmult(rhs_fast, solution);
+
+  rhs_ref -= rhs_fast;
+
+  BOOST_TEST(rhs_ref.l2_norm() < 1.e-9);
 }
