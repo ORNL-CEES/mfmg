@@ -60,4 +60,3 @@ ENDIF()
 
 MFMG_COPY_INPUT_FILE(hierarchy_input.info  tests/data)
 MFMG_COPY_INPUT_FILE(amgx_config_fgmres.json  tests/data)
-MFMG_COPY_INPUT_FILE(amgx_config_amg.json  tests/data)
