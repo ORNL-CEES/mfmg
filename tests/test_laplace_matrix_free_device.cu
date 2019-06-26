@@ -70,42 +70,23 @@ ScalarType Source<dim>::value(dealii::Point<dim, ScalarType> const &p) const
   return val;
 }
 
-BOOST_AUTO_TEST_CASE(laplace_2d)
-{
-  int constexpr dim = 2;
-  int constexpr fe_degree = 3;
-
-  dealii::Utilities::CUDA::Handle cuda_handle;
-  Source<dim> source;
-
-  LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
-  laplace_dev.setup_system(boost::property_tree::ptree());
-  laplace_dev.assemble_rhs(source);
-
-  dealii::PreconditionIdentity preconditioner;
-  laplace_dev.solve(preconditioner);
-
-  // The exact solution is quadratic so the error should be zero.
-  ExactSolution<dim> exact_solution;
-  BOOST_TEST(laplace_dev.compute_error(exact_solution) == 0.,
-             tt::tolerance(1e-14));
-}
-
 template <int dim>
-class MaterialProperty : public dealii::Function<dim>
+class MaterialProperty
 {
 public:
   MaterialProperty() = default;
 
-  double value(dealii::Point<dim> const &p,
-               unsigned int const component = 0) const override;
+  template <typename ScalarType>
+  dealii::VectorizedArray<ScalarType>
+  value(dealii::Point<dim, dealii::VectorizedArray<ScalarType>> const &p) const;
 };
 
 template <int dim>
-double MaterialProperty<dim>::value(dealii::Point<dim> const &,
-                                    unsigned int const) const
+template <typename ScalarType>
+dealii::VectorizedArray<ScalarType> MaterialProperty<dim>::value(
+    dealii::Point<dim, dealii::VectorizedArray<ScalarType>> const &) const
 {
-  return 1.0;
+  return dealii::make_vectorized_array<ScalarType>(1.);
 }
 
 template <int dim>
@@ -152,56 +133,57 @@ public:
   }
 };
 
+BOOST_AUTO_TEST_CASE(laplace_2d)
+{
+  int constexpr dim = 2;
+  int constexpr fe_degree = 3;
+
+  dealii::Utilities::CUDA::Handle cuda_handle;
+  Source<dim> source;
+
+  LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
+  MaterialProperty<dim> material_property;
+  laplace_dev.setup_system(boost::property_tree::ptree(), material_property);
+  laplace_dev.assemble_rhs(source);
+
+  dealii::PreconditionIdentity preconditioner;
+  laplace_dev.solve(preconditioner);
+
+  // The exact solution is quadratic so the error should be zero.
+  ExactSolution<dim> exact_solution;
+  BOOST_TEST(laplace_dev.compute_error(exact_solution) == 0.,
+             tt::tolerance(1e-14));
+}
+
 BOOST_AUTO_TEST_CASE(laplace_3d)
 {
   int constexpr dim = 3;
   int constexpr fe_degree = 2;
-  {
-    MaterialProperty<3> material_property;
-    MSource<3> source;
 
-    Laplace<3, dealii::TrilinosWrappers::MPI::Vector> laplace(MPI_COMM_WORLD,
-                                                              2);
-    laplace.setup_system(boost::property_tree::ptree());
-    laplace.assemble_system(source, material_property);
-    std::cout << "rhs " << laplace._system_rhs.l2_norm() << std::endl;
-    auto solution = laplace._system_rhs;
+  dealii::Utilities::CUDA::Handle cuda_handle;
+  Source<dim> source;
 
-    dealii::PreconditionIdentity preconditioner;
-    dealii::SolverControl solver_control(laplace._dof_handler.n_dofs(),
-                                         1e-12 * laplace._system_rhs.l2_norm());
-    MyCG<decltype(solution)> solver(solver_control);
-    solution = 0.;
+  LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
+  MaterialProperty<dim> material_property;
+  laplace_dev.setup_system(boost::property_tree::ptree(), material_property);
+  laplace_dev.assemble_rhs(source);
+  std::cout << "rhs " << laplace_dev._system_rhs.l2_norm() << std::endl;
+  auto solution = laplace_dev._system_rhs;
 
-    solver.solve(laplace._system_matrix, solution, laplace._system_rhs,
-                 preconditioner);
-  }
+  dealii::PreconditionIdentity preconditioner;
+  dealii::SolverControl solver_control(laplace_dev._dof_handler.n_dofs(),
+                                       1e-12 *
+                                           laplace_dev._system_rhs.l2_norm());
+  MyCG<dealii::LinearAlgebra::distributed::Vector<double,
+                                                  dealii::MemorySpace::CUDA>>
+      cg(solver_control);
+  solution = 0.;
 
-  {
-    dealii::Utilities::CUDA::Handle cuda_handle;
-    Source<dim> source;
+  cg.solve(*laplace_dev._laplace_operator, solution, laplace_dev._system_rhs,
+           preconditioner);
 
-    LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
-    laplace_dev.setup_system(boost::property_tree::ptree());
-    laplace_dev.assemble_rhs(source);
-    std::cout << "rhs " << laplace_dev._system_rhs.l2_norm() << std::endl;
-    auto solution = laplace_dev._system_rhs;
-
-    dealii::PreconditionIdentity preconditioner;
-    dealii::SolverControl solver_control(laplace_dev._dof_handler.n_dofs(),
-                                         1e-12 *
-                                             laplace_dev._system_rhs.l2_norm());
-    MyCG<dealii::LinearAlgebra::distributed::Vector<double,
-                                                    dealii::MemorySpace::CUDA>>
-        cg(solver_control);
-    solution = 0.;
-
-    cg.solve(*laplace_dev._laplace_operator, solution, laplace_dev._system_rhs,
-             preconditioner);
-
-    // The exact solution is quadratic so the error should be zero.
-    ExactSolution<dim> exact_solution;
-    BOOST_TEST(laplace_dev.compute_error(exact_solution) == 0.,
-               tt::tolerance(1e-14));
-  }
+  // The exact solution is quadratic so the error should be zero.
+  ExactSolution<dim> exact_solution;
+  BOOST_TEST(laplace_dev.compute_error(exact_solution) == 0.,
+             tt::tolerance(1e-14));
 }
