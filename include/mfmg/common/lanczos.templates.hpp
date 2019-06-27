@@ -47,6 +47,14 @@ void details_set_initial_guess(VectorType &initial_guess, int seed)
                  initial_guess.begin(),
                  [&](auto &v) { return (1. + dist(gen)) * v; });
 }
+
+#ifdef __CUDACC__
+template <>
+void details_set_initial_guess(
+    dealii::LinearAlgebra::distributed::Vector<
+        double, dealii::MemorySpace::CUDA> &initial_guess,
+    int seed);
+#endif
 } // namespace internal
 
 /// \brief Lanczos solver: constructor
