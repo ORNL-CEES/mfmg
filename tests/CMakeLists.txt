@@ -43,7 +43,7 @@ FOREACH(NPROC 1;2;4)
 ENDFOREACH()
 
 IF(${MFMG_ENABLE_CUDA})
-#  MFMG_ADD_CUDA_TEST(test_laplace_matrix_free_device 1 2)
+  MFMG_ADD_CUDA_TEST(test_laplace_matrix_free_device 1 2)
   MFMG_ADD_CUDA_TEST(test_utils_device 1 2 4)
   MFMG_ADD_CUDA_TEST(test_eigenvectors_device 1)
   MFMG_ADD_CUDA_TEST(test_restriction_matrix_device 1)

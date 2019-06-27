@@ -268,7 +268,11 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
 
   // Resize the vectors
   _solution.reinit(_locally_owned_dofs, _comm);
-  _system_rhs.reinit(_locally_owned_dofs, _comm);
+  // We need information about non-owned dofs for the call to
+  // distribute_local_to_global. LaplaceOperatorDevice does not yet have a
+  // function for initializing vectors suitably (opposed to LaplaceOperator).
+  // Hence, just make all locally relevant dofs ghost entries.
+  _system_rhs.reinit(_locally_owned_dofs, _locally_relevant_dofs, _comm);
 
   // TODO use material_property
 
@@ -313,7 +317,7 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::assemble_rhs(
 {
   // Build on the rhs on the host and then move the data to the device
   dealii::LinearAlgebra::distributed::Vector<ScalarType> system_rhs_host(
-      _locally_owned_dofs, _comm);
+      _system_rhs.get_partitioner());
   system_rhs_host = 0;
 
   dealii::QGauss<dim> const quadrature(fe_degree + 1);

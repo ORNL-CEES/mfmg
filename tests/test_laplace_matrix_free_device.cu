@@ -171,16 +171,7 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
   auto solution = laplace_dev._system_rhs;
 
   dealii::PreconditionIdentity preconditioner;
-  dealii::SolverControl solver_control(laplace_dev._dof_handler.n_dofs(),
-                                       1e-12 *
-                                           laplace_dev._system_rhs.l2_norm());
-  MyCG<dealii::LinearAlgebra::distributed::Vector<double,
-                                                  dealii::MemorySpace::CUDA>>
-      cg(solver_control);
-  solution = 0.;
-
-  cg.solve(*laplace_dev._laplace_operator, solution, laplace_dev._system_rhs,
-           preconditioner);
+  laplace_dev.solve(preconditioner);
 
   // The exact solution is quadratic so the error should be zero.
   ExactSolution<dim> exact_solution;
