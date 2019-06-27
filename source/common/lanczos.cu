@@ -9,6 +9,8 @@
  * SPDX-License-Identifier: BSD-3-Clause                                  *
  *************************************************************************/
 
+#include <mfmg/common/lanczos.templates.hpp>
+
 namespace mfmg
 {
 namespace internal
