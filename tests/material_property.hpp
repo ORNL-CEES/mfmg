@@ -132,12 +132,19 @@ public:
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
         unsigned int const = 0) const override
   {
-    auto const one = dealii::make_vectorized_array<double>(1.);
-    unsigned int dim_scale = 0;
-    for (unsigned int d = 0; d < dim; ++d)
-      dim_scale += static_cast<unsigned int>(std::floor(p[d][0] * 100)) % 2;
+    auto dim_scale = dealii::make_vectorized_array<double>(0);
+    for (unsigned int i = 0;
+         i < dealii::VectorizedArray<double>::n_array_elements; ++i)
+      for (unsigned int d = 0; d < dim; ++d)
+        dim_scale[i] +=
+            static_cast<unsigned int>(std::floor(100. * p[d][i])) % 2;
 
-    return (dim_scale == dim ? 100. * one : 10. * one);
+    dealii::VectorizedArray<double> return_value;
+    for (unsigned int i = 0;
+         i < dealii::VectorizedArray<double>::n_array_elements; ++i)
+      return_value[i] = (dim_scale[i] == dim ? 100. : 10.);
+
+    return return_value;
   }
 
   virtual double value(dealii::Point<dim> const &p,
