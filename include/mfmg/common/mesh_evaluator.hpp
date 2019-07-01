@@ -25,6 +25,11 @@ public:
 
   virtual std::string get_mesh_evaluator_type() const = 0;
 };
+
+template <typename T>
+struct is_matrix_free : std::false_type
+{
+};
 } // namespace mfmg
 
 #endif
