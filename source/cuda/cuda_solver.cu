@@ -35,7 +35,7 @@ struct DirectSolver
              AMGX_vector_handle const &amgx_solution_handle,
              AMGX_solver_handle const &amgx_solver_handle,
              SparseMatrixDevice<typename VectorType::value_type> const &matrix,
-             VectorType &b, VectorType &x);
+             VectorType const &b, VectorType &x);
 #endif
 };
 
@@ -100,7 +100,7 @@ void DirectSolver<VectorType>::amgx_solve(
     AMGX_vector_handle const &amgx_solution_handle,
     AMGX_solver_handle const &amgx_solver_handle,
     SparseMatrixDevice<typename VectorType::value_type> const &matrix,
-    VectorType &b, VectorType &x)
+    VectorType const &b, VectorType &x)
 {
   ASSERT_THROW_NOT_IMPLEMENTED();
 }
@@ -114,7 +114,7 @@ void DirectSolver<dealii::LinearAlgebra::distributed::Vector<
                AMGX_solver_handle const &amgx_solver_handle,
                SparseMatrixDevice<double> const &matrix,
                dealii::LinearAlgebra::distributed::Vector<
-                   double, dealii::MemorySpace::CUDA> &b,
+                   double, dealii::MemorySpace::CUDA> const &b,
                dealii::LinearAlgebra::distributed::Vector<
                    double, dealii::MemorySpace::CUDA> &x)
 {
@@ -160,7 +160,7 @@ void DirectSolver<dealii::LinearAlgebra::distributed::Vector<
                AMGX_solver_handle const &amgx_solver_handle,
                SparseMatrixDevice<double> const &matrix,
                dealii::LinearAlgebra::distributed::Vector<
-                   double, dealii::MemorySpace::Host> &b,
+                   double, dealii::MemorySpace::Host> const &b,
                dealii::LinearAlgebra::distributed::Vector<
                    double, dealii::MemorySpace::Host> &x)
 {
@@ -228,8 +228,7 @@ CudaSolver<VectorType>::CudaSolver(
 
     // We need to cast away the const because we need to change the format
     // of _matrix to the format supported by amgx
-    auto &amgx_matrix = const_cast<SparseMatrixDevice<value_type> &>(
-        *(cuda_operator->get_matrix()));
+    auto &amgx_matrix = *(cuda_operator->get_matrix());
 
     AMGX_initialize();
     AMGX_initialize_plugins();
@@ -500,16 +499,14 @@ void CudaSolver<VectorType>::apply(VectorType const &b, VectorType &x) const
   auto cuda_operator =
       std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(
           this->_operator);
-  auto matrix = cuda_operator->get_matrix();
+  auto const &matrix = cuda_operator->get_matrix();
+
 #if MFMG_WITH_AMGX
   if (_solver == "amgx")
   {
-    // We need to reorder b because we had to reorder the matrix. So we need to
-    // cast the const away
-    auto &amgx_b = const_cast<VectorType &>(b);
-    DirectSolver<VectorType>::amgx_solve(
-        _row_map, _amgx_rhs_handle, _amgx_solution_handle, _amgx_solver_handle,
-        *matrix, amgx_b, x);
+    DirectSolver<VectorType>::amgx_solve(_row_map, _amgx_rhs_handle,
+                                         _amgx_solution_handle,
+                                         _amgx_solver_handle, *matrix, b, x);
   }
   else
 #endif
