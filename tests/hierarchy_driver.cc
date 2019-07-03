@@ -42,7 +42,7 @@ void matrix_free_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
 
   auto const &laplace_ptree = params->get_child("laplace");
   LaplaceMatrixFree<dim, fe_degree, double> mf_laplace(comm);
@@ -137,7 +137,7 @@ void matrix_based_two_grids(std::shared_ptr<boost::property_tree::ptree> params)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
   auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 4);

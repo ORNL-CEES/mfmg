@@ -12,7 +12,7 @@
 #ifndef MFMG_LAPLACE_HPP
 #define MFMG_LAPLACE_HPP
 
-#include <deal.II/base/function.h>
+#include <deal.II/base/function.templates.h>
 #include <deal.II/base/index_set.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/distributed/tria.h>
@@ -40,6 +40,8 @@
 
 #include <string>
 
+#include "material_property.hpp"
+
 template <int dim, typename VectorType>
 class Laplace
 {
@@ -49,7 +51,7 @@ public:
   void setup_system(boost::property_tree::ptree const &ptree);
 
   void assemble_system(dealii::Function<dim> const &source,
-                       dealii::Function<dim> const &material_property);
+                       Coefficient<dim> const &material_property);
 
   template <typename PreconditionerType>
   VectorType solve(PreconditionerType &preconditioner);
@@ -154,7 +156,7 @@ void Laplace<dim, VectorType>::setup_system(
 template <int dim, typename VectorType>
 void Laplace<dim, VectorType>::assemble_system(
     dealii::Function<dim> const &source,
-    dealii::Function<dim> const &material_property)
+    Coefficient<dim> const &material_property)
 {
   unsigned int const fe_degree = _fe.degree;
   dealii::QGauss<dim> const quadrature(fe_degree + 1);

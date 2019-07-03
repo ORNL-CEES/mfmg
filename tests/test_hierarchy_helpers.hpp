@@ -53,7 +53,7 @@ public:
                     dealii::AffineConstraints<double> &constraints,
                     unsigned int fe_degree,
                     dealii::TrilinosWrappers::SparseMatrix const &matrix,
-                    std::shared_ptr<dealii::Function<dim>> material_property)
+                    std::shared_ptr<Coefficient<dim>> material_property)
       : MeshEvaluator(dof_handler, constraints), _fe_degree(fe_degree),
         _matrix(matrix), _material_property(material_property)
   {
@@ -136,7 +136,7 @@ public:
 private:
   unsigned const _fe_degree;
   dealii::TrilinosWrappers::SparseMatrix const &_matrix;
-  std::shared_ptr<dealii::Function<dim>> _material_property;
+  std::shared_ptr<Coefficient<dim>> _material_property;
 };
 
 template <int dim, int fe_degree, typename ScalarType>

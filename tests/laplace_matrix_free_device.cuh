@@ -34,27 +34,73 @@
 
 #include "laplace_matrix_free.hpp"
 
-template <int dim, int fe_degree>
+template <int dim, int fe_degree, class MaterialProperty>
+class CoefficientFunctor
+{
+public:
+  CoefficientFunctor(MaterialProperty const &material_property,
+                     double *coefficient)
+      : _material_property(material_property), _coef(coefficient)
+  {
+  }
+  __device__ void
+  operator()(const unsigned int cell,
+             const typename dealii::CUDAWrappers::MatrixFree<dim, double>::Data
+                 *gpu_data);
+  static const unsigned int n_dofs_1d = fe_degree + 1;
+  static const unsigned int n_local_dofs =
+      dealii::Utilities::pow(n_dofs_1d, dim);
+  static const unsigned int n_q_points = dealii::Utilities::pow(n_dofs_1d, dim);
+
+private:
+  MaterialProperty const &_material_property;
+  double *_coef;
+};
+template <int dim, int fe_degree, class MaterialProperty>
+__device__ void CoefficientFunctor<dim, fe_degree, MaterialProperty>::
+operator()(const unsigned int cell,
+           const typename dealii::CUDAWrappers::MatrixFree<dim, double>::Data
+               *gpu_data)
+{
+  unsigned int const pos = dealii::CUDAWrappers::local_q_point_id<dim, double>(
+      cell, gpu_data, n_dofs_1d, n_q_points);
+  auto const point = dealii::CUDAWrappers::get_quadrature_point<dim, double>(
+      cell, gpu_data, n_dofs_1d);
+  _coef[pos] = _material_property.value(point);
+}
+
+template <int dim, int fe_degree, typename ScalarType>
 class LaplaceOperatorQuad
 {
 public:
+  __device__ LaplaceOperatorQuad(ScalarType coef) : _coef(coef) {}
+
   __device__ void
-  operator()(dealii::CUDAWrappers::FEEvaluation<dim, fe_degree> *fe_eval,
+  operator()(dealii::CUDAWrappers::FEEvaluation<dim, fe_degree, fe_degree + 1,
+                                                1, ScalarType> *fe_eval,
              const unsigned int q) const;
+
+private:
+  ScalarType _coef;
 };
 
-template <int dim, int fe_degree>
-__device__ void LaplaceOperatorQuad<dim, fe_degree>::
-operator()(dealii::CUDAWrappers::FEEvaluation<dim, fe_degree> *fe_eval,
+template <int dim, int fe_degree, typename ScalarType>
+__device__ void LaplaceOperatorQuad<dim, fe_degree, ScalarType>::
+operator()(dealii::CUDAWrappers::FEEvaluation<dim, fe_degree, fe_degree + 1, 1,
+                                              ScalarType> *fe_eval,
            const unsigned int q) const
 {
-  fe_eval->submit_gradient(fe_eval->get_gradient(q), q);
+  dealii::Tensor<1, dim, ScalarType> tmp = fe_eval->get_gradient(q);
+  tmp *= _coef;
+  fe_eval->submit_gradient(tmp, q);
 }
 
 template <int dim, int fe_degree, typename ScalarType>
 class LocalLaplaceOperator
 {
 public:
+  LocalLaplaceOperator(ScalarType *coefficient) : _coef(coefficient) {}
+
   __device__ void operator()(
       unsigned int const cell,
       typename dealii::CUDAWrappers::MatrixFree<dim, ScalarType>::Data const
@@ -66,6 +112,9 @@ public:
   static unsigned int const n_local_dofs =
       dim == 2 ? n_dofs_1d * n_dofs_1d : n_dofs_1d * n_dofs_1d * n_dofs_1d;
   static unsigned int const n_q_points = n_local_dofs;
+
+private:
+  ScalarType *_coef;
 };
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -76,6 +125,9 @@ __device__ void LocalLaplaceOperator<dim, fe_degree, ScalarType>::operator()(
     dealii::CUDAWrappers::SharedData<dim, ScalarType> *shared_data,
     ScalarType const *src, ScalarType *dst) const
 {
+  const unsigned int pos = dealii::CUDAWrappers::local_q_point_id<dim, double>(
+      cell, gpu_data, n_dofs_1d, n_q_points);
+
   dealii::CUDAWrappers::FEEvaluation<dim, fe_degree, fe_degree + 1, 1,
                                      ScalarType>
       fe_eval(cell, gpu_data, shared_data);
@@ -85,7 +137,9 @@ __device__ void LocalLaplaceOperator<dim, fe_degree, ScalarType>::operator()(
   bool const integrate_values = false;
   bool const integrate_gradients = true;
   fe_eval.evaluate(evaluate_values, evaluate_gradients);
-  fe_eval.apply_quad_point_operations(LaplaceOperatorQuad<dim, fe_degree>());
+  auto value = _coef[pos];
+  LaplaceOperatorQuad<dim, fe_degree, ScalarType> dummy(value);
+  fe_eval.apply_quad_point_operations(dummy);
   fe_eval.integrate(integrate_values, integrate_gradients);
   fe_eval.distribute_local_to_global(dst);
 }
@@ -99,6 +153,8 @@ public:
   LaplaceOperatorDevice(MPI_Comm const &comm,
                         dealii::DoFHandler<dim> const &dof_handler,
                         dealii::AffineConstraints<double> const &constraints);
+
+  void evaluate_coefficient(Coefficient<dim> const &material_property);
 
   void vmult(dealii::LinearAlgebra::distributed::Vector<
                  ScalarType, dealii::MemorySpace::CUDA> &dst,
@@ -133,6 +189,8 @@ public:
       dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
           double, dealii::MemorySpace::CUDA>>>
       _diagonal_inverse;
+
+  dealii::LinearAlgebra::CUDAWrappers::Vector<double> _coef;
 };
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -148,6 +206,26 @@ LaplaceOperatorDevice<dim, fe_degree, ScalarType>::LaplaceOperatorDevice(
                                          dealii::update_quadrature_points;
   const dealii::QGauss<1> quad(fe_degree + 1);
   _mf_data.reinit(mapping, dof_handler, constraints, quad, additional_data);
+
+  auto *parallel_triangulation_ptr =
+      dynamic_cast<const dealii::parallel::Triangulation<dim> *>(
+          &dof_handler.get_triangulation());
+
+  const unsigned int n_owned_cells =
+      parallel_triangulation_ptr
+          ? parallel_triangulation_ptr->n_locally_owned_active_cells()
+          : dof_handler.get_triangulation().n_active_cells();
+
+  _coef.reinit(dealii::Utilities::pow(fe_degree + 1, dim) * n_owned_cells);
+}
+
+template <int dim, int fe_degree, typename ScalarType>
+void LaplaceOperatorDevice<dim, fe_degree, ScalarType>::evaluate_coefficient(
+    Coefficient<dim> const &material_property)
+{
+  const CoefficientFunctor<dim, fe_degree, Coefficient<dim>> functor(
+      material_property, _coef.get_values());
+  _mf_data.evaluate_coefficients(functor);
 }
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -158,7 +236,8 @@ void LaplaceOperatorDevice<dim, fe_degree, ScalarType>::vmult(
         ScalarType, dealii::MemorySpace::CUDA> &src) const
 {
   dst = 0.;
-  LocalLaplaceOperator<dim, fe_degree, ScalarType> local_laplace_operator;
+  LocalLaplaceOperator<dim, fe_degree, ScalarType> local_laplace_operator(
+      _coef.get_values());
   _mf_data.cell_loop(local_laplace_operator, src, dst);
   _mf_data.copy_constrained_values(src, dst);
 }
@@ -171,7 +250,8 @@ public:
 
   template <typename MaterialPropertyType>
   void setup_system(boost::property_tree::ptree const &ptree,
-                    MaterialPropertyType const &material_property);
+                    MaterialPropertyType const &material_property,
+                    MaterialPropertyType const &material_property_host);
 
   template <typename SourceType>
   void assemble_rhs(SourceType const &source);
@@ -212,7 +292,8 @@ template <int dim, int fe_degree, typename ScalarType>
 template <typename MaterialPropertyType>
 void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
     boost::property_tree::ptree const &ptree,
-    MaterialPropertyType const &material_property)
+    MaterialPropertyType const &material_property,
+    MaterialPropertyType const &material_property_host)
 {
   std::string const mesh = ptree.get("mesh", "hyper_cube");
   if (mesh == "hyper_ball")
@@ -265,6 +346,7 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
   _laplace_operator =
       std::make_unique<LaplaceOperatorDevice<dim, fe_degree, ScalarType>>(
           _comm, _dof_handler, _constraints);
+  _laplace_operator->evaluate_coefficient(material_property);
 
   // Resize the vectors
   _solution.reinit(_locally_owned_dofs, _comm);
@@ -273,8 +355,6 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
   // function for initializing vectors suitably (opposed to LaplaceOperator).
   // Hence, just make all locally relevant dofs ghost entries.
   _system_rhs.reinit(_locally_owned_dofs, _locally_relevant_dofs, _comm);
-
-  // TODO use material_property
 
   // At the current time there is no easy way to extract the diagonal using CUDA
   // and Matrix-Free. So we have to do it on the host.
@@ -291,7 +371,7 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
   LaplaceOperator<dim, fe_degree, ScalarType> laplace_operator_host;
   laplace_operator_host.initialize(mf_storage);
 
-  laplace_operator_host.evaluate_coefficient(material_property);
+  laplace_operator_host.evaluate_coefficient(material_property_host);
   laplace_operator_host.compute_diagonal();
 
   // Set the DiagonalMatrix on the device

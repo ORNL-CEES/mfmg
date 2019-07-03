@@ -186,21 +186,6 @@ double Source<dim>::value(dealii::Point<dim> const &, unsigned int const) const
 }
 
 template <int dim>
-class ConstantMaterialProperty : public dealii::Function<dim>
-{
-public:
-  ConstantMaterialProperty() = default;
-
-  virtual ~ConstantMaterialProperty() override = default;
-
-  virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override final
-  {
-    return 1.;
-  }
-};
-
-template <int dim>
 class TestMeshEvaluator : public mfmg::DealIIMeshEvaluator<dim>
 {
 public:
@@ -315,8 +300,7 @@ BOOST_DATA_TEST_CASE(weight_sum, bdata::make({"lapack", "lanczos"}),
   double tolerance = params->get<double>("eigensolver.tolerance", 1e-14);
 
   params->put("laplace.n_refinements", 4);
-  std::shared_ptr<dealii::Function<dim>> material_property =
-      std::make_shared<ConstantMaterialProperty<dim>>();
+  auto material_property = std::make_shared<ConstantMaterialProperty<dim>>();
   auto laplace_ptree = params->get_child("laplace");
   auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
   Laplace<dim, DVector> laplace(comm, fe_degree);

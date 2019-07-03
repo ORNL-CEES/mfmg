@@ -142,8 +142,12 @@ BOOST_AUTO_TEST_CASE(laplace_2d)
   Source<dim> source;
 
   LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
-  MaterialProperty<dim> material_property;
-  laplace_dev.setup_system(boost::property_tree::ptree(), material_property);
+  auto material_property =
+      DeviceMaterialPropertyFactory<dim>::create_material_property("constant");
+  auto material_property_host =
+      MaterialPropertyFactory<dim>::create_material_property("constant");
+  laplace_dev.setup_system(boost::property_tree::ptree(), *material_property,
+                           *material_property_host);
   laplace_dev.assemble_rhs(source);
 
   dealii::PreconditionIdentity preconditioner;
@@ -164,8 +168,12 @@ BOOST_AUTO_TEST_CASE(laplace_3d)
   Source<dim> source;
 
   LaplaceMatrixFreeDevice<dim, fe_degree, double> laplace_dev(MPI_COMM_WORLD);
-  MaterialProperty<dim> material_property;
-  laplace_dev.setup_system(boost::property_tree::ptree(), material_property);
+  auto material_property =
+      DeviceMaterialPropertyFactory<dim>::create_material_property("constant");
+  auto material_property_host =
+      MaterialPropertyFactory<dim>::create_material_property("constant");
+  laplace_dev.setup_system(boost::property_tree::ptree(), *material_property,
+                           *material_property_host);
   laplace_dev.assemble_rhs(source);
   std::cout << "rhs " << laplace_dev._system_rhs.l2_norm() << std::endl;
   auto solution = laplace_dev._system_rhs;

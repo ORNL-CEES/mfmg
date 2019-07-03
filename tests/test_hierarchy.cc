@@ -62,7 +62,7 @@ double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
   int constexpr fe_degree = 1;
@@ -137,7 +137,7 @@ double test(std::shared_ptr<boost::property_tree::ptree> params)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
   auto fe_degree = laplace_ptree.get<unsigned>("fe_degree", 1);
@@ -489,7 +489,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
   auto laplace_ptree = params->get_child("laplace");
 
   // Compute the ref AP
@@ -557,7 +557,7 @@ BOOST_AUTO_TEST_CASE(fast_multiply_transpose_mf)
   auto material_property =
       MaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
   auto laplace_ptree = params->get_child("laplace");
 
   // Compute the ref AP
@@ -626,7 +626,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_material_properties, MaterialProperty,
   auto params = std::make_shared<boost::property_tree::ptree>();
   boost::property_tree::info_parser::read_info("hierarchy_input.info", *params);
   auto const material_property = std::make_shared<MaterialProperty>();
-  Source<dim> source;
+  dealii::ZeroFunction<dim> source;
   auto laplace_ptree = params->get_child("laplace");
 
   // Set up the reference (matrix-based) operator.

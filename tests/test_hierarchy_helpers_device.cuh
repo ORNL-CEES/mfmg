@@ -162,10 +162,12 @@ public:
       dealii::AffineConstraints<double> &constraints,
       LaplaceOperatorDevice<dim, fe_degree, ScalarType> &laplace_operator,
       std::shared_ptr<Coefficient<dim>> material_property,
+      std::shared_ptr<Coefficient<dim>> material_property_host,
       mfmg::CudaHandle &cuda_handle)
       : _comm(comm), mfmg::CudaMatrixFreeMeshEvaluator<dim>(
                          cuda_handle, dof_handler, constraints),
-        _material_property(material_property), _fe(fe_degree),
+        _material_property(material_property),
+        _material_property_host(material_property_host), _fe(fe_degree),
         _laplace_operator(laplace_operator)
   {
   }
@@ -192,23 +194,11 @@ public:
     _agg_constraints.close();
 
     // Initialize the MatrixFree object
-    typename dealii::CUDAWrappers::MatrixFree<dim, ScalarType>::AdditionalData
-        additional_data;
-    additional_data.mapping_update_flags = dealii::update_gradients |
-                                           dealii::update_JxW_values |
-                                           dealii::update_quadrature_points;
-    std::shared_ptr<dealii::CUDAWrappers::MatrixFree<dim, ScalarType>>
-        mf_storage(new dealii::CUDAWrappers::MatrixFree<dim, ScalarType>());
-    mf_storage->reinit(dof_handler, _agg_constraints,
-                       dealii::QGauss<1>(fe_degree + 1), additional_data);
-
     _agg_laplace_operator =
         std::make_unique<LaplaceOperatorDevice<dim, fe_degree, ScalarType>>(
             _comm, dof_handler, _agg_constraints);
-    // TODO
-    // _agg_laplace_operator->initialize(mf_storage);
-    // _agg_laplace_operator->evaluate_coefficient(*_material_property);
-    // _agg_laplace_operator->compute_diagonal();
+    _agg_laplace_operator->evaluate_coefficient(*_material_property);
+
     // At the current time there is no easy way to extract the diagonal using
     // CUDA and Matrix-Free. So we have to do it on the host.
     typename dealii::MatrixFree<dim, ScalarType>::AdditionalData
@@ -226,7 +216,7 @@ public:
     LaplaceOperator<dim, fe_degree, ScalarType> laplace_operator_host;
     laplace_operator_host.initialize(mf_storage_host);
 
-    laplace_operator_host.evaluate_coefficient(*_material_property);
+    laplace_operator_host.evaluate_coefficient(*_material_property_host);
     laplace_operator_host.compute_diagonal();
 
     // Set the DiagonalMatrix on the device
@@ -300,6 +290,7 @@ public:
 private:
   MPI_Comm _comm;
   std::shared_ptr<Coefficient<dim>> _material_property;
+  std::shared_ptr<Coefficient<dim>> _material_property_host;
   dealii::FE_Q<dim> _fe;
   mutable dealii::AffineConstraints<double> _agg_constraints;
   LaplaceOperatorDevice<dim, fe_degree, ScalarType> &_laplace_operator;
@@ -311,5 +302,6 @@ private:
   mutable dealii::LinearAlgebra::distributed::Vector<ScalarType,
                                                      dealii::MemorySpace::CUDA>
       _distributed_src;
+  mutable dealii::LinearAlgebra::CUDAWrappers::Vector<ScalarType> _coef;
 };
 #endif

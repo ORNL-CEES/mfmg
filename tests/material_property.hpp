@@ -12,45 +12,31 @@
 #ifndef MFMG_MATERIAL_PROPERTY_HPP
 #define MFMG_MATERIAL_PROPERTY_HPP
 
-#include <deal.II/base/function.h>
+#include <mfmg/common/exceptions.hpp>
+
 #include <deal.II/base/vectorization.h>
 
 template <int dim>
-class Source final : public dealii::Function<dim>
+class Coefficient //: public dealii::Function<dim>
 {
 public:
-  Source() = default;
-
-  virtual ~Source() override = default;
-
-  virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override
-  {
-    return 0.;
-  }
-};
-
-template <int dim>
-class Coefficient : public dealii::Function<dim>
-{
-public:
-  virtual ~Coefficient() override = default;
+  virtual DEAL_II_CUDA_HOST_DEV ~Coefficient() /*override*/ = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
         unsigned int const = 0) const = 0;
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const component = 0) const override = 0;
+  virtual DEAL_II_CUDA_HOST_DEV double
+  value(dealii::Point<dim> const &p, unsigned int const component = 0) const
+      /*override*/
+      = 0;
 };
 
 template <int dim>
 class ConstantMaterialProperty final : public Coefficient<dim>
 {
 public:
-  ConstantMaterialProperty() = default;
-
-  virtual ~ConstantMaterialProperty() override = default;
+  virtual DEAL_II_CUDA_HOST_DEV ~ConstantMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &,
@@ -59,8 +45,8 @@ public:
     return dealii::make_vectorized_array<double>(1.);
   }
 
-  virtual double value(dealii::Point<dim> const &,
-                       unsigned int const = 0) const override
+  virtual DEAL_II_CUDA_HOST_DEV double
+  value(dealii::Point<dim> const &, unsigned int const = 0) const override
   {
     return 1.;
   }
@@ -70,9 +56,7 @@ template <int dim>
 class LinearXMaterialProperty final : public Coefficient<dim>
 {
 public:
-  LinearXMaterialProperty() = default;
-
-  virtual ~LinearXMaterialProperty() override = default;
+  virtual DEAL_II_CUDA_HOST_DEV ~LinearXMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
@@ -82,8 +66,8 @@ public:
     return one + std::abs(p[0]);
   }
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override
+  virtual DEAL_II_CUDA_HOST_DEV double
+  value(dealii::Point<dim> const &p, unsigned int const = 0) const override
   {
     return 1. + std::abs(p[0]);
   }
@@ -93,9 +77,7 @@ template <int dim>
 class LinearMaterialProperty final : public Coefficient<dim>
 {
 public:
-  LinearMaterialProperty() = default;
-
-  virtual ~LinearMaterialProperty() override = default;
+  virtual DEAL_II_CUDA_HOST_DEV ~LinearMaterialProperty() override = default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
@@ -109,8 +91,8 @@ public:
     return val;
   }
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override
+  virtual DEAL_II_CUDA_HOST_DEV double
+  value(dealii::Point<dim> const &p, unsigned int const = 0) const override
   {
     double val = 1.;
     for (unsigned int d = 0; d < dim; ++d)
@@ -124,9 +106,8 @@ template <int dim>
 class DiscontinuousMaterialProperty final : public Coefficient<dim>
 {
 public:
-  DiscontinuousMaterialProperty() = default;
-
-  virtual ~DiscontinuousMaterialProperty() override = default;
+  virtual DEAL_II_CUDA_HOST_DEV ~DiscontinuousMaterialProperty() override =
+      default;
 
   virtual dealii::VectorizedArray<double>
   value(dealii::Point<dim, dealii::VectorizedArray<double>> const &p,
@@ -147,8 +128,8 @@ public:
     return return_value;
   }
 
-  virtual double value(dealii::Point<dim> const &p,
-                       unsigned int const = 0) const override
+  virtual DEAL_II_CUDA_HOST_DEV double
+  value(dealii::Point<dim> const &p, unsigned int const = 0) const override
 
   {
     unsigned int dim_scale = 0;
@@ -182,5 +163,62 @@ public:
     }
   }
 };
+
+#ifdef __CUDACC__
+template <typename Material, int dim>
+__global__ void initialize_material(Coefficient<dim> *material_ptr)
+{
+  new (material_ptr) Material;
+}
+
+template <int dim>
+__global__ void destroy_material(Coefficient<dim> *material_ptr)
+{
+  material_ptr->~Coefficient<dim>();
+}
+
+template <int dim>
+class DeviceMaterialPropertyFactory
+{
+public:
+  static std::shared_ptr<Coefficient<dim>>
+  create_material_property(std::string const &material_type)
+  {
+    Coefficient<dim> *material_ptr = nullptr;
+    if (material_type == "constant")
+    {
+      using MaterialType = ConstantMaterialProperty<dim>;
+      cudaMalloc(&material_ptr, sizeof(MaterialType));
+      initialize_material<MaterialType><<<1, 1>>>(material_ptr);
+    }
+    else if (material_type == "linear_x")
+    {
+      using MaterialType = LinearMaterialProperty<dim>;
+      cudaMalloc(&material_ptr, sizeof(MaterialType));
+      initialize_material<MaterialType><<<1, 1>>>(material_ptr);
+    }
+    else if (material_type == "linear")
+    {
+      using MaterialType = LinearXMaterialProperty<dim>;
+      cudaMalloc(&material_ptr, sizeof(MaterialType));
+      initialize_material<MaterialType><<<1, 1>>>(material_ptr);
+    }
+    else if (material_type == "discontinuous")
+    {
+      using MaterialType = DiscontinuousMaterialProperty<dim>;
+      cudaMalloc(&material_ptr, sizeof(MaterialType));
+      initialize_material<MaterialType><<<1, 1>>>(material_ptr);
+    }
+    else
+    {
+      mfmg::ASSERT_THROW_NOT_IMPLEMENTED();
+    }
+    return {material_ptr, [](Coefficient<dim> *ptr) {
+              destroy_material<<<1, 1>>>(ptr);
+              cudaFree(ptr);
+            }};
+  }
+};
+#endif
 
 #endif
