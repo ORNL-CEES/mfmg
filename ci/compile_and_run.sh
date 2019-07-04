@@ -4,6 +4,7 @@ cd $1
 rm -rf build
 mkdir build && cd build
 ARGS=(
+  -D BUILD_SHARED_LIBS=OFF
   -D CMAKE_BUILD_TYPE=Debug
   -D MFMG_ENABLE_TESTS=ON
   -D MFMG_ENABLE_CUDA=ON
