@@ -228,7 +228,8 @@ CudaSolver<VectorType>::CudaSolver(
 
     // We need to cast away the const because we need to change the format
     // of _matrix to the format supported by amgx
-    auto &amgx_matrix = *(cuda_operator->get_matrix());
+    auto &amgx_matrix = const_cast<SparseMatrixDevice<value_type> &>(
+        *(cuda_operator->get_matrix()));
 
     AMGX_initialize();
     AMGX_initialize_plugins();

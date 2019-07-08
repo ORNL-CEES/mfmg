@@ -422,7 +422,7 @@ void SparseMatrixDevice<ScalarType>::mmult(
 
     A_host.mmult(C_host, B_host);
 
-    // Convert matrix does not create a fill up all the members of a
+    // convert_matrix() does not initialize all the members of a
     // SparseMatrix: cusparse_handle and descr are missing. So we need to save
     // them and reset them later
     auto tmp_cusparse_handle = C.cusparse_handle;

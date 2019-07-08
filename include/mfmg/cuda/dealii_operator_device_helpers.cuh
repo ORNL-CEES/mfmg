@@ -40,7 +40,7 @@ void lu_factorization(cusolverSpHandle_t cusolver_sp_handle,
                       SparseMatrixDevice<ScalarType> const &matrix,
                       ScalarType const *b, ScalarType *x);
 
-__global__ void iota(int const size, int *value, int const offset = 0);
+__global__ void iota(int const size, int *data, int const value = 0);
 } // namespace mfmg
 
 #endif
