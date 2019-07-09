@@ -162,12 +162,10 @@ public:
       dealii::AffineConstraints<double> &constraints,
       LaplaceOperatorDevice<dim, fe_degree, ScalarType> &laplace_operator,
       std::shared_ptr<Coefficient<dim>> material_property,
-      std::shared_ptr<Coefficient<dim>> material_property_host,
       mfmg::CudaHandle &cuda_handle)
       : _comm(comm), mfmg::CudaMatrixFreeMeshEvaluator<dim>(
                          cuda_handle, dof_handler, constraints),
-        _material_property(material_property),
-        _material_property_host(material_property_host), _fe(fe_degree),
+        _material_property(material_property), _fe(fe_degree),
         _laplace_operator(laplace_operator)
   {
   }
@@ -199,40 +197,8 @@ public:
             _comm, dof_handler, _agg_constraints);
     _agg_laplace_operator->evaluate_coefficient(*_material_property);
 
-    // At the current time there is no easy way to extract the diagonal using
-    // CUDA and Matrix-Free. So we have to do it on the host.
-    typename dealii::MatrixFree<dim, ScalarType>::AdditionalData
-        additional_data_host;
-    additional_data_host.tasks_parallel_scheme =
-        dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
-    additional_data_host.mapping_update_flags =
-        dealii::update_gradients | dealii::update_JxW_values |
-        dealii::update_quadrature_points;
-    std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage_host(
-        new dealii::MatrixFree<dim, ScalarType>());
-    mf_storage_host->reinit(dof_handler, _agg_constraints,
-                            dealii::QGauss<1>(fe_degree + 1),
-                            additional_data_host);
-    LaplaceOperator<dim, fe_degree, ScalarType> laplace_operator_host;
-    laplace_operator_host.initialize(mf_storage_host);
-
-    laplace_operator_host.evaluate_coefficient(*_material_property_host);
-    laplace_operator_host.compute_diagonal();
-
-    // Set the DiagonalMatrix on the device
-    auto diag_dev = mfmg::copy_from_host(
-        laplace_operator_host.get_matrix_diagonal()->get_vector());
-    _agg_laplace_operator->_diagonal = std::make_shared<
-        dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-            double, dealii::MemorySpace::CUDA>>>();
-    _agg_laplace_operator->_diagonal->reinit(diag_dev);
-
-    auto diag_inv_dev = mfmg::copy_from_host(
-        laplace_operator_host.get_matrix_diagonal_inverse()->get_vector());
-    _agg_laplace_operator->_diagonal_inverse = std::make_shared<
-        dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-            double, dealii::MemorySpace::CUDA>>>();
-    _agg_laplace_operator->_diagonal_inverse->reinit(diag_inv_dev);
+    auto locally_owned_dofs = dealii::complete_index_set(dof_handler.n_dofs());
+    _agg_laplace_operator->compute_diagonal(locally_owned_dofs, locally_owned_dofs, MPI_COMM_SELF);
 
     _distributed_dst.reinit(dof_handler.n_dofs());
     _distributed_src.reinit(dof_handler.n_dofs());
@@ -290,7 +256,6 @@ public:
 private:
   MPI_Comm _comm;
   std::shared_ptr<Coefficient<dim>> _material_property;
-  std::shared_ptr<Coefficient<dim>> _material_property_host;
   dealii::FE_Q<dim> _fe;
   mutable dealii::AffineConstraints<double> _agg_constraints;
   LaplaceOperatorDevice<dim, fe_degree, ScalarType> &_laplace_operator;

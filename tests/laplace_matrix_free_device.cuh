@@ -110,7 +110,29 @@ public:
 
   static unsigned int const n_dofs_1d = fe_degree + 1;
   static unsigned int const n_local_dofs =
-      dim == 2 ? n_dofs_1d * n_dofs_1d : n_dofs_1d * n_dofs_1d * n_dofs_1d;
+      dealii::Utilities::pow(n_dofs_1d, dim);
+  static unsigned int const n_q_points = n_local_dofs;
+
+private:
+  ScalarType *_coef;
+};
+
+template <int dim, int fe_degree, typename ScalarType>
+class LocalDiagonalLaplaceOperator
+{
+public:
+  LocalDiagonalLaplaceOperator(ScalarType *coefficient) : _coef(coefficient) {}
+
+  __device__ void operator()(
+      unsigned int const cell,
+      typename dealii::CUDAWrappers::MatrixFree<dim, ScalarType>::Data const
+          *gpu_data,
+      dealii::CUDAWrappers::SharedData<dim, ScalarType> *shared_data,
+      ScalarType const *src, ScalarType *dst) const;
+
+  static unsigned int const n_dofs_1d = fe_degree + 1;
+  static unsigned int const n_local_dofs =
+      dealii::Utilities::pow(n_dofs_1d, dim);
   static unsigned int const n_q_points = n_local_dofs;
 
 private:
@@ -145,14 +167,61 @@ __device__ void LocalLaplaceOperator<dim, fe_degree, ScalarType>::operator()(
 }
 
 template <int dim, int fe_degree, typename ScalarType>
+__device__ void LocalDiagonalLaplaceOperator<dim, fe_degree, ScalarType>::
+operator()(
+    const unsigned int cell,
+    const typename dealii::CUDAWrappers::MatrixFree<dim, ScalarType>::Data
+        *gpu_data,
+    dealii::CUDAWrappers::SharedData<dim, ScalarType> *shared_data,
+    ScalarType const * /*src*/, ScalarType *dst) const
+{
+  const unsigned int pos = dealii::CUDAWrappers::local_q_point_id<dim, double>(
+      cell, gpu_data, n_dofs_1d, n_q_points);
+
+  dealii::CUDAWrappers::FEEvaluation<dim, fe_degree, fe_degree + 1, 1,
+                                     ScalarType>
+      fe_eval(cell, gpu_data, shared_data);
+
+  ScalarType my_diagonal = 0.0;
+  const unsigned int n_q_points_1d = n_dofs_1d;
+
+  const unsigned int tid =
+      (threadIdx.x % n_q_points_1d) +
+      (dim > 1 ? threadIdx.y : 0) * n_q_points_1d +
+      (dim > 2 ? threadIdx.z : 0) * n_q_points_1d * n_q_points_1d;
+
+  bool const evaluate_values = false;
+  bool const evaluate_gradients = true;
+  bool const integrate_values = false;
+  bool const integrate_gradients = true;
+
+  for (unsigned int i = 0; i < n_local_dofs; ++i)
+  {
+    // set to unit vector
+    fe_eval.submit_dof_value(i == tid ? 1.0 : 0.0, tid);
+    __syncthreads();
+    fe_eval.evaluate(evaluate_values, evaluate_gradients);
+    auto value = _coef[pos];
+    fe_eval.apply_quad_point_operations(
+        LaplaceOperatorQuad<dim, fe_degree, ScalarType>{value});
+    fe_eval.integrate(integrate_values, integrate_gradients);
+    if (tid == i)
+      my_diagonal = fe_eval.get_dof_value(tid);
+  }
+  __syncthreads();
+  fe_eval.submit_dof_value(my_diagonal, tid);
+  fe_eval.distribute_local_to_global(dst);
+}
+
+template <int dim, int fe_degree, typename ScalarType>
 class LaplaceOperatorDevice
 {
 public:
   typedef ScalarType value_type;
 
-  LaplaceOperatorDevice(MPI_Comm const &comm,
-                        dealii::DoFHandler<dim> const &dof_handler,
-                        dealii::AffineConstraints<double> const &constraints);
+  LaplaceOperatorDevice(
+      MPI_Comm const &comm, dealii::DoFHandler<dim> const &dof_handler,
+      dealii::AffineConstraints<ScalarType> const &constraints);
 
   void evaluate_coefficient(Coefficient<dim> const &material_property);
 
@@ -163,7 +232,7 @@ public:
 
   std::shared_ptr<
       dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>>
+          ScalarType, dealii::MemorySpace::CUDA>>>
   get_matrix_diagonal() const
   {
     return _diagonal;
@@ -171,20 +240,24 @@ public:
 
   std::shared_ptr<
       dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>>
+          ScalarType, dealii::MemorySpace::CUDA>>>
   get_matrix_diagonal_inverse() const
   {
     return _diagonal_inverse;
   }
 
-  // private:
-  // void compute_diagonal_inverse(unsigned int local_size);
+  void compute_diagonal(const dealii::IndexSet &locally_relevant_dofs,
+                        const dealii::IndexSet &locally_owned_dofs,
+const MPI_Comm &mpi_communicator);
 
+private:
   dealii::CUDAWrappers::MatrixFree<dim, ScalarType> _mf_data;
+
   std::shared_ptr<
       dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>>
+          ScalarType, dealii::MemorySpace::CUDA>>>
       _diagonal;
+
   std::shared_ptr<
       dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
           double, dealii::MemorySpace::CUDA>>>
@@ -196,7 +269,7 @@ public:
 template <int dim, int fe_degree, typename ScalarType>
 LaplaceOperatorDevice<dim, fe_degree, ScalarType>::LaplaceOperatorDevice(
     MPI_Comm const &comm, dealii::DoFHandler<dim> const &dof_handler,
-    dealii::AffineConstraints<double> const &constraints)
+    dealii::AffineConstraints<ScalarType> const &constraints)
 {
   dealii::MappingQGeneric<dim> mapping(fe_degree);
   typename dealii::CUDAWrappers::MatrixFree<dim, ScalarType>::AdditionalData
@@ -242,6 +315,56 @@ void LaplaceOperatorDevice<dim, fe_degree, ScalarType>::vmult(
   _mf_data.copy_constrained_values(src, dst);
 }
 
+template <typename Number>
+__global__ void initialize_with_inverted_entries(Number *dst, Number const *src,
+                                                 unsigned int size)
+{
+  const unsigned int dof =
+      threadIdx.x + blockDim.x * (blockIdx.x + gridDim.x * blockIdx.y);
+  if (dof < size)
+    dst[dof] = 1. / src[dof];
+}
+
+template <int dim, int fe_degree, typename ScalarType>
+void LaplaceOperatorDevice<dim, fe_degree, ScalarType>::compute_diagonal(
+    const dealii::IndexSet &locally_owned_dofs,
+    const dealii::IndexSet &locally_relevant_dofs,
+    const MPI_Comm & mpi_communicator)
+{
+  _diagonal.reset(
+      new dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+          ScalarType, dealii::MemorySpace::CUDA>>());
+  dealii::LinearAlgebra::distributed::Vector<
+      ScalarType, dealii::MemorySpace::CUDA> &diagonal =
+      _diagonal->get_vector();
+ diagonal.reinit(locally_owned_dofs, locally_relevant_dofs,
+                          mpi_communicator);
+
+  // TODO _mf_data.initialize_dof_vector(diagonal);
+  dealii::LinearAlgebra::distributed::Vector<ScalarType,
+                                             dealii::MemorySpace::CUDA>
+      dummy;
+  LocalDiagonalLaplaceOperator<dim, fe_degree, ScalarType>
+      local_diagonal_laplace_operator(_coef.get_values());
+  _mf_data.cell_loop(local_diagonal_laplace_operator, dummy, diagonal);
+
+  _mf_data.set_constrained_values(1., diagonal);
+
+  _diagonal_inverse.reset(
+      new dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
+          ScalarType, dealii::MemorySpace::CUDA>>());
+  dealii::LinearAlgebra::distributed::Vector<
+      ScalarType, dealii::MemorySpace::CUDA> &inverse_diagonal =
+      _diagonal_inverse->get_vector();
+ inverse_diagonal.reinit(locally_owned_dofs, locally_relevant_dofs,
+                         mpi_communicator);
+  // TODO _mf_data.initialize_dof_vector(inverse_diagonal);
+  int const n_blocks = 1 + (diagonal.local_size() - 1) / mfmg::block_size;
+  initialize_with_inverted_entries<<<n_blocks, mfmg::block_size>>>(
+      inverse_diagonal.get_values(), diagonal.get_values(),
+      diagonal.local_size());
+}
+
 template <int dim, int fe_degree, typename ScalarType>
 class LaplaceMatrixFreeDevice
 {
@@ -250,8 +373,7 @@ public:
 
   template <typename MaterialPropertyType>
   void setup_system(boost::property_tree::ptree const &ptree,
-                    MaterialPropertyType const &material_property,
-                    MaterialPropertyType const &material_property_host);
+                    MaterialPropertyType const &material_property);
 
   template <typename SourceType>
   void assemble_rhs(SourceType const &source);
@@ -292,8 +414,7 @@ template <int dim, int fe_degree, typename ScalarType>
 template <typename MaterialPropertyType>
 void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
     boost::property_tree::ptree const &ptree,
-    MaterialPropertyType const &material_property,
-    MaterialPropertyType const &material_property_host)
+    MaterialPropertyType const &material_property)
 {
   std::string const mesh = ptree.get("mesh", "hyper_cube");
   if (mesh == "hyper_ball")
@@ -356,38 +477,8 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::setup_system(
   // Hence, just make all locally relevant dofs ghost entries.
   _system_rhs.reinit(_locally_owned_dofs, _locally_relevant_dofs, _comm);
 
-  // At the current time there is no easy way to extract the diagonal using CUDA
-  // and Matrix-Free. So we have to do it on the host.
-  typename dealii::MatrixFree<dim, ScalarType>::AdditionalData additional_data;
-  additional_data.tasks_parallel_scheme =
-      dealii::MatrixFree<dim, ScalarType>::AdditionalData::none;
-  additional_data.mapping_update_flags = dealii::update_gradients |
-                                         dealii::update_JxW_values |
-                                         dealii::update_quadrature_points;
-  std::shared_ptr<dealii::MatrixFree<dim, ScalarType>> mf_storage(
-      new dealii::MatrixFree<dim, ScalarType>());
-  mf_storage->reinit(_dof_handler, _constraints,
-                     dealii::QGauss<1>(fe_degree + 1), additional_data);
-  LaplaceOperator<dim, fe_degree, ScalarType> laplace_operator_host;
-  laplace_operator_host.initialize(mf_storage);
-
-  laplace_operator_host.evaluate_coefficient(material_property_host);
-  laplace_operator_host.compute_diagonal();
-
-  // Set the DiagonalMatrix on the device
-  auto diag_dev = mfmg::copy_from_host(
-      laplace_operator_host.get_matrix_diagonal()->get_vector());
-  _laplace_operator->_diagonal = std::make_shared<
-      dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>>();
-  _laplace_operator->_diagonal->reinit(diag_dev);
-
-  auto diag_inv_dev = mfmg::copy_from_host(
-      laplace_operator_host.get_matrix_diagonal_inverse()->get_vector());
-  _laplace_operator->_diagonal_inverse = std::make_shared<
-      dealii::DiagonalMatrix<dealii::LinearAlgebra::distributed::Vector<
-          double, dealii::MemorySpace::CUDA>>>();
-  _laplace_operator->_diagonal_inverse->reinit(diag_inv_dev);
+  _laplace_operator->compute_diagonal(_locally_owned_dofs,
+                                      _locally_relevant_dofs, _comm);
 }
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -439,8 +530,7 @@ void LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::assemble_rhs(
   cudaError_t cuda_error =
       cudaMemcpy(_system_rhs.get_values(), system_rhs_host.get_values(),
                  local_size * sizeof(ScalarType), cudaMemcpyHostToDevice);
-  if (cuda_error != cudaSuccess)
-    cudaGetErrorString(cuda_error);
+  mfmg::ASSERT_CUDA(cuda_error);
 }
 
 template <int dim, int fe_degree, typename ScalarType>
@@ -474,8 +564,7 @@ double LaplaceMatrixFreeDevice<dim, fe_degree, ScalarType>::compute_error(
   cudaError_t cuda_error =
       cudaMemcpy(solution_host.get_values(), _solution.get_values(),
                  local_size * sizeof(ScalarType), cudaMemcpyDeviceToHost);
-  if (cuda_error != cudaSuccess)
-    cudaGetErrorString(cuda_error);
+  mfmg::ASSERT_CUDA(cuda_error);
   _constraints.distribute(solution_host);
 
   dealii::LinearAlgebra::distributed::Vector<ScalarType>

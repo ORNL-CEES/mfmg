@@ -35,11 +35,11 @@ CHECK_CXX_SOURCE_COMPILES(
   MFMG_APPROPRIATE_ANASAZI
   )
 UNSET(CMAKE_REQUIRED_INCLUDES)
-IF(NOT MFMG_APPROPRIATE_ANASAZI)
-  MESSAGE(SEND_ERROR
-          "Error! Trilinos was not configured with Anasazi support or defines "
-	  "ANASAZI_TEUCHOS_TIME_MONITOR.")
-ENDIF()
+#IF(NOT MFMG_APPROPRIATE_ANASAZI)
+#  MESSAGE(SEND_ERROR
+#          "Error! Trilinos was not configured with Anasazi support or defines "
+#	  "ANASAZI_TEUCHOS_TIME_MONITOR.")
+#ENDIF()
 
 # If deal.II was configured in DebugRelease mode, then if mfmg was configured
 # in Debug mode, we link against the Debug version of deal.II. If mfmg was

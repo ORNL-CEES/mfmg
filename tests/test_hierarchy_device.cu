@@ -49,16 +49,12 @@ double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
   auto material_property =
       DeviceMaterialPropertyFactory<dim>::create_material_property(
           params->get<std::string>("material_property.type"));
-  auto material_property_host =
-      MaterialPropertyFactory<dim>::create_material_property(
-          params->get<std::string>("material_property.type"));
   dealii::ZeroFunction<dim> source;
 
   auto laplace_ptree = params->get_child("laplace");
   int constexpr fe_degree = 1;
   LaplaceMatrixFreeDevice<dim, fe_degree, value_type> mf_laplace(comm);
-  mf_laplace.setup_system(laplace_ptree, *material_property,
-                          *material_property_host);
+  mf_laplace.setup_system(laplace_ptree, *material_property);
 
   auto const locally_owned_dofs = mf_laplace._locally_owned_dofs;
   DVector solution(locally_owned_dofs, comm);
@@ -82,8 +78,7 @@ double test_mf(std::shared_ptr<boost::property_tree::ptree> params)
   auto evaluator =
       std::make_shared<TestMFMeshEvaluator<dim, fe_degree, value_type>>(
           comm, mf_laplace._dof_handler, mf_laplace._constraints,
-          *mf_laplace._laplace_operator, material_property,
-          material_property_host, cuda_handle);
+          *mf_laplace._laplace_operator, material_property, cuda_handle);
   mfmg::Hierarchy<DVector> hierarchy(comm, evaluator, params);
 
   auto const &laplace_operator = mf_laplace._laplace_operator;
