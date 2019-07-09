@@ -422,7 +422,14 @@ void SparseMatrixDevice<ScalarType>::mmult(
 
     A_host.mmult(C_host, B_host);
 
+    // convert_matrix() does not initialize all the members of a
+    // SparseMatrix: cusparse_handle and descr are missing. So we need to save
+    // them and reset them later
+    auto tmp_cusparse_handle = C.cusparse_handle;
+    auto tmp_descr = C.descr;
     C = convert_matrix(C_host);
+    C.cusparse_handle = tmp_cusparse_handle;
+    C.descr = tmp_descr;
   }
 }
 } // namespace mfmg

@@ -440,7 +440,7 @@ BOOST_AUTO_TEST_CASE(amgx)
     params->put("smoother.type", "Jacobi");
 
     // TODO When using a finely refined mesh and two eigenvectors, AMGx does not
-    // converge. This needs to be invastigated. This can be due to a problem in
+    // converge. This needs to be investigated. This can be due to a problem in
     // AMGx configuration file, a problem when computing the eigenvectors with
     // Lanczos or another bug.
     params->put("eigensolver.number of eigenvectors", 1);

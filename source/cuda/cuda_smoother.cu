@@ -109,11 +109,11 @@ CudaSmoother<VectorType>::CudaSmoother(
 
   ASSERT_THROW(prec_type == "jacobi", "Only Jacobi smoother is implemented.");
 
-  // Downcast the operator
-  auto cuda_operator =
+  // Downcast the operator. We need to extract the diagonal and invert it.
+  auto cuda_matrix_operator =
       std::dynamic_pointer_cast<CudaMatrixOperator<VectorType> const>(
           this->_operator);
-  auto sparse_matrix = cuda_operator->get_matrix();
+  auto sparse_matrix = cuda_matrix_operator->get_matrix();
 
   ASSERT(sparse_matrix->m() == sparse_matrix->n(),
          "The matrix is not square. The matrix is a " +
@@ -132,8 +132,8 @@ CudaSmoother<VectorType>::CudaSmoother(
   int *row_index_coo_dev = nullptr;
   cuda_malloc(row_index_coo_dev, local_nnz);
 
-  // Change to COO format. The only thing that needs to be change to go from CSR
-  // to COO is to change row_ptr_dev with row_index_coo_dev.
+  // Change to COO format. The only thing that needs to be changed to go from
+  // CSR to COO is to change row_ptr_dev with row_index_coo_dev.
   cusparseStatus_t cusparse_error_code = cusparseXcsr2coo(
       sparse_matrix->cusparse_handle, sparse_matrix->row_ptr_dev, local_nnz,
       size, row_index_coo_dev, CUSPARSE_INDEX_BASE_ZERO);
@@ -144,7 +144,10 @@ CudaSmoother<VectorType>::CudaSmoother(
       sparse_matrix->val_dev, sparse_matrix->column_index_dev,
       row_index_coo_dev, local_nnz, val_dev);
 
-  iota<<<n_blocks, block_size>>>(size, column_index_dev);
+  n_blocks = 1 + (size - 1) / block_size;
+  iota<<<n_blocks, block_size>>>(
+      size, column_index_dev,
+      *sparse_matrix->locally_owned_range_indices().begin());
 
   n_blocks = 1 + size / block_size;
   iota<<<n_blocks, block_size>>>(size + 1, row_ptr_dev);

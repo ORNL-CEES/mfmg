@@ -204,7 +204,11 @@ CudaMatrixOperator<VectorType>::multiply_transpose(
   {
     auto a_sparse_matrix = convert_to_trilinos_matrix(*_matrix);
     auto a_epetra_matrix = a_sparse_matrix.trilinos_matrix();
-    dealii::TrilinosWrappers::SparseMatrix c;
+    // Use domain indices for both a and b because b will be transposed
+    dealii::TrilinosWrappers::SparseMatrix c(
+        a_sparse_matrix.locally_owned_domain_indices(),
+        b_sparse_matrix.locally_owned_domain_indices(),
+        a_sparse_matrix.get_mpi_communicator());
     int error_code = EpetraExt::MatrixMatrix::Multiply(
         a_epetra_matrix, false, b_epetra_matrix, true,
         const_cast<Epetra_CrsMatrix &>(c.trilinos_matrix()));
