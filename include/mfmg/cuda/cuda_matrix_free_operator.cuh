@@ -33,13 +33,18 @@ public:
 
   void vmult(vector_type &dst, vector_type const &src) const;
 
-  // Needed because the extract_row works only on the host
+  // Needed because the extract_row() works only on the host. Thus this function
+  // always needs to exist.
   void apply(dealii::LinearAlgebra::distributed::Vector<
                  value_type, dealii::MemorySpace::Host> const &x,
              dealii::LinearAlgebra::distributed::Vector<
                  value_type, dealii::MemorySpace::Host> &y,
              OperatorMode mode = OperatorMode::NO_TRANS) const;
 
+  // While this function is templated on the vector_type, the vector_type is
+  // always, dealii::LinearAlgebra::distributer::Vector<value_type,
+  // dealii::MemorySpace::CUDA> It is templated on the vector_type for
+  // historical reason.
   virtual void apply(vector_type const &x, vector_type &y,
                      OperatorMode mode = OperatorMode::NO_TRANS) const override;
 
