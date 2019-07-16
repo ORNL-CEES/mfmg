@@ -51,36 +51,45 @@ public:
 } // namespace Anasazi
 
 BOOST_DATA_TEST_CASE(anasazi,
-                     bdata::make({1, 2}) * bdata::make({1, 2, 3, 5, 10}),
-                     multiplicity, n_distinct_eigenvalues)
+                     bdata::make({1, 2}) * bdata::make({1, 2, 3, 5, 10}) *
+                         bdata::make({false, true}),
+                     multiplicity, n_distinct_eigenvalues,
+                     multiple_initial_guesses)
 {
   using namespace mfmg;
 
   using VectorType = dealii::Vector<double>;
   using OperatorType = SimpleOperator<VectorType>;
 
-  const int n = 1000;
-  const int n_eigenvectors = n_distinct_eigenvalues * multiplicity;
+  int const n = 1000;
+  int const n_eigenvectors = n_distinct_eigenvalues * multiplicity;
+  int const n_initial_guess = multiple_initial_guesses ? n_eigenvectors : 1;
 
   OperatorType op(n, multiplicity);
 
   boost::property_tree::ptree anasazi_params;
-  anasazi_params.put("num_eigenpairs", n_eigenvectors);
+  anasazi_params.put("number of eigenvectors", n_eigenvectors);
 
   anasazi_params.put("max_iterations", 1000);
   anasazi_params.put("tolerance", 1e-2);
 
   mfmg::AnasaziSolver<OperatorType, VectorType> solver(op);
 
-  VectorType initial_guess(n);
-  initial_guess = 1.;
+  VectorType initial_guess_vector(n);
+  initial_guess_vector = 1.;
 
   // Add random noise to the guess
   std::mt19937 gen(0);
   std::uniform_real_distribution<double> dist(0, 1);
-  std::transform(initial_guess.begin(), initial_guess.end(),
-                 initial_guess.begin(), [&](auto &v) { return v + dist(gen); });
+  std::transform(initial_guess_vector.begin(), initial_guess_vector.end(),
+                 initial_guess_vector.begin(),
+                 [&](auto &v) { return v + dist(gen); });
 
+  std::vector<std::shared_ptr<VectorType>> initial_guess(n_initial_guess);
+  for (int i = 0; i < n_initial_guess; ++i)
+  {
+    initial_guess[i] = std::make_shared<VectorType>(initial_guess_vector);
+  }
   std::vector<double> computed_evals;
   std::vector<VectorType> computed_evecs;
   std::tie(computed_evals, computed_evecs) =

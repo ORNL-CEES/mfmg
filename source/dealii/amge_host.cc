@@ -43,7 +43,8 @@ template class mfmg::AMGe_host<
               typename dealii::Triangulation<DIM>::active_cell_iterator,       \
               typename dealii::DoFHandler<DIM>::active_cell_iterator> const    \
               &patch_to_global_map,                                            \
-          MESH_EVALUATOR<DIM> const &evaluator, int) const;
+          MESH_EVALUATOR<DIM> const &evaluator,                                \
+          mfmg::LobpcgScratchData const &, int) const;
 
 INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(2, mfmg::DealIIMeshEvaluator)
 INSTANTIATE_COMPUTE_LOCAL_EIGENVECTORS(3, mfmg::DealIIMeshEvaluator)

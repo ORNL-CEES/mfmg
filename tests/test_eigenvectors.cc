@@ -100,7 +100,8 @@ BOOST_AUTO_TEST_CASE(diagonal, *ut::tolerance(1e-12))
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, diag_elements, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
-                                      patch_to_global_map, evaluator);
+                                      patch_to_global_map, evaluator,
+                                      mfmg::LobpcgScratchData());
 
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(
       dof_handler.n_dofs());
@@ -203,7 +204,8 @@ BOOST_AUTO_TEST_CASE(diagonal_constraint, *ut::tolerance(1e-12))
   std::vector<dealii::types::global_dof_index> dof_indices_map;
   std::tie(eigenvalues, eigenvectors, diag_elements, dof_indices_map) =
       amge.compute_local_eigenvectors(n_eigenvectors, 1e-13, triangulation,
-                                      patch_to_global_map, evaluator);
+                                      patch_to_global_map, evaluator,
+                                      mfmg::LobpcgScratchData());
 
   std::vector<dealii::types::global_dof_index> ref_dof_indices_map(
       dof_handler.n_dofs());

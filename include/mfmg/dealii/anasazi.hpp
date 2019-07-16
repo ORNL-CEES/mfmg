@@ -27,13 +27,14 @@ public:
   AnasaziSolver(OperatorType const &op);
 
   AnasaziSolver(AnasaziSolver<OperatorType, VectorType> const &) = delete;
+
   AnasaziSolver<OperatorType, VectorType> &
   operator=(AnasaziSolver<OperatorType, VectorType> const &) = delete;
 
   // Solve the eigenproblem
   std::tuple<std::vector<double>, std::vector<VectorType>>
   solve(boost::property_tree::ptree const &params,
-        VectorType initial_guess) const;
+        std::vector<std::shared_ptr<VectorType>> const &initial_guess) const;
 
 private:
   OperatorType const &_op; // reference to operator object to use
