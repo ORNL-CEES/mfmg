@@ -2,6 +2,9 @@ eigensolver
 {
   "number of eigenvectors" 2
   tolerance 1e-14
+  ; When using LOBPGC, the following input parameters are available:
+  ; use_initial_guess true (default is false)
+  ; verbosity 0
 }
 
 smoother

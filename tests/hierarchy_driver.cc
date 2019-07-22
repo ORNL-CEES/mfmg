@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
   int const fe_degree = params->get<unsigned int>("laplace.fe_degree", 4);
   params->put("fast_ap", true);
   params->put("eigensolver.type", "anasazi");
-  params->put("eigensolver.tolerance", 1e-2);
+  params->put("eigensolver.tolerance", 1e-3);
 
   double solver_tolerance = 1.e-6;
   if (vm.count("tolerance"))
