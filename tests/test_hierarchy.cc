@@ -277,7 +277,8 @@ BOOST_DATA_TEST_CASE(
         bdata::make({"None", "Reverse Cuthill_McKee"}) *
         bdata::make<std::string>({"DealIIMeshEvaluator",
                                   "DealIIMatrixFreeMeshEvaluator"}) *
-        bdata::make<std::string>({"arpack", "lanczos", "anasazi"}),
+        bdata::make<std::string>({"arpack", "lanczos", "anasazi",
+                                  "anasazi_init_guess"}),
     mesh, distort_random, reordering, mesh_evaluator_type, eigensolver)
 {
   dealii::MultithreadInfo::set_thread_limit(1);
@@ -304,6 +305,15 @@ BOOST_DATA_TEST_CASE(
     params->put("laplace.mesh", mesh);
     params->put("laplace.distort_random", distort_random);
     params->put("laplace.reordering", reordering);
+
+    if (eigensolver == "anasazi" || eigensolver == "anasazi_init_guess")
+      params->put("eigensolver.tolerance", 1e-2);
+
+    if (eigensolver == "anasazi_init_guess")
+    {
+      params->put("eigensolver.type", "anasazi");
+      params->put("eigensolver.use_initial_guess", true);
+    }
 
     if (is_matrix_free && eigensolver == "arpack")
     {
@@ -372,6 +382,27 @@ BOOST_DATA_TEST_CASE(
     ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "anasazi" , "matrix-free")] = 0.3029292535;
     ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "anasazi" , "matrix-full")] = 0.0970940159;
     ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "anasazi" , "matrix-free")] = 0.3029292535;
+
+    // FIXME Running ./test_hierarchy instead of ctest -R test_hierarchy gives a
+    // better convergence rate. Tightening the tolerance on anasazi-does reduces
+    // the difference but the cost of tightening the convergence is too great to
+    // do it in the tests. 
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "anasazi_init_guess" , "matrix-full")] = 0.0238359183;// 0.0200805406;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "None"                  , "anasazi_init_guess" , "matrix-free")] = 0.0822670712;// 0.0781625982;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-full")] = 0.0238359183;// 0.0200805406;
+    ref_solution[std::make_tuple("hyper_cube" , "no_distort" , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-free")] = 0.0822670712;// 0.0781625982;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "anasazi_init_guess" , "matrix-full")] = 0.0222672564;// 0.0219936421;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "None"                  , "anasazi_init_guess" , "matrix-free")] = 0.0851825995;// 0.0851825995;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-full")] = 0.0222672564;// 0.0219936421;
+    ref_solution[std::make_tuple("hyper_cube" , "distort"    , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-free")] = 0.0851825995;// 0.0851825995;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "anasazi_init_guess" , "matrix-full")] = 0.0853022267;// 0.0820852559;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "None"                  , "anasazi_init_guess" , "matrix-free")] = 0.3062882615;// 0.3062882615;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-full")] = 0.0853022267;// 0.0820852559;
+    ref_solution[std::make_tuple("hyper_ball" , "no_distort" , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-free")] = 0.3062882615;// 0.3062882615;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "anasazi_init_guess" , "matrix-full")] = 0.0758339950;// 0.0839258130;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "None"                  , "anasazi_init_guess" , "matrix-free")] = 0.3029292535;// 0.3029292535;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-full")] = 0.0758339950;// 0.0839258130;
+    ref_solution[std::make_tuple("hyper_ball" , "distort"    , "Reverse Cuthill_McKee" , "anasazi_init_guess" , "matrix-free")] = 0.3029292535;// 0.3029292535;
     // clang-format on
 
     BOOST_TEST(

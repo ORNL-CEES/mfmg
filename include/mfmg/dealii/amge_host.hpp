@@ -17,6 +17,14 @@
 
 namespace mfmg
 {
+/**
+ * Use the structure to store initial guess for LOBPCG
+ */
+struct LobpcgScratchData
+{
+  std::vector<dealii::Vector<double>> lobpcg_init_guess;
+};
+
 template <int dim, typename MeshEvaluator, typename VectorType>
 class AMGe_host : public AMGe<dim, VectorType>
 {
@@ -37,6 +45,7 @@ public:
    *  - an object that can evaluates the local DoFHandler, the local
    *    AffineConstraints<double>, and the local system sparse matrix with its
    *    sparsity pattern.
+   *  - an object that contains initial guesses for LOBPCG
    *
    * The function returns the complex eigenvalues, the associated eigenvectors,
    * the diagonal elements of the local system matrix, and a vector that maps
@@ -60,7 +69,7 @@ public:
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      MeshEvaluator const &evaluator,
+      MeshEvaluator const &evaluator, LobpcgScratchData const &scratch_data,
       typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
                                     std::is_class<Triangulation>::value,
                                 int> = 0) const;
@@ -75,7 +84,7 @@ public:
       std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
                typename dealii::DoFHandler<dim>::active_cell_iterator> const
           &patch_to_global_map,
-      MeshEvaluator const &evaluator,
+      MeshEvaluator const &evaluator, LobpcgScratchData const &scratch_data,
       typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
                                     std::is_class<Triangulation>::value,
                                 int> = 0) const;
@@ -107,14 +116,6 @@ public:
 
 private:
   /**
-   * This data structure is empty but it is necessary to use WorkStream.
-   */
-  struct ScratchData
-  {
-    // nothing
-  };
-
-  /**
    * Structure which encapsulates the data that needs to be copied at the end
    * of WorkStream.
    */
@@ -133,7 +134,7 @@ private:
   void local_worker(unsigned int const n_eigenvectors, double const tolerance,
                     MeshEvaluator const &evaluate,
                     std::vector<unsigned int>::iterator const &agg_id,
-                    ScratchData &scratch_data, CopyData &copy_data);
+                    LobpcgScratchData &scratch_data, CopyData &copy_data);
 
   /**
    * This function copies quantities computed in local worker to output

@@ -36,15 +36,15 @@ AnasaziSolver<OperatorType, VectorType>::AnasaziSolver(OperatorType const &op)
 template <typename OperatorType, typename VectorType>
 std::tuple<std::vector<double>, std::vector<VectorType>>
 AnasaziSolver<OperatorType, VectorType>::solve(
-    boost::property_tree::ptree const &params, VectorType initial_guess) const
+    boost::property_tree::ptree const &params,
+    std::vector<std::shared_ptr<VectorType>> const &initial_guess) const
 {
   using MultiVectorType = MultiVector<VectorType>;
-  const int n_eigenvectors = params.get<int>("num_eigenpairs");
+  const int n_eigenvectors = params.get<int>("number of eigenvectors");
 
   Anasazi::BasicEigenproblem<double, MultiVectorType, OperatorType> problem;
 
-  MultiVectorType mv_initial_guess(1);
-  *mv_initial_guess[0] = initial_guess;
+  MultiVectorType mv_initial_guess(initial_guess);
 
   // Indicate the symmetry of the problem to allow wider range of solvers (to
   // include LOBPCG)
@@ -58,7 +58,8 @@ AnasaziSolver<OperatorType, VectorType>::solve(
 
   Teuchos::ParameterList solverParams;
   solverParams.set("Convergence Tolerance", params.get<double>("tolerance"));
-  solverParams.set("Maximum Iterations", params.get<int>("max_iterations"));
+  solverParams.set("Maximum Iterations",
+                   params.get<int>("max_iterations", 1000));
   solverParams.set("Which", "SM");
   // Specify that the residuals norms should not be scaled by their eigenvalues
   // for the purposing of deciding convergence
@@ -77,6 +78,12 @@ AnasaziSolver<OperatorType, VectorType>::solve(
   // Extract solution
   Anasazi::Eigensolution<double, MultiVectorType> solution =
       solver->getProblem().getSolution();
+
+  int const verbosity = params.get("verbosity", 0);
+  if (verbosity > 0)
+  {
+    std::cout << "n iterations: " << solver->getNumIters() << std::endl;
+  }
 
   int a_n_eigenvectors = solution.numVecs;
   std::vector<Anasazi::Value<double>> &a_eigenvalues = solution.Evals;

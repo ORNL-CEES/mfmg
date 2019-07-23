@@ -31,9 +31,18 @@ public:
       v = std::make_shared<VectorType>(vector_size);
     });
   }
+
+  MultiVector(std::vector<std::shared_ptr<VectorType>> const &vectors)
+      : _vectors(vectors)
+  {
+  }
+
   int size() const { return _vectors.empty() ? 0 : _vectors[0]->size(); }
+
   int n_vectors() const { return _vectors.size(); }
+
   std::shared_ptr<VectorType> &operator[](int index) { return _vectors[index]; }
+
   std::shared_ptr<VectorType> const &operator[](int index) const
   {
     return _vectors[index];

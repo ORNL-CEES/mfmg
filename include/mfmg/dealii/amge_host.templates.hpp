@@ -208,25 +208,64 @@ void lanczos_compute_eigenvalues_and_eigenvectors(
 
 template <typename AgglomerateOperator>
 void anasazi_compute_eigenvalues_and_eigenvectors(
-    unsigned int n_eigenvectors, double tolerance,
+    unsigned int n_eigenvectors,
     boost::property_tree::ptree const &eigensolver_params,
     AgglomerateOperator const &agglomerate_operator,
     dealii::Vector<double> const &initial_guess,
+    std::vector<dealii::Vector<double>> const &lobpcg_vectors,
     std::vector<std::complex<double>> &eigenvalues,
     std::vector<dealii::Vector<double>> &eigenvectors)
 {
-  boost::property_tree::ptree anasazi_params;
-  anasazi_params.put("num_eigenpairs", n_eigenvectors);
-  anasazi_params.put("tolerance", std::max(tolerance, 1e-2));
-  anasazi_params.put("max_iterations",
-                     eigensolver_params.get("max_iterations", 1000));
-
   AnasaziSolver<AgglomerateOperator, dealii::Vector<double>> solver(
       agglomerate_operator);
 
   std::vector<double> real_eigenvalues;
+  std::vector<std::shared_ptr<dealii::Vector<double>>> lobpcg_initial_guess;
+  // If the vectors in scratch_data do not exist or if the size of agglomerate
+  // has changed, the initial guess for LOBPCG is the initial provided by the
+  // user.
+  if ((lobpcg_vectors.size() == 0) ||
+      (lobpcg_vectors[0].size() != initial_guess.size()))
+  {
+    lobpcg_initial_guess.resize(1);
+    lobpcg_initial_guess[0] =
+        std::make_shared<dealii::Vector<double>>(initial_guess);
+  }
+  else
+  {
+    lobpcg_initial_guess.resize(n_eigenvectors);
+    for (unsigned int i = 0; i < n_eigenvectors; ++i)
+      lobpcg_initial_guess[i] =
+          std::make_shared<dealii::Vector<double>>(lobpcg_vectors[i]);
+
+    // If the initial vector has zero entries due to the constraints, we need
+    // to modify the LOPBCG initial guess. Conversely if the LOBPCG initial
+    // guess does have zero entries but the initial vector does not, we set
+    // the entries in the LOPBCG initial guess.
+    unsigned int const eigenvector_size = initial_guess.size();
+    for (unsigned int i = 0; i < eigenvector_size; ++i)
+    {
+      if (initial_guess[i] == 0.)
+      {
+        for (unsigned int j = 0; j < n_eigenvectors; ++j)
+        {
+          (*lobpcg_initial_guess[j])[i] = 0.;
+        }
+      }
+      else
+      {
+        for (unsigned int j = 0; j < n_eigenvectors; ++j)
+        {
+          if ((*lobpcg_initial_guess[j])[i] == 0.)
+          {
+            (*lobpcg_initial_guess[j])[i] = initial_guess[i];
+          }
+        }
+      }
+    }
+  }
   std::tie(real_eigenvalues, eigenvectors) =
-      solver.solve(anasazi_params, initial_guess);
+      solver.solve(eigensolver_params, lobpcg_initial_guess);
   ASSERT(n_eigenvectors == eigenvectors.size(),
          "Wrong number of computed eigenpairs");
 
@@ -248,7 +287,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    MeshEvaluator const &evaluator,
+    MeshEvaluator const &evaluator, LobpcgScratchData const &scratch_data,
     typename std::enable_if_t<is_matrix_free<MeshEvaluator>::value &&
                                   std::is_class<Triangulation>::value,
                               int>) const
@@ -281,8 +320,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   else if (eigensolver_type == "anasazi")
   {
     anasazi_compute_eigenvalues_and_eigenvectors(
-        n_eigenvectors, tolerance, _eigensolver_params, agglomerate_operator,
-        initial_vector, eigenvalues, eigenvectors);
+        n_eigenvectors, _eigensolver_params, agglomerate_operator,
+        initial_vector, scratch_data.lobpcg_init_guess, eigenvalues,
+        eigenvectors);
   }
   else if (eigensolver_type == "arpack")
   {
@@ -319,7 +359,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    MeshEvaluator const &evaluator,
+    MeshEvaluator const &evaluator, LobpcgScratchData const &scratch_data,
     typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
                                   std::is_class<Triangulation>::value,
                               int>) const
@@ -399,8 +439,9 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
   else if (eigensolver_type == "anasazi")
   {
     anasazi_compute_eigenvalues_and_eigenvectors(
-        n_eigenvectors, tolerance, _eigensolver_params,
-        agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
+        n_eigenvectors, _eigensolver_params, agglomerate_system_matrix,
+        initial_vector, scratch_data.lobpcg_init_guess, eigenvalues,
+        eigenvectors);
   }
   else if (eigensolver_type == "lapack")
   {
@@ -461,20 +502,21 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   std::vector<std::vector<ScalarType>> diag_elements;
   std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
   std::vector<unsigned int> n_local_eigenvectors;
+  LobpcgScratchData scratch_data;
   CopyData copy_data;
 
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
       [&](std::vector<unsigned int>::iterator const &agg_id,
-          ScratchData &scratch_data, CopyData &local_copy_data) {
+          LobpcgScratchData &local_scratch_data, CopyData &local_copy_data) {
         this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
-                           scratch_data, local_copy_data);
+                           local_scratch_data, local_copy_data);
       },
       [&](CopyData const &local_copy_data) {
         this->copy_local_to_global(local_copy_data, eigenvectors, diag_elements,
                                    dof_indices_maps, n_local_eigenvectors);
       },
-      ScratchData(), copy_data);
+      scratch_data, copy_data);
 
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
@@ -518,21 +560,22 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::setup_restrictor(
   std::vector<std::vector<ScalarType>> diag_elements;
   std::vector<std::vector<dealii::types::global_dof_index>> dof_indices_maps;
   std::vector<unsigned int> n_local_eigenvectors;
+  LobpcgScratchData scratch_data;
   CopyData copy_data;
 
   dealii::WorkStream::run(
       agglomerate_ids.begin(), agglomerate_ids.end(),
       [&](std::vector<unsigned int>::iterator const &agg_id,
-          ScratchData &scratch_data, CopyData &local_copy_data) {
+          LobpcgScratchData &local_scratch_data, CopyData &local_copy_data) {
         this->local_worker(n_eigenvectors, tolerance, evaluator, agg_id,
-                           scratch_data, local_copy_data);
+                           local_scratch_data, local_copy_data);
       },
       [&](CopyData const &local_copy_data) {
         this->copy_local_to_global_eig(local_copy_data, eigenvalues,
                                        eigenvectors, diag_elements,
                                        dof_indices_maps, n_local_eigenvectors);
       },
-      ScratchData(), copy_data);
+      scratch_data, copy_data);
 
   AMGe<dim, VectorType>::compute_restriction_sparse_matrix(
       eigenvectors, diag_elements, dof_indices_maps, n_local_eigenvectors,
@@ -544,8 +587,8 @@ template <int dim, typename MeshEvaluator, typename VectorType>
 void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
     unsigned int const n_eigenvectors, double const tolerance,
     MeshEvaluator const &evaluator,
-    std::vector<unsigned int>::iterator const &agg_id, ScratchData &,
-    CopyData &copy_data)
+    std::vector<unsigned int>::iterator const &agg_id,
+    LobpcgScratchData &scratch_data, CopyData &copy_data)
 {
   dealii::Triangulation<dim> agglomerate_triangulation;
   std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
@@ -557,9 +600,18 @@ void AMGe_host<dim, MeshEvaluator, VectorType>::local_worker(
 
   std::tie(copy_data.local_eigenvalues, copy_data.local_eigenvectors,
            copy_data.diag_elements, copy_data.local_dof_indices_map) =
-      compute_local_eigenvectors(n_eigenvectors, tolerance,
-                                 agglomerate_triangulation,
-                                 agglomerate_to_global_tria_map, evaluator);
+      compute_local_eigenvectors(
+          n_eigenvectors, tolerance, agglomerate_triangulation,
+          agglomerate_to_global_tria_map, evaluator, scratch_data);
+
+  if (_eigensolver_params.get("type", "lanczos") == "anasazi")
+  {
+    if (_eigensolver_params.get("use_initial_guess", false))
+    {
+      // Copy the eigenvectors to be used as initial guess for LOBPCG
+      scratch_data.lobpcg_init_guess = copy_data.local_eigenvectors;
+    }
+  }
 }
 
 template <int dim, typename MeshEvaluator, typename VectorType>
