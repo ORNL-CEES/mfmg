@@ -98,7 +98,7 @@ struct MatrixFreeAgglomerateOperator
    */
   size_type n() const { return _dof_handler.n_dofs(); }
 
-private:
+  // private:
   /**
    * The actual operator wrapped.
    */
@@ -221,11 +221,16 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
 
   std::vector<double> real_eigenvalues;
   std::vector<std::shared_ptr<dealii::Vector<double>>> lobpcg_initial_guess;
-  // If the vectors in scratch_data do not exist or if the size of agglomerate
-  // has changed, the initial guess for LOBPCG is the initial provided by the
+  // If the vectors in scratch_data do not exist, if the size of agglomerate
+  // has changed, or if the agglomerate is on boundary of the domain,
+  // the initial guess for LOBPCG is the initial provided by the
   // user.
+  unsigned int const eigenvector_size = initial_guess.size();
+  bool on_the_boundary =
+      agglomerate_operator._constraints.n_constraints() == 0 ? false : true;
+
   if ((lobpcg_vectors.size() == 0) ||
-      (lobpcg_vectors[0].size() != initial_guess.size()))
+      (lobpcg_vectors[0].size() != eigenvector_size) || (on_the_boundary))
   {
     lobpcg_initial_guess.resize(1);
     lobpcg_initial_guess[0] =
@@ -239,31 +244,19 @@ void anasazi_compute_eigenvalues_and_eigenvectors(
           std::make_shared<dealii::Vector<double>>(lobpcg_vectors[i]);
 
     // If the initial vector has zero entries due to the constraints, we need
-    // to modify the LOPBCG initial guess. Conversely if the LOBPCG initial
-    // guess does have zero entries but the initial vector does not, we set
-    // the entries in the LOPBCG initial guess.
-    unsigned int const eigenvector_size = initial_guess.size();
+    // to modify the LOPBCG initial guess.
     for (unsigned int i = 0; i < eigenvector_size; ++i)
     {
-      if (initial_guess[i] == 0.)
+      for (unsigned int j = 0; j < n_eigenvectors; ++j)
       {
-        for (unsigned int j = 0; j < n_eigenvectors; ++j)
+        if ((*lobpcg_initial_guess[j])[i] == 0.)
         {
-          (*lobpcg_initial_guess[j])[i] = 0.;
-        }
-      }
-      else
-      {
-        for (unsigned int j = 0; j < n_eigenvectors; ++j)
-        {
-          if ((*lobpcg_initial_guess[j])[i] == 0.)
-          {
-            (*lobpcg_initial_guess[j])[i] = initial_guess[i];
-          }
+          (*lobpcg_initial_guess[j])[i] = initial_guess[i];
         }
       }
     }
   }
+
   std::tie(real_eigenvalues, eigenvectors) =
       solver.solve(eigensolver_params, lobpcg_initial_guess);
   ASSERT(n_eigenvectors == eigenvectors.size(),
@@ -359,7 +352,7 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
     std::map<typename dealii::Triangulation<dim>::active_cell_iterator,
              typename dealii::DoFHandler<dim>::active_cell_iterator> const
         &patch_to_global_map,
-    MeshEvaluator const &evaluator, LobpcgScratchData const &scratch_data,
+    MeshEvaluator const &evaluator, LobpcgScratchData const & /*scratch_data*/,
     typename std::enable_if_t<!is_matrix_free<MeshEvaluator>::value &&
                                   std::is_class<Triangulation>::value,
                               int>) const
@@ -436,13 +429,13 @@ AMGe_host<dim, MeshEvaluator, VectorType>::compute_local_eigenvectors(
         n_eigenvectors, tolerance, _eigensolver_params,
         agglomerate_system_matrix, initial_vector, eigenvalues, eigenvectors);
   }
-  else if (eigensolver_type == "anasazi")
-  {
-    anasazi_compute_eigenvalues_and_eigenvectors(
-        n_eigenvectors, _eigensolver_params, agglomerate_system_matrix,
-        initial_vector, scratch_data.lobpcg_init_guess, eigenvalues,
-        eigenvectors);
-  }
+  //  else if (eigensolver_type == "anasazi")
+  //  {
+  //    anasazi_compute_eigenvalues_and_eigenvectors(
+  //        n_eigenvectors, _eigensolver_params, agglomerate_system_matrix,
+  //        initial_vector, scratch_data.lobpcg_init_guess, eigenvalues,
+  //        eigenvectors);
+  //  }
   else if (eigensolver_type == "lapack")
   {
     // Use Lapack to compute the eigenvalues
